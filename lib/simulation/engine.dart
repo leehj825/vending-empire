@@ -101,12 +101,14 @@ class SimulationState {
 class SimulationEngine extends StateNotifier<SimulationState> {
   Timer? _tickTimer;
   final Random _random = Random();
+  void Function(SimulationState)? onStateChanged;
 
   SimulationEngine({
     required List<Machine> initialMachines,
     required List<Truck> initialTrucks,
     double initialCash = 1000.0,
     int initialReputation = 100,
+    this.onStateChanged,
   }) : super(
           SimulationState(
             time: const GameTime(day: 1, hour: 8, minute: 0, tick: 0),
@@ -171,13 +173,17 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     updatedCash = _processFuelCosts(updatedTrucks, updatedCash);
 
     // Update state
-    state = currentState.copyWith(
+    final newState = currentState.copyWith(
       time: nextTime,
       machines: updatedMachines,
       trucks: updatedTrucks,
       cash: updatedCash,
       reputation: updatedReputation,
     );
+    state = newState;
+    
+    // Notify listeners of state change
+    onStateChanged?.call(newState);
   }
 
   /// Process machine sales based on demand math
@@ -320,7 +326,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       final distance = (dx * dx + dy * dy) * 0.5; // Euclidean distance
 
       // If truck is at destination, start restocking
-      if (distance < 0.1) {
+      if (distance < 5.0) {
         // Truck arrived - restock the machine
         // (In a full implementation, this would transfer inventory)
         return truck.copyWith(
@@ -330,8 +336,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       }
 
       // Move truck towards destination
-      // Simple movement: move 0.1 units per tick towards target
-      final moveDistance = 0.1;
+      // Simple movement: move 5.0 units per tick towards target (appropriate for 1000x1000 grid)
+      final moveDistance = 5.0;
       final moveRatio = (moveDistance / distance).clamp(0.0, 1.0);
       
       final newX = truck.currentX + (dx * moveRatio);

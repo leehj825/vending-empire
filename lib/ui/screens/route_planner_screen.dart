@@ -4,8 +4,9 @@ import 'package:state_notifier/state_notifier.dart';
 import '../../state/providers.dart';
 import '../../simulation/models/machine.dart';
 import '../../simulation/models/truck.dart';
-import '../../simulation/models/zone.dart';
+import '../../simulation/models/product.dart';
 import '../widgets/machine_route_card.dart';
+import '../theme/zone_ui.dart';
 import 'dart:math' as math;
 
 /// Notifier for selected truck ID
@@ -155,8 +156,8 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
               final machine = availableMachines[index];
               return ListTile(
                 leading: Icon(
-                  _getZoneIcon(machine.zone.type),
-                  color: _getZoneColor(machine.zone.type),
+                  machine.zone.type.icon,
+                  color: machine.zone.type.color,
                 ),
                 title: Text(machine.name),
                 subtitle: Text('Zone: ${machine.zone.type.name}'),
@@ -176,36 +177,6 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         ],
       ),
     );
-  }
-
-  IconData _getZoneIcon(ZoneType zoneType) {
-    switch (zoneType) {
-      case ZoneType.gym:
-        return Icons.fitness_center;
-      case ZoneType.office:
-        return Icons.business;
-      case ZoneType.school:
-        return Icons.school;
-      case ZoneType.subway:
-        return Icons.train;
-      case ZoneType.park:
-        return Icons.park;
-    }
-  }
-
-  Color _getZoneColor(ZoneType zoneType) {
-    switch (zoneType) {
-      case ZoneType.gym:
-        return Colors.orange;
-      case ZoneType.office:
-        return Colors.blue;
-      case ZoneType.school:
-        return Colors.purple;
-      case ZoneType.subway:
-        return Colors.grey;
-      case ZoneType.park:
-        return Colors.green;
-    }
   }
 
   void _addStopToRoute(String truckId, String machineId) {
@@ -236,6 +207,28 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     final item = newRoute.removeAt(oldIndex);
     newRoute.insert(newIndex, item);
     controller.updateRoute(truckId, newRoute);
+  }
+
+  void _showLoadCargoDialog(Truck truck) {
+    final warehouse = ref.read(warehouseProvider);
+    final controller = ref.read(gameControllerProvider);
+
+    showDialog(
+      context: context,
+      builder: (context) => _LoadCargoDialog(
+        truck: truck,
+        warehouse: warehouse,
+        onLoad: (product, quantity) {
+          controller.loadTruck(truck.id, product, quantity);
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Loaded $quantity ${product.name} onto ${truck.name}'),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -423,11 +416,26 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            ElevatedButton.icon(
-                              onPressed: () =>
-                                  _showAddStopDialog(selectedTruck, machines),
-                              icon: const Icon(Icons.add, size: 18),
-                              label: const Text('Add Stop'),
+                            Row(
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: () =>
+                                      _showLoadCargoDialog(selectedTruck),
+                                  icon: const Icon(Icons.inventory, size: 18),
+                                  label: const Text('Load Cargo'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                ElevatedButton.icon(
+                                  onPressed: () =>
+                                      _showAddStopDialog(selectedTruck, machines),
+                                  icon: const Icon(Icons.add, size: 18),
+                                  label: const Text('Add Stop'),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -570,6 +578,110 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       case TruckStatus.restocking:
         return 'Restocking';
     }
+  }
+}
+
+/// Dialog for loading cargo onto a truck
+class _LoadCargoDialog extends ConsumerStatefulWidget {
+  final Truck truck;
+  final Warehouse warehouse;
+  final void Function(Product product, int quantity) onLoad;
+
+  const _LoadCargoDialog({
+    required this.truck,
+    required this.warehouse,
+    required this.onLoad,
+  });
+
+  @override
+  ConsumerState<_LoadCargoDialog> createState() => _LoadCargoDialogState();
+}
+
+class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
+  Product? _selectedProduct;
+  double _quantity = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final availableProducts = Product.values
+        .where((p) => (widget.warehouse.inventory[p] ?? 0) > 0)
+        .toList();
+    final availableCapacity = widget.truck.capacity - widget.truck.currentLoad;
+    final maxQuantity = _selectedProduct != null
+        ? [
+            widget.warehouse.inventory[_selectedProduct] ?? 0,
+            availableCapacity,
+          ].reduce((a, b) => a < b ? a : b)
+        : 0;
+    final quantityInt = _quantity.round().clamp(1, maxQuantity);
+
+    return AlertDialog(
+      title: Text('Load Cargo - ${widget.truck.name}'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Available Capacity: $availableCapacity / ${widget.truck.capacity}',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            const Text('Select Product:'),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<Product>(
+              value: _selectedProduct,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Choose a product',
+              ),
+              items: availableProducts.map((product) {
+                final stock = widget.warehouse.inventory[product] ?? 0;
+                return DropdownMenuItem(
+                  value: product,
+                  child: Text('${product.name} (Stock: $stock)'),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedProduct = value;
+                  _quantity = 1.0;
+                });
+              },
+            ),
+            if (_selectedProduct != null) ...[
+              const SizedBox(height: 16),
+              Text('Quantity: $quantityInt'),
+              Slider(
+                value: _quantity.clamp(1.0, maxQuantity.toDouble()),
+                min: 1.0,
+                max: maxQuantity.toDouble(),
+                divisions: maxQuantity > 1 ? maxQuantity - 1 : 1,
+                label: quantityInt.toString(),
+                onChanged: (value) {
+                  setState(() {
+                    _quantity = value;
+                  });
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _selectedProduct != null && quantityInt > 0
+              ? () => widget.onLoad(_selectedProduct!, quantityInt)
+              : null,
+          child: const Text('Load'),
+        ),
+      ],
+    );
   }
 }
 
