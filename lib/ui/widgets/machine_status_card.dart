@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../simulation/models/machine.dart';
-import '../../simulation/models/zone.dart';
+import '../theme/zone_ui.dart';
 
 /// Widget that displays a machine's status in a card format
 class MachineStatusCard extends StatelessWidget {
@@ -10,38 +10,6 @@ class MachineStatusCard extends StatelessWidget {
     super.key,
     required this.machine,
   });
-
-  /// Get icon for zone type
-  IconData _getZoneIcon(ZoneType zoneType) {
-    switch (zoneType) {
-      case ZoneType.gym:
-        return Icons.fitness_center; // Dumbbell icon
-      case ZoneType.office:
-        return Icons.business; // Briefcase icon
-      case ZoneType.school:
-        return Icons.school;
-      case ZoneType.subway:
-        return Icons.train;
-      case ZoneType.park:
-        return Icons.park;
-    }
-  }
-
-  /// Get color for zone type
-  Color _getZoneColor(ZoneType zoneType) {
-    switch (zoneType) {
-      case ZoneType.gym:
-        return Colors.orange;
-      case ZoneType.office:
-        return Colors.blue;
-      case ZoneType.school:
-        return Colors.purple;
-      case ZoneType.subway:
-        return Colors.grey;
-      case ZoneType.park:
-        return Colors.green;
-    }
-  }
 
   /// Calculate stock level percentage (0.0 to 1.0)
   /// Assuming max capacity of 50 items for visualization
@@ -63,8 +31,8 @@ class MachineStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final stockLevel = _getStockLevel();
     final stockColor = _getStockColor();
-    final zoneIcon = _getZoneIcon(machine.zone.type);
-    final zoneColor = _getZoneColor(machine.zone.type);
+    final zoneIcon = machine.zone.type.icon;
+    final zoneColor = machine.zone.type.color;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../simulation/models/machine.dart';
-import '../../simulation/models/zone.dart';
+import '../theme/zone_ui.dart';
 
 /// Card widget that displays a machine in a route list
 class MachineRouteCard extends StatelessWidget {
@@ -13,38 +13,6 @@ class MachineRouteCard extends StatelessWidget {
     required this.onRemove,
   });
 
-  /// Get icon for zone type
-  IconData _getZoneIcon(ZoneType zoneType) {
-    switch (zoneType) {
-      case ZoneType.gym:
-        return Icons.fitness_center;
-      case ZoneType.office:
-        return Icons.business;
-      case ZoneType.school:
-        return Icons.school;
-      case ZoneType.subway:
-        return Icons.train;
-      case ZoneType.park:
-        return Icons.park;
-    }
-  }
-
-  /// Get color for zone type
-  Color _getZoneColor(ZoneType zoneType) {
-    switch (zoneType) {
-      case ZoneType.gym:
-        return Colors.orange;
-      case ZoneType.office:
-        return Colors.blue;
-      case ZoneType.school:
-        return Colors.purple;
-      case ZoneType.subway:
-        return Colors.grey;
-      case ZoneType.park:
-        return Colors.green;
-    }
-  }
-
   /// Get stock level color
   Color _getStockColor(int stock) {
     if (stock == 0) return Colors.red;
@@ -54,8 +22,8 @@ class MachineRouteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final zoneIcon = _getZoneIcon(machine.zone.type);
-    final zoneColor = _getZoneColor(machine.zone.type);
+    final zoneIcon = machine.zone.type.icon;
+    final zoneColor = machine.zone.type.color;
     final stock = machine.totalInventory;
     final stockColor = _getStockColor(stock);
 

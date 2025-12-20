@@ -101,6 +101,7 @@ class SimulationState {
 class SimulationEngine extends StateNotifier<SimulationState> {
   Timer? _tickTimer;
   final Random _random = Random();
+  final StreamController<SimulationState> _streamController = StreamController<SimulationState>.broadcast();
 
   SimulationEngine({
     required List<Machine> initialMachines,
@@ -109,7 +110,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     int initialReputation = 100,
   }) : super(
           SimulationState(
-            time: const GameTime(day: 1, hour: 8, minute: 0, tick: 0),
+            time: const GameTime(day: 1, hour: 8, minute: 0, tick: 48), // 8:00 AM = 8 hours * 6 ticks/hour = 48 ticks
             machines: initialMachines,
             trucks: initialTrucks,
             cash: initialCash,
@@ -118,8 +119,33 @@ class SimulationEngine extends StateNotifier<SimulationState> {
           ),
         );
 
+  /// Stream of simulation state changes
+  Stream<SimulationState> get stream => _streamController.stream;
+
+  /// Add a machine to the simulation
+  void addMachine(Machine machine) {
+    print('🔴 ENGINE: Adding machine ${machine.name}');
+    state = state.copyWith(machines: [...state.machines, machine]);
+    _streamController.add(state);
+  }
+
+  /// Update cash in the simulation
+  void updateCash(double amount) {
+    print('🔴 ENGINE: Updating cash to \$${amount.toStringAsFixed(2)}');
+    state = state.copyWith(cash: amount);
+    _streamController.add(state);
+  }
+
+  /// Update trucks in the simulation
+  void updateTrucks(List<Truck> trucks) {
+    print('🔴 ENGINE: Updating trucks list');
+    state = state.copyWith(trucks: trucks);
+    _streamController.add(state);
+  }
+
   /// Start the simulation (ticks every 1 second)
   void start() {
+    print('🔴 ENGINE: Start requested');
     _tickTimer?.cancel();
     _tickTimer = Timer.periodic(
       const Duration(seconds: 1),
@@ -147,37 +173,51 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   @override
   void dispose() {
     stop();
+    _streamController.close();
     super.dispose();
   }
 
   /// Main tick function - called every 1 second (10 minutes in-game)
   void _tick() {
     final currentState = state;
+    
+    // DEBUG PRINT
+    print('🔴 ENGINE TICK: Day ${currentState.time.day} ${currentState.time.hour}:00 | Machines: ${currentState.machines.length} | Cash: \$${currentState.cash.toStringAsFixed(2)}');
+
     final nextTime = currentState.time.nextTick();
 
-    // Process all simulation systems
+    // 1. Process Sales
     var updatedMachines = _processMachineSales(currentState.machines, nextTime);
+    
+    // 2. Process Spoilage
     updatedMachines = _processSpoilage(updatedMachines, nextTime);
     
-    // Calculate reputation penalty
+    // 3. Process Trucks (Movement)
+    var updatedTrucks = _processTruckMovement(currentState.trucks, updatedMachines);
+    
+    // 4. Process Restocking (Truck arrived at machine)
+    final restockResult = _processTruckRestocking(updatedTrucks, updatedMachines);
+    updatedTrucks = restockResult.trucks;
+    updatedMachines = restockResult.machines;
+
+    // 5. Reputation & Cash
     final reputationPenalty = _calculateReputationPenalty(updatedMachines);
     var updatedReputation = (currentState.reputation - reputationPenalty).clamp(0, 1000);
-    
-    final updatedTrucks = _processTruckMovement(currentState.trucks, updatedMachines);
-    
     var updatedCash = currentState.cash;
-
-    // Calculate fuel costs for trucks
     updatedCash = _processFuelCosts(updatedTrucks, updatedCash);
 
-    // Update state
-    state = currentState.copyWith(
+    // Update State
+    final newState = currentState.copyWith(
       time: nextTime,
       machines: updatedMachines,
       trucks: updatedTrucks,
       cash: updatedCash,
       reputation: updatedReputation,
     );
+    state = newState;
+    
+    // Notify listeners of state change via stream
+    _streamController.add(newState);
   }
 
   /// Process machine sales based on demand math
@@ -320,7 +360,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       final distance = (dx * dx + dy * dy) * 0.5; // Euclidean distance
 
       // If truck is at destination, start restocking
-      if (distance < 0.1) {
+      if (distance < 5.0) {
         // Truck arrived - restock the machine
         // (In a full implementation, this would transfer inventory)
         return truck.copyWith(
@@ -330,8 +370,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       }
 
       // Move truck towards destination
-      // Simple movement: move 0.1 units per tick towards target
-      final moveDistance = 0.1;
+      // Simple movement: move 5.0 units per tick towards target (appropriate for 1000x1000 grid)
+      final moveDistance = 5.0;
       final moveRatio = (moveDistance / distance).clamp(0.0, 1.0);
       
       final newX = truck.currentX + (dx * moveRatio);

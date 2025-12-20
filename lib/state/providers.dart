@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart' show StateNotifierProvider;
 import 'package:state_notifier/state_notifier.dart';
 import 'package:uuid/uuid.dart';
 import '../simulation/engine.dart';
@@ -58,7 +59,6 @@ class GameController extends StateNotifier<GlobalGameState> {
           trucks: [],
           warehouse: Warehouse(),
         )) {
-    // Listen to simulation engine state changes
     _setupSimulationListener();
   }
 
@@ -67,9 +67,22 @@ class GameController extends StateNotifier<GlobalGameState> {
 
   /// Setup listener for simulation engine updates
   void _setupSimulationListener() {
-    // Note: In a real implementation, you'd use a stream or callback
-    // For now, we'll update manually through methods
-    // The simulation engine will update its state, and we sync periodically
+    print('🟡 CONTROLLER: Setting up simulation listener...');
+    
+    simulationEngine.stream.listen((simState) {
+      // This print confirms data is flowing from Engine -> UI
+      print('🟡 CONTROLLER SYNC: Received update. Cash: \$${simState.cash.toStringAsFixed(2)}, Machines: ${simState.machines.length}');
+      
+      state = state.copyWith(
+        machines: simState.machines,
+        trucks: simState.trucks,
+        cash: simState.cash,
+        reputation: simState.reputation,
+        dayCount: simState.time.day,
+        hourOfDay: simState.time.hour,
+        // Warehouse and logs are managed locally by Controller, so we don't overwrite them
+      );
+    });
   }
 
   /// Check if simulation is running
@@ -77,6 +90,7 @@ class GameController extends StateNotifier<GlobalGameState> {
 
   /// Start the simulation
   void startSimulation() {
+    print('🔵 CONTROLLER: Starting Simulation Engine...');
     simulationEngine.start();
     _isSimulationRunning = true;
     state = state.addLogMessage('Simulation started');
@@ -114,13 +128,14 @@ class GameController extends StateNotifier<GlobalGameState> {
 
   /// Buy a new vending machine and place it in a zone
   void buyMachine(ZoneType zoneType, {required double x, required double y}) {
+    print('🟢 CONTROLLER ACTION: Attempting to buy machine...');
     final price = MachinePrices.getPrice(zoneType);
     if (state.cash < price) {
-      state = state.addLogMessage('Insufficient funds to buy machine');
+      state = state.addLogMessage('Insufficient funds');
       return;
     }
 
-    // Create zone based on type
+    // 1. Create Data
     final zone = _createZoneForType(zoneType, x: x, y: y);
     
     // Create machine
@@ -177,12 +192,6 @@ class GameController extends StateNotifier<GlobalGameState> {
     }
   }
 
-  /// Update machines in simulation engine
-  void _updateSimulationMachines(List<Machine> machines) {
-    // Note: SimulationEngine doesn't have a direct setter for machines
-    // In a full implementation, you'd need to add a method to update machines
-    // For now, we'll track them locally and sync periodically
-  }
 
   /// Buy stock and add to warehouse
   void buyStock(Product product, int quantity, {required double unitPrice}) {
@@ -195,12 +204,18 @@ class GameController extends StateNotifier<GlobalGameState> {
     final newInventory = Map<Product, int>.from(state.warehouse.inventory);
     newInventory[product] = currentQty + quantity;
     
+    // Calculate new cash amount
+    final newCashAmount = state.cash - totalPrice;
+    
     // Update the STATE object completely
     state = state.copyWith(
       cash: state.cash - totalPrice,
       warehouse: state.warehouse.copyWith(inventory: newInventory),
     );
     state = state.addLogMessage("Bought $quantity ${product.name}");
+    
+    // Sync cash to simulation engine to prevent reversion on next tick
+    simulationEngine.updateCash(newCashAmount);
   }
 
   /// Assign a route to a truck
@@ -227,14 +242,14 @@ class GameController extends StateNotifier<GlobalGameState> {
     final updatedTrucks = [...state.trucks];
     updatedTrucks[truckIndex] = updatedTruck;
 
-    // Update simulation engine trucks
-    _updateSimulationTrucks(updatedTrucks);
-
     // Update state
     state = state.copyWith(trucks: updatedTrucks);
     state = state.addLogMessage(
       'Assigned route with ${machineIds.length} stops to ${truck.name}',
     );
+    
+    // Sync to simulation engine to prevent reversion on next tick
+    simulationEngine.updateTrucks(updatedTrucks);
   }
 
   /// Update a truck's route (used by route planner)
@@ -258,19 +273,76 @@ class GameController extends StateNotifier<GlobalGameState> {
     final updatedTrucks = [...state.trucks];
     updatedTrucks[truckIndex] = updatedTruck;
 
-    // Update simulation engine trucks
-    _updateSimulationTrucks(updatedTrucks);
-
     // Update state
     state = state.copyWith(trucks: updatedTrucks);
     state = state.addLogMessage(
       'Updated route for ${truck.name}: ${machineIds.length} stops',
     );
+    
+    // Sync to simulation engine to prevent reversion on next tick
+    simulationEngine.updateTrucks(updatedTrucks);
   }
 
-  /// Update trucks in simulation engine
-  void _updateSimulationTrucks(List<Truck> trucks) {
-    // Similar to machines, would need simulation engine method to update
+  /// Load cargo onto a truck from warehouse
+  void loadTruck(String truckId, Product product, int quantity) {
+    // Find the truck
+    final truckIndex = state.trucks.indexWhere((t) => t.id == truckId);
+    if (truckIndex == -1) {
+      state = state.addLogMessage('Truck not found');
+      return;
+    }
+
+    final truck = state.trucks[truckIndex];
+
+    // Check warehouse stock
+    final warehouseStock = state.warehouse.inventory[product] ?? 0;
+    if (warehouseStock < quantity) {
+      state = state.addLogMessage(
+        'Not enough ${product.name} in warehouse (have $warehouseStock, need $quantity)',
+      );
+      return;
+    }
+
+    // Check truck capacity
+    final currentLoad = truck.currentLoad;
+    if (currentLoad + quantity > truck.capacity) {
+      final available = truck.capacity - currentLoad;
+      state = state.addLogMessage(
+        'Truck ${truck.name} is full! Only $available slots available',
+      );
+      return;
+    }
+
+    // Deduct from warehouse
+    final updatedWarehouseInventory = Map<Product, int>.from(state.warehouse.inventory);
+    final remainingWarehouseStock = warehouseStock - quantity;
+    if (remainingWarehouseStock > 0) {
+      updatedWarehouseInventory[product] = remainingWarehouseStock;
+    } else {
+      updatedWarehouseInventory.remove(product);
+    }
+    final newWarehouse = state.warehouse.copyWith(inventory: updatedWarehouseInventory);
+
+    // Add to truck inventory
+    final updatedTruckInventory = Map<Product, int>.from(truck.inventory);
+    final currentTruckStock = updatedTruckInventory[product] ?? 0;
+    updatedTruckInventory[product] = currentTruckStock + quantity;
+    final updatedTruck = truck.copyWith(inventory: updatedTruckInventory);
+
+    // Update state
+    final updatedTrucks = [...state.trucks];
+    updatedTrucks[truckIndex] = updatedTruck;
+
+    state = state.copyWith(
+      trucks: updatedTrucks,
+      warehouse: newWarehouse,
+    );
+    state = state.addLogMessage(
+      'Loaded $quantity ${product.name} onto ${truck.name}',
+    );
+    
+    // Sync to simulation engine to prevent reversion on next tick
+    simulationEngine.updateTrucks(updatedTrucks);
   }
 
   /// Get current machines list
@@ -281,120 +353,6 @@ class GameController extends StateNotifier<GlobalGameState> {
 
   /// Get warehouse inventory
   Warehouse get warehouse => state.warehouse;
-
-  /// Restock a machine from truck inventory
-  /// Finds a truck at the machine and transfers items from truck to machine
-  void restockMachine(String machineId, Map<Product, int> productsToAdd) {
-    final machineIndex = state.machines.indexWhere((m) => m.id == machineId);
-    if (machineIndex == -1) {
-      state = state.addLogMessage('Machine not found');
-      return;
-    }
-
-    final machine = state.machines[machineIndex];
-    
-    // Find a truck that's at this machine (restocking or nearby)
-    Truck? truckAtMachine;
-    int truckIndex = -1;
-    
-    for (int i = 0; i < state.trucks.length; i++) {
-      final truck = state.trucks[i];
-      final dx = machine.zone.x - truck.currentX;
-      final dy = machine.zone.y - truck.currentY;
-      final distance = (dx * dx + dy * dy) * 0.5;
-      
-      // Check if truck is at machine (within 0.1 units) or is restocking this machine
-      if (distance < 0.1 || 
-          (truck.status == TruckStatus.restocking && truck.currentDestination == machineId)) {
-        truckAtMachine = truck;
-        truckIndex = i;
-        break;
-      }
-    }
-
-    if (truckAtMachine == null || truckIndex == -1) {
-      state = state.addLogMessage(
-        'No truck available at ${machine.name}. Trucks must be at the machine to restock.',
-      );
-      return;
-    }
-
-    final currentDay = state.dayCount;
-    var updatedInventory = Map<Product, InventoryItem>.from(machine.inventory);
-    var updatedTruckInventory = Map<Product, int>.from(truckAtMachine.inventory);
-
-    // Check truck inventory and transfer
-    for (final entry in productsToAdd.entries) {
-      final product = entry.key;
-      final quantity = entry.value;
-      final truckStock = updatedTruckInventory[product] ?? 0;
-
-      if (truckStock < quantity) {
-        state = state.addLogMessage(
-          'Not enough ${product.name} in truck inventory (have $truckStock, need $quantity)',
-        );
-        continue;
-      }
-
-      // Remove from truck inventory
-      final remaining = truckStock - quantity;
-      if (remaining > 0) {
-        updatedTruckInventory[product] = remaining;
-      } else {
-        updatedTruckInventory.remove(product);
-      }
-
-      // Add to machine inventory
-      final existingItem = updatedInventory[product];
-      if (existingItem != null) {
-        updatedInventory[product] = existingItem.copyWith(
-          quantity: existingItem.quantity + quantity,
-        );
-      } else {
-        updatedInventory[product] = InventoryItem(
-          product: product,
-          quantity: quantity,
-          dayAdded: currentDay,
-        );
-      }
-    }
-
-    // Update truck
-    final updatedTruck = truckAtMachine.copyWith(inventory: updatedTruckInventory);
-    final updatedTrucks = [...state.trucks];
-    updatedTrucks[truckIndex] = updatedTruck;
-
-    // Update machine
-    final updatedMachine = machine.copyWith(
-      inventory: updatedInventory,
-      hoursSinceRestock: 0.0,
-    );
-
-    final updatedMachines = [...state.machines];
-    updatedMachines[machineIndex] = updatedMachine;
-    _updateSimulationMachines(updatedMachines);
-
-    // Update state
-    state = state.copyWith(
-      machines: updatedMachines,
-      trucks: updatedTrucks,
-    );
-    state = state.addLogMessage('Restocked ${machine.name} from ${truckAtMachine.name}');
-  }
-
-  /// Process a simulation tick - syncs with engine and updates state
-  void tick() {
-    if (!_isSimulationRunning) return;
-
-    // Call engine tick with current state
-    final result = simulationEngine.tick(state.machines, state.trucks);
-    
-    // Update state with engine results
-    state = state.copyWith(
-      machines: result.machines,
-      trucks: result.trucks,
-    );
-  }
 
   @override
   void dispose() {
@@ -426,12 +384,14 @@ final machinesProvider = Provider<List<Machine>>((ref) {
 });
 
 /// Provider for trucks list
+/// Read directly from state
 final trucksProvider = Provider<List<Truck>>((ref) {
   final controller = ref.watch(gameControllerProvider);
   return controller.currentState.trucks;
 });
 
 /// Provider for warehouse
+/// Read directly from state
 final warehouseProvider = Provider<Warehouse>((ref) {
   final controller = ref.watch(gameControllerProvider);
   return controller.currentState.warehouse;

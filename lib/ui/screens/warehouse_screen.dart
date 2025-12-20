@@ -25,181 +25,184 @@ class WarehouseScreen extends ConsumerWidget {
 
     return Scaffold(
       // AppBar removed - managed by MainScreen
-      body: Column(
-        children: [
+      body: CustomScrollView(
+        slivers: [
           // Top Section: Warehouse Status
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Theme.of(context).colorScheme.surface,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Warehouse Status',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 16),
-                // Capacity indicator
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Capacity: $currentTotal / $maxCapacity items',
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                          const SizedBox(height: 8),
-                          LinearProgressIndicator(
-                            value: capacityPercent,
-                            backgroundColor: Colors.grey[300],
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              capacityPercent > 0.9
-                                  ? Colors.red
-                                  : capacityPercent > 0.7
-                                      ? Colors.orange
-                                      : Colors.green,
-                            ),
-                            minHeight: 8,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Cash',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimaryContainer,
-                            ),
-                          ),
-                          Text(
-                            '\$${cash.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimaryContainer,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Current stock grid
-                if (warehouse.inventory.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              color: Theme.of(context).colorScheme.surface,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    'Current Stock',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    'Warehouse Status',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: warehouse.inventory.entries.map((entry) {
-                      return Chip(
-                        label: Text(
-                          '${entry.key.name}: ${entry.value}',
-                        ),
-                        backgroundColor:
-                            Theme.of(context).colorScheme.surfaceContainerHighest,
-                      );
-                    }).toList(),
-                  ),
-                ] else
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.inventory_2_outlined, size: 24),
-                        SizedBox(width: 8),
-                        Text('Warehouse is empty'),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          // Bottom Section: Market
-          Expanded(
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const SizedBox(height: 16),
+                  // Capacity indicator
+                  Row(
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Daily Prices',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          Text(
-                            'Day $dayCount - Prices reset daily',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Capacity: $currentTotal / $maxCapacity items',
+                              style: const TextStyle(fontSize: 16),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+                            LinearProgressIndicator(
+                              value: capacityPercent,
+                              backgroundColor: Colors.grey[300],
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                capacityPercent > 0.9
+                                    ? Colors.red
+                                    : capacityPercent > 0.7
+                                        ? Colors.orange
+                                        : Colors.green,
+                              ),
+                              minHeight: 8,
+                            ),
+                          ],
+                        ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.refresh),
-                        tooltip: 'Prices update automatically each day',
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Prices update automatically when the day changes',
+                      const SizedBox(width: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Cash',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer,
                               ),
                             ),
-                          );
-                        },
+                            Text(
+                              '\$${cash.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: Product.values.length,
-                    itemBuilder: (context, index) {
-                      final product = Product.values[index];
-                      return MarketProductCard(product: product);
+                  const SizedBox(height: 16),
+                  // Current stock grid
+                  if (warehouse.inventory.isNotEmpty) ...[
+                    Text(
+                      'Current Stock',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: warehouse.inventory.entries.map((entry) {
+                        return Chip(
+                          label: Text(
+                            '${entry.key.name}: ${entry.value}',
+                          ),
+                          backgroundColor:
+                              Theme.of(context).colorScheme.surfaceContainerHighest,
+                        );
+                      }).toList(),
+                    ),
+                  ] else
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.inventory_2_outlined, size: 24),
+                          SizedBox(width: 8),
+                          Text('Warehouse is empty'),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(
+            child: Divider(height: 1),
+          ),
+          // Market Header
+          SliverToBoxAdapter(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Daily Prices',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        Text(
+                          'Day $dayCount - Prices reset daily',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Prices update automatically each day',
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Prices update automatically when the day changes',
+                          ),
+                        ),
+                      );
                     },
                   ),
-                ),
-              ],
+                ],
+              ),
+            ),
+          ),
+          // Market Product List
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final product = Product.values[index];
+                return MarketProductCard(product: product);
+              },
+              childCount: Product.values.length,
             ),
           ),
         ],
