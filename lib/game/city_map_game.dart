@@ -92,9 +92,14 @@ class CityMapGame extends FlameGame with HasGameReference, PanDetector, ScaleDet
     final minY = halfViewport.y;
     final maxY = mapHeight - halfViewport.y;
     
-    // Clamp position
-    _cameraPosition.x = _cameraPosition.x.clamp(minX, maxX);
-    _cameraPosition.y = _cameraPosition.y.clamp(minY, maxY);
+    // If viewport is larger than map, center the camera
+    if (minX >= maxX || minY >= maxY) {
+      _cameraPosition = mapCenter;
+    } else {
+      // Clamp position only if bounds are valid
+      _cameraPosition.x = _cameraPosition.x.clamp(minX, maxX);
+      _cameraPosition.y = _cameraPosition.y.clamp(minY, maxY);
+    }
     
     camera.viewfinder.position = _cameraPosition;
   }
