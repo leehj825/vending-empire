@@ -1,0 +1,397 @@
+import 'dart:async';
+import 'dart:math';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:state_notifier/state_notifier.dart';
+import 'models/product.dart';
+import 'models/zone.dart';
+import 'models/machine.dart';
+import 'models/truck.dart';
+
+/// Simulation constants
+class SimulationConstants {
+  static const double gasPrice = 0.05; // Cost per unit distance
+  static const int hoursPerDay = 24;
+  static const int ticksPerHour = 6; // 1 tick = 10 minutes, so 6 ticks per hour
+  static const int ticksPerDay = hoursPerDay * ticksPerHour; // 144 ticks per day
+  static const int emptyMachinePenaltyHours = 4; // Hours before reputation penalty
+  static const int reputationPenaltyPerEmptyHour = 5;
+  static const double disposalCostPerExpiredItem = 0.50;
+}
+
+/// Game time state
+class GameTime {
+  final int day; // Current game day (starts at 1)
+  final int hour; // Current hour (0-23)
+  final int minute; // Current minute (0-59, in 10-minute increments)
+  final int tick; // Current tick within the day (0-143)
+
+  const GameTime({
+    required this.day,
+    required this.hour,
+    required this.minute,
+    required this.tick,
+  });
+
+  /// Create from tick count (absolute ticks since game start)
+  factory GameTime.fromTicks(int totalTicks) {
+    final day = (totalTicks ~/ SimulationConstants.ticksPerDay) + 1;
+    final tickInDay = totalTicks % SimulationConstants.ticksPerDay;
+    final hour = tickInDay ~/ SimulationConstants.ticksPerHour;
+    final minute = (tickInDay % SimulationConstants.ticksPerHour) * 10;
+    
+    return GameTime(
+      day: day,
+      hour: hour,
+      minute: minute,
+      tick: tickInDay,
+    );
+  }
+
+  /// Get next time after one tick
+  GameTime nextTick() {
+    return GameTime.fromTicks(
+      (day - 1) * SimulationConstants.ticksPerDay + tick + 1,
+    );
+  }
+
+  /// Format time as string
+  String get timeString {
+    final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    final amPm = hour < 12 ? 'AM' : 'PM';
+    return 'Day $day, $hour12:${minute.toString().padLeft(2, '0')} $amPm';
+  }
+}
+
+/// Simulation engine state
+class SimulationState {
+  final GameTime time;
+  final List<Machine> machines;
+  final List<Truck> trucks;
+  final double cash;
+  final int reputation;
+  final Random random;
+
+  const SimulationState({
+    required this.time,
+    required this.machines,
+    required this.trucks,
+    required this.cash,
+    required this.reputation,
+    required this.random,
+  });
+
+  SimulationState copyWith({
+    GameTime? time,
+    List<Machine>? machines,
+    List<Truck>? trucks,
+    double? cash,
+    int? reputation,
+    Random? random,
+  }) {
+    return SimulationState(
+      time: time ?? this.time,
+      machines: machines ?? this.machines,
+      trucks: trucks ?? this.trucks,
+      cash: cash ?? this.cash,
+      reputation: reputation ?? this.reputation,
+      random: random ?? this.random,
+    );
+  }
+}
+
+/// The Simulation Engine - The Heartbeat of the Game
+class SimulationEngine extends StateNotifier<SimulationState> {
+  Timer? _tickTimer;
+  final Random _random = Random();
+
+  SimulationEngine({
+    required List<Machine> initialMachines,
+    required List<Truck> initialTrucks,
+    double initialCash = 1000.0,
+    int initialReputation = 100,
+  }) : super(
+          SimulationState(
+            time: const GameTime(day: 1, hour: 8, minute: 0, tick: 0),
+            machines: initialMachines,
+            trucks: initialTrucks,
+            cash: initialCash,
+            reputation: initialReputation,
+            random: Random(),
+          ),
+        );
+
+  /// Start the simulation (ticks every 1 second)
+  void start() {
+    _tickTimer?.cancel();
+    _tickTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _tick(),
+    );
+  }
+
+  /// Stop the simulation
+  void stop() {
+    _tickTimer?.cancel();
+    _tickTimer = null;
+  }
+
+  /// Pause the simulation
+  void pause() {
+    stop();
+  }
+
+  /// Resume the simulation
+  void resume() {
+    start();
+  }
+
+  /// Dispose resources
+  @override
+  void dispose() {
+    stop();
+    super.dispose();
+  }
+
+  /// Main tick function - called every 1 second (10 minutes in-game)
+  void _tick() {
+    final currentState = state;
+    final nextTime = currentState.time.nextTick();
+
+    // Process all simulation systems
+    var updatedMachines = _processMachineSales(currentState.machines, nextTime);
+    updatedMachines = _processSpoilage(updatedMachines, nextTime);
+    
+    // Calculate reputation penalty
+    final reputationPenalty = _calculateReputationPenalty(updatedMachines);
+    var updatedReputation = (currentState.reputation - reputationPenalty).clamp(0, 1000);
+    
+    final updatedTrucks = _processTruckMovement(currentState.trucks, updatedMachines);
+    
+    var updatedCash = currentState.cash;
+
+    // Calculate fuel costs for trucks
+    updatedCash = _processFuelCosts(updatedTrucks, updatedCash);
+
+    // Update state
+    state = currentState.copyWith(
+      time: nextTime,
+      machines: updatedMachines,
+      trucks: updatedTrucks,
+      cash: updatedCash,
+      reputation: updatedReputation,
+    );
+  }
+
+  /// Process machine sales based on demand math
+  /// Implements: SaleChance = BaseDemand * ZoneMultiplier * HourMultiplier * Traffic
+  List<Machine> _processMachineSales(List<Machine> machines, GameTime time) {
+    return machines.map((machine) {
+      if (machine.isBroken || machine.isEmpty) {
+        // Increment hours since restock if empty
+        return machine.copyWith(
+          hoursSinceRestock: machine.hoursSinceRestock + (10 / 60), // 10 minutes
+        );
+      }
+
+      var updatedInventory = Map<Product, InventoryItem>.from(machine.inventory);
+      var updatedCash = machine.currentCash;
+      var salesCount = machine.totalSales;
+      var hoursSinceRestock = machine.hoursSinceRestock;
+
+      // Process each product type
+      for (final product in Product.values) {
+        final stock = machine.getStock(product);
+        if (stock == 0) continue;
+
+        // Calculate sale chance using the demand formula
+        final baseDemand = product.baseDemand;
+        final zoneMultiplier = machine.zone.getDemandMultiplier(time.hour);
+        final trafficMultiplier = machine.zone.trafficMultiplier;
+        
+        // Example: Coffee at Office at 8 AM
+        // baseDemand = 0.10 (coffee)
+        // zoneMultiplier = 2.0 (office at 8 AM)
+        // trafficMultiplier = 1.2 (office traffic)
+        // SaleChance = 0.10 * 2.0 * 1.2 = 0.24 (24% chance per tick)
+        final saleChance = baseDemand * zoneMultiplier * trafficMultiplier;
+        
+        // Clamp to reasonable range (0.0 to 1.0)
+        final clampedChance = saleChance.clamp(0.0, 1.0);
+
+        // Roll for sale
+        if (_random.nextDouble() < clampedChance) {
+          // Sale occurred!
+          final item = updatedInventory[product]!;
+          final newQuantity = item.quantity - 1;
+          
+          if (newQuantity > 0) {
+            updatedInventory[product] = item.copyWith(quantity: newQuantity);
+          } else {
+            updatedInventory.remove(product);
+          }
+
+          updatedCash += product.basePrice;
+          salesCount++;
+        }
+      }
+
+      // Update hours since restock (increment by 10 minutes = 1/6 hour)
+      hoursSinceRestock += (10 / 60);
+
+      return machine.copyWith(
+        inventory: updatedInventory,
+        currentCash: updatedCash,
+        totalSales: salesCount,
+        hoursSinceRestock: hoursSinceRestock,
+      );
+    }).toList();
+  }
+
+  /// Process spoilage - remove expired items and charge disposal cost
+  List<Machine> _processSpoilage(List<Machine> machines, GameTime time) {
+    return machines.map((machine) {
+      var updatedInventory = Map<Product, InventoryItem>.from(machine.inventory);
+      var disposalCost = 0.0;
+
+      // Check each inventory item for expiration
+      final itemsToRemove = <Product>[];
+      for (final entry in updatedInventory.entries) {
+        final item = entry.value;
+        if (item.isExpired(time.day)) {
+          // Item expired - remove and charge disposal
+          disposalCost += SimulationConstants.disposalCostPerExpiredItem * item.quantity;
+          itemsToRemove.add(entry.key);
+        }
+      }
+
+      // Remove expired items
+      for (final product in itemsToRemove) {
+        updatedInventory.remove(product);
+      }
+
+      // Deduct disposal cost from machine cash
+      final updatedCash = machine.currentCash - disposalCost;
+
+      return machine.copyWith(
+        inventory: updatedInventory,
+        currentCash: updatedCash,
+      );
+    }).toList();
+  }
+
+
+  /// Calculate reputation penalty based on empty machines
+  int _calculateReputationPenalty(List<Machine> machines) {
+    int totalPenalty = 0;
+    
+    for (final machine in machines) {
+      if (machine.isEmpty && machine.hoursEmpty >= SimulationConstants.emptyMachinePenaltyHours) {
+        final hoursOverLimit = machine.hoursEmpty - SimulationConstants.emptyMachinePenaltyHours;
+        totalPenalty += (SimulationConstants.reputationPenaltyPerEmptyHour * hoursOverLimit).round();
+      }
+    }
+    
+    return totalPenalty;
+  }
+
+  /// Process truck movement and route logic
+  List<Truck> _processTruckMovement(
+    List<Truck> trucks,
+    List<Machine> machines,
+  ) {
+    return trucks.map((truck) {
+      if (!truck.hasRoute || truck.isRouteComplete) {
+        return truck.copyWith(status: TruckStatus.idle);
+      }
+
+      // Get current destination
+      final destinationId = truck.currentDestination;
+      if (destinationId == null) {
+        return truck.copyWith(status: TruckStatus.idle);
+      }
+
+      // Find destination machine
+      final destination = machines.firstWhere(
+        (m) => m.id == destinationId,
+        orElse: () => machines.first, // Fallback
+      );
+
+      // Calculate distance to destination
+      final dx = destination.zone.x - truck.currentX;
+      final dy = destination.zone.y - truck.currentY;
+      final distance = (dx * dx + dy * dy) * 0.5; // Euclidean distance
+
+      // If truck is at destination, start restocking
+      if (distance < 0.1) {
+        // Truck arrived - restock the machine
+        // (In a full implementation, this would transfer inventory)
+        return truck.copyWith(
+          status: TruckStatus.restocking,
+          currentRouteIndex: truck.currentRouteIndex + 1,
+        );
+      }
+
+      // Move truck towards destination
+      // Simple movement: move 0.1 units per tick towards target
+      final moveDistance = 0.1;
+      final moveRatio = (moveDistance / distance).clamp(0.0, 1.0);
+      
+      final newX = truck.currentX + (dx * moveRatio);
+      final newY = truck.currentY + (dy * moveRatio);
+
+      return truck.copyWith(
+        status: TruckStatus.traveling,
+        currentX: newX,
+        currentY: newY,
+        targetX: destination.zone.x,
+        targetY: destination.zone.y,
+      );
+    }).toList();
+  }
+
+  /// Process fuel costs for trucks
+  double _processFuelCosts(List<Truck> trucks, double currentCash) {
+    double totalFuelCost = 0.0;
+
+    for (final truck in trucks) {
+      if (truck.status == TruckStatus.traveling) {
+        final distance = truck.distanceToTarget;
+        final fuelCost = distance * SimulationConstants.gasPrice;
+        totalFuelCost += fuelCost;
+      }
+    }
+
+    return currentCash - totalFuelCost;
+  }
+
+  /// Calculate total distance for a truck route
+  double calculateRouteDistance(
+    List<String> machineIds,
+    List<Machine> machines,
+  ) {
+    if (machineIds.length < 2) return 0.0;
+
+    double totalDistance = 0.0;
+    
+    for (int i = 0; i < machineIds.length - 1; i++) {
+      final machine1 = machines.firstWhere(
+        (m) => m.id == machineIds[i],
+      );
+      final machine2 = machines.firstWhere(
+        (m) => m.id == machineIds[i + 1],
+      );
+
+      final dx = machine2.zone.x - machine1.zone.x;
+      final dy = machine2.zone.y - machine1.zone.y;
+      totalDistance += (dx * dx + dy * dy) * 0.5; // Euclidean distance
+    }
+
+    return totalDistance;
+  }
+
+  /// Manually trigger a tick (for testing or manual control)
+  void manualTick() {
+    _tick();
+  }
+}
+

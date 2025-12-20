@@ -1,0 +1,210 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../simulation/models/product.dart';
+import '../../state/providers.dart';
+import '../../state/selectors.dart';
+import '../widgets/market_product_card.dart';
+
+/// Warehouse & Market Screen
+class WarehouseScreen extends ConsumerWidget {
+  const WarehouseScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final warehouse = ref.watch(warehouseProvider);
+    final cash = ref.watch(cashProvider);
+    final dayCount = ref.watch(dayCountProvider);
+
+    // Calculate warehouse capacity
+    const maxCapacity = 1000;
+    final currentTotal = warehouse.inventory.values.fold<int>(
+      0,
+      (sum, qty) => sum + qty,
+    );
+    final capacityPercent = (currentTotal / maxCapacity).clamp(0.0, 1.0);
+
+    return Scaffold(
+      // AppBar removed - managed by MainScreen
+      body: Column(
+        children: [
+          // Top Section: Warehouse Status
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Theme.of(context).colorScheme.surface,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Warehouse Status',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                // Capacity indicator
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Capacity: $currentTotal / $maxCapacity items',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const SizedBox(height: 8),
+                          LinearProgressIndicator(
+                            value: capacityPercent,
+                            backgroundColor: Colors.grey[300],
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              capacityPercent > 0.9
+                                  ? Colors.red
+                                  : capacityPercent > 0.7
+                                      ? Colors.orange
+                                      : Colors.green,
+                            ),
+                            minHeight: 8,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Cash',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
+                            ),
+                          ),
+                          Text(
+                            '\$${cash.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Current stock grid
+                if (warehouse.inventory.isNotEmpty) ...[
+                  Text(
+                    'Current Stock',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: warehouse.inventory.entries.map((entry) {
+                      return Chip(
+                        label: Text(
+                          '${entry.key.name}: ${entry.value}',
+                        ),
+                        backgroundColor:
+                            Theme.of(context).colorScheme.surfaceContainerHighest,
+                      );
+                    }).toList(),
+                  ),
+                ] else
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.inventory_2_outlined, size: 24),
+                        SizedBox(width: 8),
+                        Text('Warehouse is empty'),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          // Bottom Section: Market
+          Expanded(
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Daily Prices',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          Text(
+                            'Day $dayCount - Prices reset daily',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        tooltip: 'Prices update automatically each day',
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Prices update automatically when the day changes',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: Product.values.length,
+                    itemBuilder: (context, index) {
+                      final product = Product.values[index];
+                      return MarketProductCard(product: product);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
