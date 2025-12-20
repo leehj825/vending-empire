@@ -150,14 +150,18 @@ class GameController extends StateNotifier<GlobalGameState> {
 
     // Update simulation engine
     final updatedMachines = [...state.machines, newMachine];
-    _updateSimulationMachines(updatedMachines);
+    simulationEngine.updateMachines(updatedMachines);
 
     // UPDATE STATE DIRECTLY
+    final newCash = state.cash - price;
     state = state.copyWith(
-      cash: state.cash - price,
+      cash: newCash,
       machines: updatedMachines,
     );
     state = state.addLogMessage("Bought ${newMachine.name}");
+
+    // Sync cash to simulation engine to prevent reversion on next tick
+    simulationEngine.updateCash(newCash);
   }
 
   /// Create a zone based on zone type
@@ -404,41 +408,28 @@ class GameController extends StateNotifier<GlobalGameState> {
 }
 
 /// Provider for GameController
-// CHANGE TO StateNotifierProvider
-// Note: Using Provider with StateNotifier for Riverpod 3.0 compatibility
-final gameControllerProvider = Provider<GameController>((ref) {
-  final controller = GameController(ref);
-  // ref.onDispose is redundant if the provider itself is disposed, but good for cleanup.
-  // However, StateNotifierProvider automatically calls dispose() on the notifier.
-  // So we don't need ref.onDispose(() => controller.dispose()).
-  // ref.onDispose(() => controller.dispose());
-  return controller;
+final gameControllerProvider =
+    StateNotifierProvider<GameController, GlobalGameState>((ref) {
+  return GameController(ref);
 });
 
 /// Provider for the game state
 final gameStateProvider = Provider<GlobalGameState>((ref) {
-  final controller = ref.watch(gameControllerProvider);
-  return controller.currentState;
+  return ref.watch(gameControllerProvider);
 });
 
 /// Provider for machines list
-// UPDATE Derived Providers to read from the state
 final machinesProvider = Provider<List<Machine>>((ref) {
-  final controller = ref.watch(gameControllerProvider);
-  return controller.currentState.machines;
+  return ref.watch(gameControllerProvider).machines;
 });
 
 /// Provider for trucks list
-/// Read directly from state
 final trucksProvider = Provider<List<Truck>>((ref) {
-  final controller = ref.watch(gameControllerProvider);
-  return controller.currentState.trucks;
+  return ref.watch(gameControllerProvider).trucks;
 });
 
 /// Provider for warehouse
-/// Read directly from state
 final warehouseProvider = Provider<Warehouse>((ref) {
-  final controller = ref.watch(gameControllerProvider);
-  return controller.currentState.warehouse;
+  return ref.watch(gameControllerProvider).warehouse;
 });
 
