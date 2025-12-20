@@ -68,18 +68,16 @@ class GameController extends StateNotifier<GlobalGameState> {
 
   /// Setup listener for simulation engine updates
   void _setupSimulationListener() {
-    // Set up callback to sync engine state to controller state
-    simulationEngine.onStateChanged = (engineState) {
-      // Sync engine state to controller state
+    simulationEngine.stream.listen((simulationState) {
       state = state.copyWith(
-        machines: engineState.machines,
-        trucks: engineState.trucks,
-        cash: engineState.cash,
-        reputation: engineState.reputation,
-        dayCount: engineState.time.day,
-        hourOfDay: engineState.time.hour,
+        machines: simulationState.machines,
+        trucks: simulationState.trucks,
+        cash: simulationState.cash,
+        reputation: simulationState.reputation,
+        dayCount: simulationState.time.day,
+        hourOfDay: simulationState.time.hour,
       );
-    };
+    });
   }
 
   /// Check if simulation is running

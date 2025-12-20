@@ -102,6 +102,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   Timer? _tickTimer;
   final Random _random = Random();
   void Function(SimulationState)? onStateChanged;
+  final StreamController<SimulationState> _streamController = StreamController<SimulationState>.broadcast();
 
   SimulationEngine({
     required List<Machine> initialMachines,
@@ -119,6 +120,9 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             random: Random(),
           ),
         );
+
+  /// Stream of simulation state changes
+  Stream<SimulationState> get stream => _streamController.stream;
 
   /// Start the simulation (ticks every 1 second)
   void start() {
@@ -149,6 +153,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   @override
   void dispose() {
     stop();
+    _streamController.close();
     super.dispose();
   }
 
@@ -184,6 +189,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     
     // Notify listeners of state change
     onStateChanged?.call(newState);
+    _streamController.add(newState);
   }
 
   /// Process machine sales based on demand math
