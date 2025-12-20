@@ -180,7 +180,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   }
 
   void _addStopToRoute(String truckId, String machineId) {
-    final controller = ref.read(gameControllerProvider);
+    final controller = ref.read(gameControllerProvider.notifier);
     final trucks = ref.read(trucksProvider);
     final truck = trucks.firstWhere((t) => t.id == truckId);
     final newRoute = [...truck.route, machineId];
@@ -188,7 +188,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   }
 
   void _removeStopFromRoute(String truckId, String machineId) {
-    final controller = ref.read(gameControllerProvider);
+    final controller = ref.read(gameControllerProvider.notifier);
     final trucks = ref.read(trucksProvider);
     final truck = trucks.firstWhere((t) => t.id == truckId);
     final newRoute = truck.route.where((id) => id != machineId).toList();
@@ -200,7 +200,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
       newIndex -= 1;
     }
 
-    final controller = ref.read(gameControllerProvider);
+    final controller = ref.read(gameControllerProvider.notifier);
     final trucks = ref.read(trucksProvider);
     final truck = trucks.firstWhere((t) => t.id == truckId);
     final newRoute = List<String>.from(truck.route);
@@ -211,7 +211,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
 
   void _showLoadCargoDialog(Truck truck) {
     final warehouse = ref.read(warehouseProvider);
-    final controller = ref.read(gameControllerProvider);
+    final controller = ref.read(gameControllerProvider.notifier);
 
     showDialog(
       context: context,

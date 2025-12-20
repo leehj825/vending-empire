@@ -17,7 +17,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _isSimulationRunning = false;
 
   void _toggleSimulation() {
-    final controller = ref.read(gameControllerProvider);
+    final controller = ref.read(gameControllerProvider.notifier);
     controller.toggleSimulation();
     setState(() {
       _isSimulationRunning = !_isSimulationRunning;
@@ -25,7 +25,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _buyTestMachine() {
-    final controller = ref.read(gameControllerProvider);
+    final controller = ref.read(gameControllerProvider.notifier);
     controller.buyMachine(ZoneType.office, x: 0.0, y: 0.0);
   }
 

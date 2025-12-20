@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart' show StateNotifierProvider;
 import 'package:state_notifier/state_notifier.dart';
 import 'package:uuid/uuid.dart';
 import '../simulation/engine.dart';
@@ -361,54 +362,33 @@ class GameController extends StateNotifier<GlobalGameState> {
 }
 
 /// Provider for GameController
-/// 
-/// IMPORTANT: In Riverpod 3.0.3, StateNotifierProvider is not available.
-/// We use a regular Provider. To make UI rebuilds work when state changes,
-/// we use a StreamProvider that periodically checks for state changes.
-final gameControllerProvider = Provider<GameController>((ref) {
+/// Using StateNotifierProvider so Riverpod listens to state changes automatically
+final gameControllerProvider = StateNotifierProvider<GameController, GlobalGameState>((ref) {
   final controller = GameController(ref);
   ref.onDispose(() => controller.dispose());
   return controller;
 });
 
-/// Stream provider that watches the controller's state changes
-/// This is a workaround since StateNotifierProvider doesn't exist in Riverpod 3.0.3
-/// We create a stream that periodically checks for state changes
-final _gameStateStreamProvider = StreamProvider<GlobalGameState>((ref) async* {
-  final controller = ref.read(gameControllerProvider); // Use read to avoid circular dependency
-  // Yield initial state
-  yield controller.currentState;
-  
-  // Create a stream that periodically checks for state changes
-  GlobalGameState lastState = controller.currentState;
-  await for (final _ in Stream.periodic(const Duration(milliseconds: 50))) {
-    final currentState = controller.currentState;
-    if (currentState != lastState) {
-      lastState = currentState;
-      yield currentState;
-    }
-  }
-});
-
 /// Provider for the game state
-/// This watches the stream provider to get state updates
+/// ref.watch(stateNotifierProvider) returns the state directly
 final gameStateProvider = Provider<GlobalGameState>((ref) {
-  final asyncState = ref.watch(_gameStateStreamProvider);
-  return asyncState.whenData((state) => state).value ?? 
-         ref.read(gameControllerProvider).currentState;
+  return ref.watch(gameControllerProvider);
 });
 
 /// Provider for machines list
+/// Read directly from state
 final machinesProvider = Provider<List<Machine>>((ref) {
   return ref.watch(gameControllerProvider).machines;
 });
 
 /// Provider for trucks list
+/// Read directly from state
 final trucksProvider = Provider<List<Truck>>((ref) {
   return ref.watch(gameControllerProvider).trucks;
 });
 
 /// Provider for warehouse
+/// Read directly from state
 final warehouseProvider = Provider<Warehouse>((ref) {
   return ref.watch(gameControllerProvider).warehouse;
 });
