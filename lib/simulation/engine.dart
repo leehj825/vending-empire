@@ -143,6 +143,16 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     _streamController.add(state);
   }
 
+  /// Update machines in the simulation
+  ///
+  /// This is used by the UI/controller to sync changes (e.g. buying a machine)
+  /// so that the next engine tick doesn't overwrite local state.
+  void updateMachines(List<Machine> machines) {
+    print('🔴 ENGINE: Updating machines list');
+    state = state.copyWith(machines: machines);
+    _streamController.add(state);
+  }
+
   /// Start the simulation (ticks every 1 second)
   void start() {
     print('🔴 ENGINE: Start requested');
