@@ -1,4 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import '../simulation/models/machine.dart';
+import '../simulation/models/truck.dart';
+import 'providers.dart';
 
 part 'game_state.freezed.dart';
 
@@ -11,6 +14,9 @@ abstract class GlobalGameState with _$GlobalGameState {
     @Default(1) int dayCount, // Current day number
     @Default(8) int hourOfDay, // Current hour (0-23), starts at 8 AM
     @Default([]) List<String> logMessages, // Game event log
+    @Default([]) List<Machine> machines,
+    @Default([]) List<Truck> trucks,
+    @Default(Warehouse()) Warehouse warehouse,
   }) = _GlobalGameState;
 
   const GlobalGameState._();

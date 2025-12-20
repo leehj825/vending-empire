@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:state_notifier/state_notifier.dart';
 import 'models/product.dart';
-import 'models/zone.dart';
 import 'models/machine.dart';
 import 'models/truck.dart';
 
@@ -392,6 +390,126 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   /// Manually trigger a tick (for testing or manual control)
   void manualTick() {
     _tick();
+  }
+
+  /// Process a single tick with provided machines and trucks, returning updated lists
+  /// This method is used by GameController to sync state
+  ({List<Machine> machines, List<Truck> trucks}) tick(
+    List<Machine> machines,
+    List<Truck> trucks,
+  ) {
+    final currentTime = state.time;
+    final nextTime = currentTime.nextTick();
+
+    // Process all simulation systems
+    var updatedMachines = _processMachineSales(machines, nextTime);
+    updatedMachines = _processSpoilage(updatedMachines, nextTime);
+    
+    // Process truck movement and restocking
+    var updatedTrucks = _processTruckMovement(trucks, updatedMachines);
+    
+    // Handle automatic restocking when trucks arrive at machines
+    final restockResult = _processTruckRestocking(updatedTrucks, updatedMachines);
+    updatedTrucks = restockResult.trucks;
+    updatedMachines = restockResult.machines;
+
+    return (machines: updatedMachines, trucks: updatedTrucks);
+  }
+
+  /// Process truck restocking when trucks arrive at machines
+  ({List<Machine> machines, List<Truck> trucks}) _processTruckRestocking(
+    List<Truck> trucks,
+    List<Machine> machines,
+  ) {
+    var updatedMachines = List<Machine>.from(machines);
+    var updatedTrucks = List<Truck>.from(trucks);
+    final currentDay = state.time.day;
+
+    for (int i = 0; i < updatedTrucks.length; i++) {
+      final truck = updatedTrucks[i];
+      
+      // Only process trucks that are restocking
+      if (truck.status != TruckStatus.restocking) continue;
+      
+      final destinationId = truck.currentDestination;
+      if (destinationId == null) continue;
+
+      // Find the machine being restocked
+      final machineIndex = updatedMachines.indexWhere((m) => m.id == destinationId);
+      if (machineIndex == -1) continue;
+
+      final machine = updatedMachines[machineIndex];
+      var machineInventory = Map<Product, InventoryItem>.from(machine.inventory);
+      var truckInventory = Map<Product, int>.from(truck.inventory);
+
+      // Transfer items from truck to machine (up to machine capacity)
+      final maxMachineCapacity = 100; // Max items a machine can hold
+      final currentMachineTotal = machineInventory.values.fold<int>(
+        0,
+        (sum, item) => sum + item.quantity,
+      );
+      final availableSpace = maxMachineCapacity - currentMachineTotal;
+
+      if (availableSpace > 0 && truckInventory.isNotEmpty) {
+        var itemsToTransfer = <Product, int>{};
+        var totalTransferred = 0;
+
+        // Transfer items from truck to machine
+        for (final entry in truckInventory.entries) {
+          if (totalTransferred >= availableSpace) break;
+          
+          final product = entry.key;
+          final truckQuantity = entry.value;
+          if (truckQuantity <= 0) continue;
+
+          final transferAmount = (truckQuantity < availableSpace - totalTransferred)
+              ? truckQuantity
+              : availableSpace - totalTransferred;
+
+          // Update machine inventory
+          final existingItem = machineInventory[product];
+          if (existingItem != null) {
+            machineInventory[product] = existingItem.copyWith(
+              quantity: existingItem.quantity + transferAmount,
+            );
+          } else {
+            machineInventory[product] = InventoryItem(
+              product: product,
+              quantity: transferAmount,
+              dayAdded: currentDay,
+            );
+          }
+
+          // Update truck inventory
+          final remainingTruckQuantity = truckQuantity - transferAmount;
+          if (remainingTruckQuantity > 0) {
+            itemsToTransfer[product] = remainingTruckQuantity;
+          }
+
+          totalTransferred += transferAmount;
+        }
+
+        // Update truck inventory
+        final updatedTruckInventory = itemsToTransfer;
+        updatedTrucks[i] = truck.copyWith(
+          inventory: updatedTruckInventory,
+          status: TruckStatus.traveling, // Done restocking, continue route
+        );
+
+        // Update machine
+        updatedMachines[machineIndex] = machine.copyWith(
+          inventory: machineInventory,
+          hoursSinceRestock: 0.0,
+        );
+      } else {
+        // No space or no items, just mark truck as done
+        updatedTrucks[i] = truck.copyWith(
+          status: TruckStatus.traveling,
+        );
+      }
+    }
+
+    return (machines: updatedMachines, trucks: updatedTrucks);
   }
 }
 

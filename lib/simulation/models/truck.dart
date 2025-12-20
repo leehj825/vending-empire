@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'product.dart';
 
 part 'truck.freezed.dart';
 
@@ -28,9 +29,15 @@ abstract class Truck with _$Truck {
     /// Target position (x, y) when traveling
     @Default(0.0) double targetX,
     @Default(0.0) double targetY,
+    @Default({}) Map<Product, int> inventory,
   }) = _Truck;
 
   const Truck._();
+
+  /// Get current load (sum of inventory values)
+  int get currentLoad {
+    return inventory.values.fold<int>(0, (sum, quantity) => sum + quantity);
+  }
 
   /// Check if truck has a route assigned
   bool get hasRoute => route.isNotEmpty;
