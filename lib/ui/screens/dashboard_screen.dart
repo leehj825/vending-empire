@@ -46,136 +46,140 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return Scaffold(
       // AppBar removed - managed by MainScreen
-      body: Column(
-        children: [
+      body: CustomScrollView(
+        slivers: [
           // Debug/Test Button moved to top
-          Container(
-            padding: const EdgeInsets.all(8),
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.add_business),
-                  tooltip: 'Buy Machine (Test)',
-                  onPressed: _buyTestMachine,
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                // Top Section: Status Bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Theme.of(context).colorScheme.surface,
-            child: Row(
-              children: [
-                // Cash Card
-                Expanded(
-                  child: _StatusCard(
-                    icon: Icons.attach_money,
-                    iconColor: Colors.green,
-                    label: 'Cash',
-                    value: '\$${cash.toStringAsFixed(2)}',
-                    valueColor: Colors.green,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Reputation Card
-                Expanded(
-                  child: _StatusCard(
-                    icon: Icons.star,
-                    iconColor: Colors.amber,
-                    label: 'Reputation',
-                    value: reputation.toString(),
-                    valueColor: Colors.amber,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Time Card
-                Expanded(
-                  child: _StatusCard(
-                    icon: Icons.access_time,
-                    iconColor: Colors.blue,
-                    label: 'Time',
-                    value: _formatTime(dayCount, hourOfDay),
-                    valueColor: Colors.blue,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Middle Section: Alerts
-          if (alertCount > 0)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              color: Colors.red,
+          SliverToBoxAdapter(
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  const Icon(
-                    Icons.warning,
-                    color: Colors.white,
-                    size: 24,
+                  IconButton(
+                    icon: const Icon(Icons.add_business),
+                    tooltip: 'Buy Machine (Test)',
+                    onPressed: _buyTestMachine,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Warning: $alertCount Machine${alertCount > 1 ? 's' : ''} Empty!',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                ],
+              ),
+            ),
+          ),
+          // Top Section: Status Bar
+          SliverToBoxAdapter(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              color: Theme.of(context).colorScheme.surface,
+              child: Row(
+                children: [
+                  // Cash Card
+                  Expanded(
+                    child: _StatusCard(
+                      icon: Icons.attach_money,
+                      iconColor: Colors.green,
+                      label: 'Cash',
+                      value: '\$${cash.toStringAsFixed(2)}',
+                      valueColor: Colors.green,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Reputation Card
+                  Expanded(
+                    child: _StatusCard(
+                      icon: Icons.star,
+                      iconColor: Colors.amber,
+                      label: 'Reputation',
+                      value: reputation.toString(),
+                      valueColor: Colors.amber,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Time Card
+                  Expanded(
+                    child: _StatusCard(
+                      icon: Icons.access_time,
+                      iconColor: Colors.blue,
+                      label: 'Time',
+                      value: _formatTime(dayCount, hourOfDay),
+                      valueColor: Colors.blue,
                     ),
                   ),
                 ],
               ),
             ),
-          // Bottom Section: Machine List
-          Expanded(
-            child: machines.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.inventory_2_outlined,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No machines yet',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tap the + button to buy your first machine',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: machines.length,
-                    itemBuilder: (context, index) {
-                      return MachineStatusCard(
-                        machine: machines[index],
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
           ),
+          // Middle Section: Alerts
+          if (alertCount > 0)
+            SliverToBoxAdapter(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                color: Colors.red,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.warning,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Warning: $alertCount Machine${alertCount > 1 ? 's' : ''} Empty!',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          // Bottom Section: Machine List
+          if (machines.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.inventory_2_outlined,
+                      size: 64,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No machines yet',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap the + button to buy your first machine',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  return MachineStatusCard(
+                    machine: machines[index],
+                  );
+                },
+                childCount: machines.length,
+              ),
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton(

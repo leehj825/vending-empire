@@ -266,37 +266,40 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
 
     return Scaffold(
       // AppBar removed - managed by MainScreen
-      body: Column(
-        children: [
+      body: CustomScrollView(
+        slivers: [
           // Top Section: Truck Selector
-          Container(
-            height: 120,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Text(
-                    'Select Truck',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+          SliverToBoxAdapter(
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 120),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text(
+                      'Select Truck',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: trucks.isEmpty
-                      ? const Center(
-                          child: Text('No trucks available'),
-                        )
-                      : ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          itemCount: trucks.length,
-                          itemBuilder: (context, index) {
-                            final truck = trucks[index];
-                            final isSelected = truck.id == selectedTruckId;
+                  SizedBox(
+                    height: 100,
+                    child: trucks.isEmpty
+                        ? const Center(
+                            child: Text('No trucks available'),
+                          )
+                        : ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            itemCount: trucks.length,
+                            itemBuilder: (context, index) {
+                              final truck = trucks[index];
+                              final isSelected = truck.id == selectedTruckId;
 
                             return GestureDetector(
                               onTap: () {
@@ -405,168 +408,188 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                             );
                           },
                         ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          // Middle Section: Route Editor
-          Expanded(
-            child: selectedTruck == null
-                ? const Center(
-                    child: Text('Select a truck to manage its route'),
-                  )
-                : Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Current Route (Drag to Reorder)',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                ElevatedButton.icon(
-                                  onPressed: () =>
-                                      _showLoadCargoDialog(selectedTruck),
-                                  icon: const Icon(Icons.inventory, size: 18),
-                                  label: const Text('Load Cargo'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.green,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                ElevatedButton.icon(
-                                  onPressed: () =>
-                                      _showAddStopDialog(selectedTruck, machines),
-                                  icon: const Icon(Icons.add, size: 18),
-                                  label: const Text('Add Stop'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: routeMachines.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.route,
-                                      size: 64,
-                                      color: Colors.grey[400],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'No stops in route',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    ElevatedButton.icon(
-                                      onPressed: () => _showAddStopDialog(
-                                          selectedTruck, machines),
-                                      icon: const Icon(Icons.add),
-                                      label: const Text('Add First Stop'),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : ReorderableListView.builder(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 8,
-                                ),
-                                itemCount: routeMachines.length,
-                                onReorder: (oldIndex, newIndex) {
-                                  _reorderRoute(
-                                    selectedTruck.id,
-                                    oldIndex,
-                                    newIndex,
-                                  );
-                                },
-                                itemBuilder: (context, index) {
-                                  final machine = routeMachines[index];
-                                  return MachineRouteCard(
-                                    key: ValueKey(machine.id),
-                                    machine: machine,
-                                    onRemove: () => _removeStopFromRoute(
-                                      selectedTruck.id,
-                                      machine.id,
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
-                    ],
-                  ),
-          ),
-          // Bottom Section: Efficiency Stats
-          if (selectedTruck != null)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, -2),
                   ),
                 ],
               ),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Route Efficiency',
+            ),
+          ),
+          const SliverToBoxAdapter(
+            child: Divider(height: 1),
+          ),
+          // Middle Section: Route Editor
+          if (selectedTruck == null)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: const Center(
+                child: Text('Select a truck to manage its route'),
+              ),
+            )
+          else ...[
+            // Route Header with Buttons
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Flexible(
+                      child: Text(
+                        'Current Route (Drag to Reorder)',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _StatItem(
-                            icon: Icons.straighten,
-                            label: 'Total Distance',
-                            value: '${totalDistance.toStringAsFixed(1)} units',
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () => _showLoadCargoDialog(selectedTruck),
+                          icon: const Icon(Icons.inventory, size: 18),
+                          label: const Text('Load Cargo'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
                           ),
-                          _StatItem(
-                            icon: Icons.local_gas_station,
-                            label: 'Est. Fuel Cost',
-                            value: '\$${fuelCost.toStringAsFixed(2)}',
-                          ),
-                          _StatItem(
-                            icon: Icons.star,
-                            label: 'Efficiency',
-                            value: efficiencyRating,
-                            valueColor: _getEfficiencyColor(efficiencyRating),
-                          ),
-                        ],
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () =>
+                              _showAddStopDialog(selectedTruck, machines),
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Add Stop'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Route List or Empty State
+            if (routeMachines.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.route,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No stops in route',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => _showAddStopDialog(selectedTruck, machines),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add First Stop'),
                       ),
                     ],
                   ),
                 ),
+              )
+            else
+              SliverToBoxAdapter(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.6,
+                  ),
+                  child: ReorderableListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
+                    itemCount: routeMachines.length,
+                    onReorder: (oldIndex, newIndex) {
+                      _reorderRoute(
+                        selectedTruck.id,
+                        oldIndex,
+                        newIndex,
+                      );
+                    },
+                    itemBuilder: (context, index) {
+                      final machine = routeMachines[index];
+                      return MachineRouteCard(
+                        key: ValueKey(machine.id),
+                        machine: machine,
+                        onRemove: () => _removeStopFromRoute(
+                          selectedTruck.id,
+                          machine.id,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            // Bottom Section: Efficiency Stats
+            SliverToBoxAdapter(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Route Efficiency',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _StatItem(
+                              icon: Icons.straighten,
+                              label: 'Total Distance',
+                              value: '${totalDistance.toStringAsFixed(1)} units',
+                            ),
+                            _StatItem(
+                              icon: Icons.local_gas_station,
+                              label: 'Est. Fuel Cost',
+                              value: '\$${fuelCost.toStringAsFixed(2)}',
+                            ),
+                            _StatItem(
+                              icon: Icons.star,
+                              label: 'Efficiency',
+                              value: efficiencyRating,
+                              valueColor: _getEfficiencyColor(efficiencyRating),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
+          ],
         ],
       ),
     );
