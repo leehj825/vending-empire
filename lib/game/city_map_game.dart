@@ -2,17 +2,29 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
-import 'package:flame/camera.dart';
+import 'package:flame/events.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/providers.dart';
 import 'components/map_machine.dart';
 import 'components/map_truck.dart';
 
 /// Main game class for the city map visualization
-class CityMapGame extends FlameGame with HasGameReference {
+class CityMapGame extends FlameGame with HasGameReference, PanDetector, ScaleDetector {
   final WidgetRef ref;
   final Map<String, MapMachine> _machineComponents = {};
   final Map<String, MapTruck> _truckComponents = {};
+  
+  // Map bounds (1000x1000 grid)
+  static const double mapWidth = 1000.0;
+  static const double mapHeight = 1000.0;
+  static final Vector2 mapCenter = Vector2(500.0, 500.0);
+  
+  // Camera constraints
+  double _minZoom = 0.5;
+  double _maxZoom = 3.0;
+  double _currentZoom = 1.0;
+  Vector2 _cameraPosition = mapCenter;
+  Vector2? _panStartPosition;
 
   CityMapGame(this.ref);
 
@@ -25,7 +37,13 @@ class CityMapGame extends FlameGame with HasGameReference {
 
     // Setup camera for 1000x1000 grid
     camera.viewfinder.anchor = Anchor.center;
-    camera.viewport = FixedResolutionViewport(resolution: Vector2(1000, 1000));
+    // Don't use FixedResolutionViewport - let it be responsive
+
+    // Center camera on map
+    camera.viewfinder.position = mapCenter;
+    
+    // Calculate initial zoom to fit map width
+    _updateZoom();
 
     // Add grid background
     add(GridComponent());
@@ -36,12 +54,116 @@ class CityMapGame extends FlameGame with HasGameReference {
   }
 
   @override
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
+    // Recalculate zoom when screen size changes
+    _updateZoom();
+  }
+
+  /// Calculate zoom level to fit the map width on screen
+  void _updateZoom() {
+    if (size.x == 0 || size.y == 0) return;
+    
+    // Calculate zoom to fit width (portrait mode priority)
+    final widthZoom = size.x / mapWidth;
+    final heightZoom = size.y / mapHeight;
+    
+    // Use minimum to ensure entire map is visible
+    _currentZoom = (widthZoom < heightZoom ? widthZoom : heightZoom) * 0.95; // 95% to add padding
+    
+    // Clamp zoom
+    _currentZoom = _currentZoom.clamp(_minZoom, _maxZoom);
+    
+    // Apply zoom
+    camera.viewfinder.zoom = _currentZoom;
+    
+    // Ensure camera stays centered on map
+    _clampCameraPosition();
+  }
+
+  /// Clamp camera position to keep map visible
+  void _clampCameraPosition() {
+    final viewportSize = size / _currentZoom;
+    final halfViewport = viewportSize / 2;
+    
+    // Calculate bounds
+    final minX = halfViewport.x;
+    final maxX = mapWidth - halfViewport.x;
+    final minY = halfViewport.y;
+    final maxY = mapHeight - halfViewport.y;
+    
+    // Clamp position
+    _cameraPosition.x = _cameraPosition.x.clamp(minX, maxX);
+    _cameraPosition.y = _cameraPosition.y.clamp(minY, maxY);
+    
+    camera.viewfinder.position = _cameraPosition;
+  }
+
+  @override
   void update(double dt) {
     super.update(dt);
 
     // Sync machines and trucks every frame to update positions
     _syncMachines();
     _syncTrucks();
+  }
+
+  // Pan (drag) handling
+  @override
+  bool onPanStart(DragStartInfo info) {
+    _panStartPosition = camera.viewfinder.position.clone();
+    return true;
+  }
+
+  @override
+  bool onPanUpdate(DragUpdateInfo info) {
+    if (_panStartPosition == null) return false;
+    
+    // Calculate pan delta in world coordinates
+    // EventDelta.global gives us the delta in global coordinate space as Vector2
+    final deltaScreen = info.delta.global;
+    final delta = deltaScreen / _currentZoom;
+    _cameraPosition = _panStartPosition! - delta;
+    
+    // Clamp camera position
+    _clampCameraPosition();
+    
+    return true;
+  }
+
+  @override
+  bool onPanEnd(DragEndInfo info) {
+    _panStartPosition = null;
+    return true;
+  }
+
+  // Zoom (pinch) handling
+  @override
+  bool onScaleStart(ScaleStartInfo info) {
+    return true;
+  }
+
+  @override
+  bool onScaleUpdate(ScaleUpdateInfo info) {
+    // Calculate new zoom level
+    // ScaleInfo.global is a Vector2, use the average of x and y
+    final scaleVector = info.scale.global;
+    final scaleFactor = (scaleVector.x + scaleVector.y) / 2.0;
+    final newZoom = _currentZoom * scaleFactor;
+    _currentZoom = newZoom.clamp(_minZoom, _maxZoom);
+    
+    // Apply zoom
+    camera.viewfinder.zoom = _currentZoom;
+    
+    // Clamp camera position after zoom
+    _clampCameraPosition();
+    
+    return true;
+  }
+
+  @override
+  bool onScaleEnd(ScaleEndInfo info) {
+    return true;
   }
 
   /// Sync machine components with provider state

@@ -324,6 +324,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                   padding: const EdgeInsets.all(12),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
                                         Icons.local_shipping,
@@ -335,22 +336,28 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                             : Colors.grey[600],
                                       ),
                                       const SizedBox(height: 8),
-                                      Text(
-                                        truck.name,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: isSelected
-                                              ? Theme.of(context)
-                                                  .colorScheme
-                                                  .primary
-                                              : Colors.black87,
+                                      Flexible(
+                                        child: Text(
+                                          truck.name,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: isSelected
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                                : Colors.black87,
+                                            fontSize: 12,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 2,
+                                          textAlign: TextAlign.center,
                                         ),
-                                        overflow: TextOverflow.ellipsis,
                                       ),
                                       const SizedBox(height: 4),
                                       Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Icon(
                                             Icons.local_gas_station,
@@ -358,29 +365,36 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                             color: Colors.orange,
                                           ),
                                           const SizedBox(width: 4),
-                                          Text(
-                                            '${truck.fuel.toStringAsFixed(0)}%',
-                                            style: const TextStyle(fontSize: 12),
+                                          Flexible(
+                                            child: Text(
+                                              '${truck.fuel.toStringAsFixed(0)}%',
+                                              style: const TextStyle(fontSize: 12),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
                                         ],
                                       ),
                                       const SizedBox(height: 4),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: _getStatusColor(truck.status)
-                                              .withValues(alpha: 0.2),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          _getStatusText(truck.status),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: _getStatusColor(truck.status),
-                                            fontWeight: FontWeight.w500,
+                                      Flexible(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _getStatusColor(truck.status)
+                                                .withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            _getStatusText(truck.status),
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: _getStatusColor(truck.status),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
                                           ),
                                         ),
                                       ),
