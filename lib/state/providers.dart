@@ -354,20 +354,6 @@ class GameController extends StateNotifier<GlobalGameState> {
   /// Get warehouse inventory
   Warehouse get warehouse => state.warehouse;
 
-  /// Process a simulation tick - syncs with engine and updates state
-  void tick() {
-    if (!_isSimulationRunning) return;
-
-    // Call engine tick with current state
-    final result = simulationEngine.tick(state.machines, state.trucks);
-    
-    // Update state with engine results
-    state = state.copyWith(
-      machines: result.machines,
-      trucks: result.trucks,
-    );
-  }
-
   @override
   void dispose() {
     simulationEngine.dispose();
