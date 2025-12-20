@@ -68,7 +68,9 @@ class GameController extends StateNotifier<GlobalGameState> {
 
   /// Setup listener for simulation engine updates
   void _setupSimulationListener() {
+    print('🟡 CONTROLLER: Setting up simulation listener...');
     simulationEngine.stream.listen((simulationState) {
+      print('🟡 CONTROLLER SYNC: Received update from Engine.');
       state = state.copyWith(
         machines: simulationState.machines,
         trucks: simulationState.trucks,
@@ -85,6 +87,7 @@ class GameController extends StateNotifier<GlobalGameState> {
 
   /// Start the simulation
   void startSimulation() {
+    print('🔵 CONTROLLER: Starting Simulation Engine...');
     simulationEngine.start();
     _isSimulationRunning = true;
     state = state.addLogMessage('Simulation started');
@@ -146,6 +149,8 @@ class GameController extends StateNotifier<GlobalGameState> {
     final newCash = state.cash - price;
     final updatedMachines = [...state.machines, machine];
     
+    print('🟢 CONTROLLER ACTION: Attempting to buy machine. Current Cash: \$${state.cash}');
+    
     // Update local state for immediate UI feedback
     state = state.copyWith(
       machines: updatedMachines,
@@ -154,6 +159,8 @@ class GameController extends StateNotifier<GlobalGameState> {
     state = state.addLogMessage(
       'Purchased ${machine.name} for \$${price.toStringAsFixed(2)}',
     );
+    
+    print('🟢 CONTROLLER SUCCESS: Machine added. New Machine Count: ${state.machines.length}');
     
     // Sync to simulation engine to prevent reversion on next tick
     simulationEngine.addMachine(machine);
@@ -195,6 +202,7 @@ class GameController extends StateNotifier<GlobalGameState> {
 
   /// Buy stock and add to warehouse
   void buyStock(Product product, int quantity, {required double unitPrice}) {
+    print('🟢 CONTROLLER ACTION: Buying stock. Qty: $quantity');
     final totalPrice = unitPrice * quantity;
     if (state.cash < totalPrice) {
       state = state.addLogMessage("Not enough cash!");

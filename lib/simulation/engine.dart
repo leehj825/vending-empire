@@ -178,6 +178,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
 
   /// Main tick function - called every 1 second (10 minutes in-game)
   void _tick() {
+    print('🔴 ENGINE TICK: Day ${state.time.day} ${state.time.hour}:00 | Machines: ${state.machines.length} | Cash: \$${state.cash.toStringAsFixed(2)}');
     final currentState = state;
     final nextTime = currentState.time.nextTick();
 
