@@ -115,7 +115,6 @@ class GameController extends StateNotifier<GlobalGameState> {
   /// Buy a new vending machine and place it in a zone
   void buyMachine(ZoneType zoneType, {required double x, required double y}) {
     final price = MachinePrices.getPrice(zoneType);
-    
     if (state.cash < price) {
       state = state.addLogMessage('Insufficient funds to buy machine');
       return;
@@ -125,7 +124,7 @@ class GameController extends StateNotifier<GlobalGameState> {
     final zone = _createZoneForType(zoneType, x: x, y: y);
     
     // Create machine
-    final machine = Machine(
+    final newMachine = Machine(
       id: _uuid.v4(),
       name: '${zoneType.name.toUpperCase()} Machine ${state.machines.length + 1}',
       zone: zone,
@@ -135,18 +134,15 @@ class GameController extends StateNotifier<GlobalGameState> {
     );
 
     // Update simulation engine
-    final updatedMachines = [...state.machines, machine];
+    final updatedMachines = [...state.machines, newMachine];
     _updateSimulationMachines(updatedMachines);
 
-    // Deduct cash and update state
-    final newCash = state.cash - price;
+    // UPDATE STATE DIRECTLY
     state = state.copyWith(
+      cash: state.cash - price,
       machines: updatedMachines,
-      cash: newCash,
     );
-    state = state.addLogMessage(
-      'Purchased ${machine.name} for \$${price.toStringAsFixed(2)}',
-    );
+    state = state.addLogMessage("Bought ${newMachine.name}");
   }
 
   /// Create a zone based on zone type
@@ -408,8 +404,8 @@ class GameController extends StateNotifier<GlobalGameState> {
 }
 
 /// Provider for GameController
-// Note: Using a custom provider since StateNotifierProvider is in legacy
-// This creates a provider that manages the GameController lifecycle
+// CHANGE TO StateNotifierProvider
+// Note: Using Provider with StateNotifier for Riverpod 3.0 compatibility
 final gameControllerProvider = Provider<GameController>((ref) {
   final controller = GameController(ref);
   ref.onDispose(() => controller.dispose());
@@ -417,28 +413,27 @@ final gameControllerProvider = Provider<GameController>((ref) {
 });
 
 /// Provider for the game state
-/// Note: GameController extends StateNotifier, so we expose state through a getter
 final gameStateProvider = Provider<GlobalGameState>((ref) {
   final controller = ref.watch(gameControllerProvider);
-  // Access state through a public getter since StateNotifier.state is protected
   return controller.currentState;
 });
 
 /// Provider for machines list
+// UPDATE Derived Providers to read from the state
 final machinesProvider = Provider<List<Machine>>((ref) {
   final controller = ref.watch(gameControllerProvider);
-  return controller.machines;
+  return controller.currentState.machines;
 });
 
 /// Provider for trucks list
 final trucksProvider = Provider<List<Truck>>((ref) {
   final controller = ref.watch(gameControllerProvider);
-  return controller.trucks;
+  return controller.currentState.trucks;
 });
 
 /// Provider for warehouse
 final warehouseProvider = Provider<Warehouse>((ref) {
   final controller = ref.watch(gameControllerProvider);
-  return controller.warehouse;
+  return controller.currentState.warehouse;
 });
 
