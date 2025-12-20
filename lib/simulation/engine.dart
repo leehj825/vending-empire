@@ -101,7 +101,6 @@ class SimulationState {
 class SimulationEngine extends StateNotifier<SimulationState> {
   Timer? _tickTimer;
   final Random _random = Random();
-  void Function(SimulationState)? onStateChanged;
   final StreamController<SimulationState> _streamController = StreamController<SimulationState>.broadcast();
 
   SimulationEngine({
@@ -109,7 +108,6 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     required List<Truck> initialTrucks,
     double initialCash = 1000.0,
     int initialReputation = 100,
-    this.onStateChanged,
   }) : super(
           SimulationState(
             time: const GameTime(day: 1, hour: 8, minute: 0, tick: 0),
@@ -126,25 +124,28 @@ class SimulationEngine extends StateNotifier<SimulationState> {
 
   /// Add a machine to the simulation
   void addMachine(Machine machine) {
-    final updatedMachines = [...state.machines, machine];
-    state = state.copyWith(machines: updatedMachines);
+    print('🔴 ENGINE: Adding machine ${machine.name}');
+    state = state.copyWith(machines: [...state.machines, machine]);
     _streamController.add(state);
   }
 
   /// Update cash in the simulation
   void updateCash(double amount) {
+    print('🔴 ENGINE: Updating cash to \$${amount.toStringAsFixed(2)}');
     state = state.copyWith(cash: amount);
     _streamController.add(state);
   }
 
   /// Update trucks in the simulation
   void updateTrucks(List<Truck> trucks) {
+    print('🔴 ENGINE: Updating trucks list');
     state = state.copyWith(trucks: trucks);
     _streamController.add(state);
   }
 
   /// Start the simulation (ticks every 1 second)
   void start() {
+    print('🔴 ENGINE: Start requested');
     _tickTimer?.cancel();
     _tickTimer = Timer.periodic(
       const Duration(seconds: 1),
@@ -178,26 +179,34 @@ class SimulationEngine extends StateNotifier<SimulationState> {
 
   /// Main tick function - called every 1 second (10 minutes in-game)
   void _tick() {
-    print('🔴 ENGINE TICK: Day ${state.time.day} ${state.time.hour}:00 | Machines: ${state.machines.length} | Cash: \$${state.cash.toStringAsFixed(2)}');
     final currentState = state;
+    
+    // DEBUG PRINT
+    print('🔴 ENGINE TICK: Day ${currentState.time.day} ${currentState.time.hour}:00 | Machines: ${currentState.machines.length} | Cash: \$${currentState.cash.toStringAsFixed(2)}');
+
     final nextTime = currentState.time.nextTick();
 
-    // Process all simulation systems
+    // 1. Process Sales
     var updatedMachines = _processMachineSales(currentState.machines, nextTime);
+    
+    // 2. Process Spoilage
     updatedMachines = _processSpoilage(updatedMachines, nextTime);
     
-    // Calculate reputation penalty
+    // 3. Process Trucks (Movement)
+    var updatedTrucks = _processTruckMovement(currentState.trucks, updatedMachines);
+    
+    // 4. Process Restocking (Truck arrived at machine)
+    final restockResult = _processTruckRestocking(updatedTrucks, updatedMachines);
+    updatedTrucks = restockResult.trucks;
+    updatedMachines = restockResult.machines;
+
+    // 5. Reputation & Cash
     final reputationPenalty = _calculateReputationPenalty(updatedMachines);
     var updatedReputation = (currentState.reputation - reputationPenalty).clamp(0, 1000);
-    
-    final updatedTrucks = _processTruckMovement(currentState.trucks, updatedMachines);
-    
     var updatedCash = currentState.cash;
-
-    // Calculate fuel costs for trucks
     updatedCash = _processFuelCosts(updatedTrucks, updatedCash);
 
-    // Update state
+    // Update State
     final newState = currentState.copyWith(
       time: nextTime,
       machines: updatedMachines,
@@ -207,8 +216,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     );
     state = newState;
     
-    // Notify listeners of state change
-    onStateChanged?.call(newState);
+    // Notify listeners of state change via stream
     _streamController.add(newState);
   }
 

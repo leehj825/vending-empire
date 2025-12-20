@@ -52,14 +52,12 @@ class GameController extends StateNotifier<GlobalGameState> {
           initialTrucks: [],
           initialCash: 5000.0,
           initialReputation: 100,
-          onStateChanged: null, // Will be set in _setupSimulationListener
         ),
         super(const GlobalGameState(
           machines: [],
           trucks: [],
           warehouse: Warehouse(),
         )) {
-    // Listen to simulation engine state changes
     _setupSimulationListener();
   }
 
@@ -69,15 +67,19 @@ class GameController extends StateNotifier<GlobalGameState> {
   /// Setup listener for simulation engine updates
   void _setupSimulationListener() {
     print('🟡 CONTROLLER: Setting up simulation listener...');
-    simulationEngine.stream.listen((simulationState) {
-      print('🟡 CONTROLLER SYNC: Received update from Engine.');
+    
+    simulationEngine.stream.listen((simState) {
+      // This print confirms data is flowing from Engine -> UI
+      print('🟡 CONTROLLER SYNC: Received update. Cash: \$${simState.cash.toStringAsFixed(2)}, Machines: ${simState.machines.length}');
+      
       state = state.copyWith(
-        machines: simulationState.machines,
-        trucks: simulationState.trucks,
-        cash: simulationState.cash,
-        reputation: simulationState.reputation,
-        dayCount: simulationState.time.day,
-        hourOfDay: simulationState.time.hour,
+        machines: simState.machines,
+        trucks: simState.trucks,
+        cash: simState.cash,
+        reputation: simState.reputation,
+        dayCount: simState.time.day,
+        hourOfDay: simState.time.hour,
+        // Warehouse and logs are managed locally by Controller, so we don't overwrite them
       );
     });
   }
@@ -125,17 +127,17 @@ class GameController extends StateNotifier<GlobalGameState> {
 
   /// Buy a new vending machine and place it in a zone
   void buyMachine(ZoneType zoneType, {required double x, required double y}) {
+    print('🟢 CONTROLLER ACTION: Attempting to buy machine...');
     final price = MachinePrices.getPrice(zoneType);
     
     if (state.cash < price) {
-      state = state.addLogMessage('Insufficient funds to buy machine');
+      state = state.addLogMessage('Insufficient funds');
       return;
     }
 
-    // Create zone based on type
+    // 1. Create Data
     final zone = _createZoneForType(zoneType, x: x, y: y);
     
-    // Create machine
     final machine = Machine(
       id: _uuid.v4(),
       name: '${zoneType.name.toUpperCase()} Machine ${state.machines.length + 1}',
@@ -145,26 +147,15 @@ class GameController extends StateNotifier<GlobalGameState> {
       currentCash: 0.0,
     );
 
-    // Deduct cash and update state
-    final newCash = state.cash - price;
-    final updatedMachines = [...state.machines, machine];
-    
-    print('🟢 CONTROLLER ACTION: Attempting to buy machine. Current Cash: \$${state.cash}');
-    
-    // Update local state for immediate UI feedback
-    state = state.copyWith(
-      machines: updatedMachines,
-      cash: newCash,
-    );
-    state = state.addLogMessage(
-      'Purchased ${machine.name} for \$${price.toStringAsFixed(2)}',
-    );
-    
-    print('🟢 CONTROLLER SUCCESS: Machine added. New Machine Count: ${state.machines.length}');
-    
-    // Sync to simulation engine to prevent reversion on next tick
+    // 2. Sync to Engine (Critical Step!)
     simulationEngine.addMachine(machine);
-    simulationEngine.updateCash(newCash);
+    simulationEngine.updateCash(state.cash - price);
+
+    // 3. Log
+    state = state.addLogMessage('Purchased ${machine.name}');
+    
+    // Note: We do NOT manually update state.machines here. 
+    // The Engine will update its state, fire the listener, and the UI will update automatically.
   }
 
   /// Create a zone based on zone type
