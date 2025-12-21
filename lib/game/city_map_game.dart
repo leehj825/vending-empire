@@ -11,7 +11,7 @@ import 'components/map_machine.dart';
 import 'components/map_truck.dart';
 import '../simulation/models/machine.dart';
 
-class CityMapGame extends FlameGame with TapDetector {
+class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetector {
   final WidgetRef ref;
   
   final Map<String, MapMachine> _machineComponents = {};
@@ -21,9 +21,10 @@ class CityMapGame extends FlameGame with TapDetector {
   static const double mapHeight = 1000.0;
   static final Vector2 mapCenter = Vector2(500.0, 500.0);
   
-  // FIX: Make nullable to prevent crash if accessed before onLoad finishes
-  TextComponent? debugText;
-  double _timeSinceLastResize = 0;
+  // Camera State
+  double _minZoom = 0.1;
+  double _maxZoom = 5.0;
+  double _lastScale = 1.0;
 
   // Legacy callback
   final void Function(Machine)? onMachineTap;
@@ -31,85 +32,82 @@ class CityMapGame extends FlameGame with TapDetector {
   CityMapGame(this.ref, {this.onMachineTap});
 
   @override
-  Color backgroundColor() => const Color(0xFF222222); // Dark Grey
+  Color backgroundColor() => const Color(0xFF388E3C); // Grass Green
 
   @override
   Future<void> onLoad() async {
     super.onLoad();
 
-    // 1. Setup Camera
+    // Setup Camera
     camera.viewfinder.anchor = Anchor.center;
     camera.viewfinder.position = mapCenter;
-    
-    // Default start zoom (Safe value)
-    camera.viewfinder.zoom = 0.4;
+    camera.viewfinder.zoom = 0.5; // Start zoomed out slightly
 
-    // 2. Add Content
+    // Add Content
     add(GridComponent());
-    
-    // 3. Add Debug HUD (Attached to HUD so it stays on screen)
-    debugText = TextComponent(
-      text: "Loading...",
-      textRenderer: TextPaint(
-        style: const TextStyle(color: Colors.white, fontSize: 20, backgroundColor: Colors.red),
-      ),
-      position: Vector2(20, 50),
-      priority: 100, // Draw on top
-    );
-    // Add to camera.viewport to make it a HUD (sticks to screen)
-    camera.viewport.add(debugText!);
 
     _syncMachines();
     _syncTrucks();
-  }
-
-  @override
-  void onGameResize(Vector2 size) {
-    super.onGameResize(size);
-    _forceFit();
-  }
-
-  void _forceFit() {
-    if (size.x <= 0 || size.y <= 0) return;
-
-    final scaleX = size.x / mapWidth;
-    final scaleY = size.y / mapHeight;
-    
-    // FIX: Multiply by a factor if the screen is high density?
-    // Flame uses logical pixels, so size.x should already be correct.
-    // If it's zoomed in, it means fitZoom is too large.
-    // Let's print out the values to debug on device.
-    
-    // Use 0.8 to be VERY safe (20% padding)
-    final fitZoom = math.min(scaleX, scaleY) * 0.8;
-
-    camera.viewfinder.zoom = fitZoom;
-    camera.viewfinder.position = mapCenter;
-    
-    // FIX: Safe access using '?'
-    // If debugText hasn't been created yet, this line is simply skipped
-    final dpr = window.devicePixelRatio;
-    debugText?.text = "Screen: ${size.x.toStringAsFixed(0)}x${size.y.toStringAsFixed(0)}\nDPR: ${dpr.toStringAsFixed(2)}\nZoom: ${fitZoom.toStringAsFixed(3)}";
   }
 
   @override
   void update(double dt) {
     super.update(dt);
-    
-    // Force a re-check every 1 second to catch any layout bugs
-    _timeSinceLastResize += dt;
-    if (_timeSinceLastResize > 1.0) {
-      _forceFit();
-      _timeSinceLastResize = 0;
-    }
-
     _syncMachines();
     _syncTrucks();
   }
 
+  // --- GESTURES ---
+
+  @override
+  void onScaleStart(ScaleStartInfo info) {
+    // Reset scale tracker
+    _lastScale = 1.0;
+  }
+
+  @override
+  void onScaleUpdate(ScaleUpdateInfo info) {
+    // 1. Zoom (Incremental)
+    final currentScale = info.scale.global.x;
+    if (!currentScale.isNaN && currentScale > 0) {
+      final scaleDelta = currentScale / _lastScale;
+      final newZoom = (camera.viewfinder.zoom * scaleDelta).clamp(_minZoom, _maxZoom);
+      camera.viewfinder.zoom = newZoom;
+      _lastScale = currentScale;
+    }
+
+    // 2. Pan
+    // Divide by zoom so movement is 1:1
+    final delta = info.delta.global / camera.viewfinder.zoom;
+    camera.viewfinder.position -= delta;
+
+    // 3. Clamp
+    _clampCamera();
+  }
+
+  void _clampCamera() {
+    // Basic clamping to keep map in view
+    // Allow viewing slightly outside the map (padding)
+    const padding = 200.0;
+    
+    final x = camera.viewfinder.position.x;
+    final y = camera.viewfinder.position.y;
+    
+    camera.viewfinder.position.x = x.clamp(-padding, mapWidth + padding);
+    camera.viewfinder.position.y = y.clamp(-padding, mapHeight + padding);
+  }
+
+  @override
+  void onScroll(PointerScrollInfo info) {
+    // Mouse wheel zoom
+    final scrollDelta = info.scrollDelta.global.y;
+    final zoomFactor = 1.0 - (scrollDelta / 1000.0);
+    camera.viewfinder.zoom = (camera.viewfinder.zoom * zoomFactor).clamp(_minZoom, _maxZoom);
+    _clampCamera();
+  }
+
   @override
   void onTapUp(TapUpInfo info) {
-    // Basic Tap Logic
     final touched = componentsAtPoint(info.eventPosition.widget);
     bool hit = false;
     for (final c in touched) {
@@ -119,6 +117,8 @@ class CityMapGame extends FlameGame with TapDetector {
       try { ref.read(selectedMachineIdProvider.notifier).state = null; } catch (_) {}
     }
   }
+
+  // --- SYNC LOGIC ---
 
   void _syncMachines() {
     try {
@@ -166,13 +166,8 @@ class CityMapGame extends FlameGame with TapDetector {
 class GridComponent extends PositionComponent {
   @override
   void render(Canvas canvas) {
-    // Draw 1000x1000 Box with RED BORDER
-    canvas.drawRect(
-      const Rect.fromLTWH(0, 0, 1000, 1000), 
-      Paint()..style = PaintingStyle.stroke..color = Colors.red..strokeWidth = 20
-    );
-    
-    final paint = Paint()..color = const Color(0xFF444444)..strokeWidth = 5;
+    // Normal Grid
+    final paint = Paint()..color = const Color(0xFF757575)..strokeWidth = 20;
     for (double i = 0; i <= 1000; i += 100) {
       canvas.drawLine(Offset(i, 0), Offset(i, 1000), paint);
       canvas.drawLine(Offset(0, i), Offset(1000, i), paint);
