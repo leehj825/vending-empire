@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart' show StateNotifierProvider;
@@ -359,10 +360,17 @@ class GameController extends StateNotifier<GlobalGameState> {
       return;
     }
 
+    final random = math.Random();
+    // Random position between 1.0 and 9.0 to stay within map bounds
+    final startX = 1.0 + random.nextDouble() * 8.0;
+    final startY = 1.0 + random.nextDouble() * 8.0;
+
     final truck = Truck(
       id: _uuid.v4(),
       name: 'Truck ${state.trucks.length + 1}',
       inventory: {},
+      currentX: startX,
+      currentY: startY,
     );
 
     // Update state

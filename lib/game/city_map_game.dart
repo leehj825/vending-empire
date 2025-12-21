@@ -24,7 +24,7 @@ class CityMapGame extends FlameGame with HasGameReference, PanDetector, ScaleDet
   static final Vector2 mapCenter = Vector2(500.0, 500.0);
   
   // Camera constraints
-  double _minZoom = 0.5;
+  double _minZoom = 0.1;
   double _maxZoom = 3.0;
   double _currentZoom = 1.0;
   Vector2 _cameraPosition = mapCenter;
@@ -69,15 +69,13 @@ class CityMapGame extends FlameGame with HasGameReference, PanDetector, ScaleDet
     if (size.x == 0 || size.y == 0) return;
     
     // Calculate zoom based on screen size.
-    // We intentionally start a bit "zoomed in" so the user can pan
-    // both horizontally and vertically in portrait mode.
+    // Fit the whole map on screen by default
     final widthZoom = size.x / mapWidth;
     final heightZoom = size.y / mapHeight;
     
-    // Start from the larger fit (so we don't zoom out to show the whole map),
-    // then nudge in a bit more so panning is possible in both axes.
-    final baseZoom = math.max(widthZoom, heightZoom);
-    _currentZoom = baseZoom * 1.10;
+    // Start from the smaller fit to ensure the whole map is visible
+    final baseZoom = math.min(widthZoom, heightZoom);
+    _currentZoom = baseZoom * 0.95; // Add a small margin
     
     // Clamp zoom
     _currentZoom = _currentZoom.clamp(_minZoom, _maxZoom);
