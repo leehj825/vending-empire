@@ -24,8 +24,8 @@ class CityMapGame extends FlameGame with HasGameReference, ScaleDetector {
   static final Vector2 mapCenter = Vector2(500.0, 500.0);
   
   // Camera constraints
-  double _minZoom = 0.1;
-  double _maxZoom = 3.0;
+  double _minZoom = 0.05; // Allow zooming out more
+  double _maxZoom = 5.0; // Allow zooming in more
   double _currentZoom = 1.0;
   double _startZoom = 1.0;
   Vector2 _cameraPosition = mapCenter;
@@ -99,11 +99,15 @@ class CityMapGame extends FlameGame with HasGameReference, ScaleDetector {
     final maxY = mapHeight - halfViewport.y;
     
     // If viewport is larger than map, center the camera
-    if (minX >= maxX || minY >= maxY) {
-      _cameraPosition = mapCenter;
+    if (minX >= maxX) {
+      _cameraPosition.x = mapCenter.x;
     } else {
-      // Clamp position only if bounds are valid
       _cameraPosition.x = _cameraPosition.x.clamp(minX, maxX);
+    }
+
+    if (minY >= maxY) {
+      _cameraPosition.y = mapCenter.y;
+    } else {
       _cameraPosition.y = _cameraPosition.y.clamp(minY, maxY);
     }
     
@@ -121,40 +125,45 @@ class CityMapGame extends FlameGame with HasGameReference, ScaleDetector {
 
   // Zoom (pinch) and Pan (drag) handling
   @override
-  bool onScaleStart(ScaleStartInfo info) {
+  void onScaleStart(ScaleStartInfo info) {
     _startZoom = _currentZoom;
-    return true;
   }
 
   @override
-  bool onScaleUpdate(ScaleUpdateInfo info) {
-    // Zoom
+  void onScaleUpdate(ScaleUpdateInfo info) {
     final scaleVector = info.scale.global;
     final scaleFactor = (scaleVector.x + scaleVector.y) / 2.0;
     
-    // Calculate new zoom based on start zoom and current scale factor
-    // Only update zoom if scale is significantly different from 1.0 to avoid jitter during pure pans
-    if ((scaleFactor - 1.0).abs() > 0.01) {
+    // Zoom
+    // Handle both 1-finger (drag) and 2-finger (pinch) interactions
+    // If pointerCount is 2, we update zoom
+    // We check raw pointer count from the underlying event
+    final pointerCount = info.raw.pointerCount;
+
+    if (pointerCount == 2) {
+      // Calculate new zoom
+      // Use the relative scale change from the start of the gesture
       final newZoom = _startZoom * scaleFactor;
       _currentZoom = newZoom.clamp(_minZoom, _maxZoom);
       camera.viewfinder.zoom = _currentZoom;
     }
-    
+
     // Pan
+    // Always pan based on delta
     final deltaScreen = info.delta.global;
-    // Don't pan if delta is tiny
-    if (deltaScreen.length2 > 0.5) {
-      final delta = deltaScreen / _currentZoom;
-      _cameraPosition -= delta;
-      _clampCameraPosition();
-    }
     
-    return true;
+    // Check if there is actual movement to avoid jitter
+    if (deltaScreen.length2 > 0.1) {
+       // Apply pan
+       final delta = deltaScreen / _currentZoom;
+       _cameraPosition -= delta;
+       _clampCameraPosition();
+    }
   }
 
   @override
-  bool onScaleEnd(ScaleEndInfo info) {
-    return true;
+  void onScaleEnd(ScaleEndInfo info) {
+    // Nothing needed
   }
 
   /// Sync machine components with provider state
