@@ -375,11 +375,17 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       );
 
       // Calculate Manhattan distance to destination road
-      // Use road coordinates for pathfinding
+      // Machines are at .5 coordinates (block centers), roads are at integer coordinates
+      // We need to find the nearest road to the machine, then approach the machine
       final truckRoadX = truck.currentX.round().toDouble();
       final truckRoadY = truck.currentY.round().toDouble();
-      final destRoadX = destination.zone.x.round().toDouble();
-      final destRoadY = destination.zone.y.round().toDouble();
+      
+      // For machines at .5 positions, find the nearest road (could be floor or ceil)
+      // Use floor to get the road on the lower side, which is more predictable
+      final machineX = destination.zone.x;
+      final machineY = destination.zone.y;
+      final destRoadX = machineX.floor().toDouble(); // Road on the left/bottom side of block
+      final destRoadY = machineY.floor().toDouble();
       
       final dx = destRoadX - truckRoadX;
       final dy = destRoadY - truckRoadY;
@@ -389,14 +395,12 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       if (manhattanDistance == 0) {
         // Truck is at the road near the machine
         // Now make final approach to machine's actual position (block center)
-        final machineX = destination.zone.x;
-        final machineY = destination.zone.y;
         final finalDx = machineX - truck.currentX;
         final finalDy = machineY - truck.currentY;
-        final finalDistance = (finalDx * finalDx + finalDy * finalDy) * 0.5;
+        final finalDistance = (finalDx * finalDx + finalDy * finalDy);
         
         // If very close to machine, mark as arrived
-        if (finalDistance < 0.15) {
+        if (finalDistance < 0.1) {
           // Truck arrived at machine - mark as restocking.
           // IMPORTANT: Do NOT advance currentRouteIndex here.
           // Restocking logic relies on truck.currentDestination (based on currentRouteIndex).
@@ -411,20 +415,31 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         }
         
         // Make final approach to machine (move off-road to machine position)
-        final approachSpeed = 0.2; // Faster approach speed
+        // Move directly towards machine at a reasonable speed
+        final approachSpeed = 0.5; // Speed for final approach (faster to reach machine)
+        final distance = (finalDx * finalDx + finalDy * finalDy) * 0.5; // Euclidean distance
+        
         double newX = truck.currentX;
         double newY = truck.currentY;
         
-        if (finalDx.abs() > approachSpeed) {
-          newX += finalDx > 0 ? approachSpeed : -approachSpeed;
-        } else {
+        // If very close, snap to machine position
+        if (distance < approachSpeed) {
           newX = machineX;
-        }
-        
-        if (finalDy.abs() > approachSpeed) {
-          newY += finalDy > 0 ? approachSpeed : -approachSpeed;
-        } else {
           newY = machineY;
+        } else {
+          // Move directly towards machine
+          final normalizedDx = finalDx / distance;
+          final normalizedDy = finalDy / distance;
+          newX += normalizedDx * approachSpeed;
+          newY += normalizedDy * approachSpeed;
+          
+          // Clamp to machine position if we overshoot
+          if ((finalDx > 0 && newX > machineX) || (finalDx < 0 && newX < machineX)) {
+            newX = machineX;
+          }
+          if ((finalDy > 0 && newY > machineY) || (finalDy < 0 && newY < machineY)) {
+            newY = machineY;
+          }
         }
         
         return truck.copyWith(
@@ -447,9 +462,10 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       double currentY = truck.currentY.round().toDouble();
       
       // Determine target road coordinates (snap destination to nearest road for pathfinding)
-      // Roads are at integer coordinates, so round the destination zone coordinates
-      final targetRoadX = destination.zone.x.round().toDouble();
-      final targetRoadY = destination.zone.y.round().toDouble();
+      // Machines are at .5 positions, so use floor to get the road on the lower side
+      // This ensures trucks approach from a consistent direction
+      final targetRoadX = destination.zone.x.floor().toDouble();
+      final targetRoadY = destination.zone.y.floor().toDouble();
       
       // Calculate distance to target roads
       final dxToRoad = targetRoadX - currentX;
