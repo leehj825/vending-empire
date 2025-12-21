@@ -287,11 +287,27 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                       ),
                     ),
                   ),
+                  // Truck List or Empty State (with Buy button)
                   SizedBox(
                     height: 130,
                     child: trucks.isEmpty
-                        ? const Center(
-                            child: Text('No trucks available'),
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('No trucks available'),
+                                const SizedBox(height: 8),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    ref
+                                        .read(gameControllerProvider.notifier)
+                                        .buyTruck();
+                                  },
+                                  icon: const Icon(Icons.add_shopping_cart, size: 16),
+                                  label: const Text('Buy Truck (\$500)'),
+                                ),
+                              ],
+                            ),
                           )
                         : ListView.builder(
                             scrollDirection: Axis.horizontal,
@@ -650,7 +666,7 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
             availableCapacity,
           ].reduce((a, b) => a < b ? a : b)
         : 0;
-    final quantityInt = _quantity.round().clamp(1, maxQuantity);
+    final quantityInt = maxQuantity > 0 ? _quantity.round().clamp(1, maxQuantity) : 0;
 
     return AlertDialog(
       title: Text('Load Cargo - ${widget.truck.name}'),
@@ -689,19 +705,25 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
             ),
             if (_selectedProduct != null) ...[
               const SizedBox(height: 16),
-              Text('Quantity: $quantityInt'),
-              Slider(
-                value: _quantity.clamp(1.0, maxQuantity.toDouble()),
-                min: 1.0,
-                max: maxQuantity.toDouble(),
-                divisions: maxQuantity > 1 ? maxQuantity - 1 : 1,
-                label: quantityInt.toString(),
-                onChanged: (value) {
-                  setState(() {
-                    _quantity = value;
-                  });
-                },
-              ),
+              if (maxQuantity > 0) ...[
+                Text('Quantity: $quantityInt'),
+                Slider(
+                  value: _quantity.clamp(1.0, maxQuantity.toDouble()),
+                  min: 1.0,
+                  max: maxQuantity.toDouble(),
+                  divisions: maxQuantity > 1 ? maxQuantity - 1 : 1,
+                  label: quantityInt.toString(),
+                  onChanged: (value) {
+                    setState(() {
+                      _quantity = value;
+                    });
+                  },
+                ),
+              ] else
+                const Text(
+                  'Cannot load: Truck is full',
+                  style: TextStyle(color: Colors.red),
+                ),
             ],
           ],
         ),

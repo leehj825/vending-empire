@@ -7,3 +7,10 @@
 .pub/
 .flutter-plugins-dependencies
 build/
+build/*.apk
+build/**/*.apk
+build/*apk
+
+# Local tool installs (workspace-only)
+.flutter/
+.android-sdk/

@@ -150,14 +150,18 @@ class GameController extends StateNotifier<GlobalGameState> {
 
     // Update simulation engine
     final updatedMachines = [...state.machines, newMachine];
-    _updateSimulationMachines(updatedMachines);
+    simulationEngine.updateMachines(updatedMachines);
 
     // UPDATE STATE DIRECTLY
+    final newCash = state.cash - price;
     state = state.copyWith(
-      cash: state.cash - price,
+      cash: newCash,
       machines: updatedMachines,
     );
     state = state.addLogMessage("Bought ${newMachine.name}");
+
+    // Sync cash to simulation engine to prevent reversion on next tick
+    simulationEngine.updateCash(newCash);
   }
 
   /// Create a zone based on zone type
@@ -345,6 +349,37 @@ class GameController extends StateNotifier<GlobalGameState> {
     simulationEngine.updateTrucks(updatedTrucks);
   }
 
+  /// Buy a new truck
+  void buyTruck() {
+    print('🟢 CONTROLLER ACTION: Buying truck');
+    const truckPrice = 500.0;
+    
+    if (state.cash < truckPrice) {
+      state = state.addLogMessage('Insufficient funds to buy truck ($truckPrice)');
+      return;
+    }
+
+    final truck = Truck(
+      id: _uuid.v4(),
+      name: 'Truck ${state.trucks.length + 1}',
+      inventory: {},
+    );
+
+    // Update state
+    final updatedTrucks = [...state.trucks, truck];
+    final newCash = state.cash - truckPrice;
+    
+    state = state.copyWith(
+      trucks: updatedTrucks,
+      cash: newCash,
+    );
+    state = state.addLogMessage('Bought ${truck.name} for \$$truckPrice');
+    
+    // Sync to simulation engine
+    simulationEngine.updateTrucks(updatedTrucks);
+    simulationEngine.updateCash(newCash);
+  }
+
   /// Get current machines list
   List<Machine> get machines => state.machines;
 
@@ -354,46 +389,47 @@ class GameController extends StateNotifier<GlobalGameState> {
   /// Get warehouse inventory
   Warehouse get warehouse => state.warehouse;
 
+  // No dispose method needed in GameController for SimulationEngine as it's not a provider but an internal object.
+  // We just want to make sure the timer stops.
   @override
   void dispose() {
-    simulationEngine.dispose();
+    simulationEngine.stop();
+    // Do NOT call super.dispose() here manually because StateNotifierProvider handles it?
+    // Wait, StateNotifier expects dispose() to be called.
+    // The error says "Tried to use GameController after dispose was called".
+    // This implies that something is accessing the controller AFTER it has been disposed.
+    // Riverpod calls dispose() automatically.
+    
+    // Let's try removing our manual dispose entirely and just rely on onDispose in the provider definition?
+    // No, we need to stop the engine.
+    
     super.dispose();
   }
 }
 
 /// Provider for GameController
-// CHANGE TO StateNotifierProvider
-// Note: Using Provider with StateNotifier for Riverpod 3.0 compatibility
-final gameControllerProvider = Provider<GameController>((ref) {
-  final controller = GameController(ref);
-  ref.onDispose(() => controller.dispose());
-  return controller;
+final gameControllerProvider =
+    StateNotifierProvider<GameController, GlobalGameState>((ref) {
+  return GameController(ref);
 });
 
 /// Provider for the game state
 final gameStateProvider = Provider<GlobalGameState>((ref) {
-  final controller = ref.watch(gameControllerProvider);
-  return controller.currentState;
+  return ref.watch(gameControllerProvider);
 });
 
 /// Provider for machines list
-// UPDATE Derived Providers to read from the state
 final machinesProvider = Provider<List<Machine>>((ref) {
-  final controller = ref.watch(gameControllerProvider);
-  return controller.currentState.machines;
+  return ref.watch(gameControllerProvider).machines;
 });
 
 /// Provider for trucks list
-/// Read directly from state
 final trucksProvider = Provider<List<Truck>>((ref) {
-  final controller = ref.watch(gameControllerProvider);
-  return controller.currentState.trucks;
+  return ref.watch(gameControllerProvider).trucks;
 });
 
 /// Provider for warehouse
-/// Read directly from state
 final warehouseProvider = Provider<Warehouse>((ref) {
-  final controller = ref.watch(gameControllerProvider);
-  return controller.currentState.warehouse;
+  return ref.watch(gameControllerProvider).warehouse;
 });
 
