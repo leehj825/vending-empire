@@ -375,7 +375,14 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
          _truckComponents.remove(id)?.removeFromParent();
       });
       for (final t in trucks) {
-        final pos = Vector2(t.currentX * 100, t.currentY * 100);
+        // Trucks must be on roads (integer coordinates in zone space)
+        // Roads are at integer coordinates, which map to multiples of 100 in pixel space
+        // Ensure truck coordinates are integers (snap to road if needed)
+        final roadX = t.currentX.round().toDouble();
+        final roadY = t.currentY.round().toDouble();
+        // Roads are at pixel positions: 0, 100, 200, 300, ..., 1000
+        // Integer zone coordinates map to these road positions
+        final pos = Vector2(roadX * 100, roadY * 100);
         if (_truckComponents.containsKey(t.id)) {
            _truckComponents[t.id]!.updateTruck(t);
            _truckComponents[t.id]!.position = pos;

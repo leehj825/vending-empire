@@ -361,9 +361,10 @@ class GameController extends StateNotifier<GlobalGameState> {
     }
 
     final random = math.Random();
-    // Random position between 1.0 and 9.0 to stay within map bounds
-    final startX = 1.0 + random.nextDouble() * 8.0;
-    final startY = 1.0 + random.nextDouble() * 8.0;
+    // Place truck on a road (integer coordinates between 1 and 9)
+    // Roads are at integer coordinates in zone space
+    final startX = (1 + random.nextInt(9)).toDouble(); // Random integer 1-9
+    final startY = (1 + random.nextInt(9)).toDouble(); // Random integer 1-9
 
     final truck = Truck(
       id: _uuid.v4(),
