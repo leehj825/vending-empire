@@ -21,8 +21,8 @@ class CityMapGame extends FlameGame with TapDetector {
   static const double mapHeight = 1000.0;
   static final Vector2 mapCenter = Vector2(500.0, 500.0);
   
-  // Debug Component
-  late TextComponent debugText;
+  // FIX: Make nullable to prevent crash if accessed before onLoad finishes
+  TextComponent? debugText;
   double _timeSinceLastResize = 0;
 
   // Legacy callback
@@ -57,7 +57,7 @@ class CityMapGame extends FlameGame with TapDetector {
       priority: 100, // Draw on top
     );
     // Add to camera.viewport to make it a HUD (sticks to screen)
-    camera.viewport.add(debugText);
+    camera.viewport.add(debugText!);
 
     _syncMachines();
     _syncTrucks();
@@ -81,8 +81,9 @@ class CityMapGame extends FlameGame with TapDetector {
     camera.viewfinder.zoom = fitZoom;
     camera.viewfinder.position = mapCenter;
     
-    // Update Debug Text
-    debugText.text = "Screen: ${size.x.toStringAsFixed(0)}x${size.y.toStringAsFixed(0)}\nZoom: ${fitZoom.toStringAsFixed(3)}";
+    // FIX: Safe access using '?'
+    // If debugText hasn't been created yet, this line is simply skipped
+    debugText?.text = "Screen: ${size.x.toStringAsFixed(0)}x${size.y.toStringAsFixed(0)}\nZoom: ${fitZoom.toStringAsFixed(3)}";
   }
 
   @override
