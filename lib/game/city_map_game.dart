@@ -51,6 +51,28 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   }
 
   @override
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
+    _fitMapToScreen();
+  }
+
+  void _fitMapToScreen() {
+    if (size.x <= 0 || size.y <= 0) return;
+
+    final scaleX = size.x / mapWidth;
+    final scaleY = size.y / mapHeight;
+    
+    // Fit map to screen with margin
+    final fitZoom = math.min(scaleX, scaleY) * 0.9;
+    
+    camera.viewfinder.zoom = fitZoom;
+    camera.viewfinder.position = mapCenter;
+    
+    // Set minimum zoom so user can't zoom out past the full map
+    _minZoom = fitZoom;
+  }
+
+  @override
   void update(double dt) {
     super.update(dt);
     _syncMachines();
