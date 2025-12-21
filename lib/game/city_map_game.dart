@@ -12,7 +12,7 @@ import 'components/map_truck.dart';
 import '../simulation/models/machine.dart';
 
 /// Main game class for the city map visualization
-class CityMapGame extends FlameGame with HasGameReference, ScaleDetector {
+class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector {
   final WidgetRef ref;
   final void Function(Machine)? onMachineTap;
   final Map<String, MapMachine> _machineComponents = {};
@@ -131,29 +131,23 @@ class CityMapGame extends FlameGame with HasGameReference, ScaleDetector {
 
   @override
   void onScaleUpdate(ScaleUpdateInfo info) {
+    // Zoom
     final scaleVector = info.scale.global;
     final scaleFactor = (scaleVector.x + scaleVector.y) / 2.0;
-    
-    // Zoom
-    // Handle both 1-finger (drag) and 2-finger (pinch) interactions
-    // If pointerCount is 2, we update zoom
-    // We check raw pointer count from the underlying event
-    final pointerCount = info.raw.pointerCount;
 
-    if (pointerCount == 2) {
-      // Calculate new zoom
-      // Use the relative scale change from the start of the gesture
-      final newZoom = _startZoom * scaleFactor;
-      _currentZoom = newZoom.clamp(_minZoom, _maxZoom);
-      camera.viewfinder.zoom = _currentZoom;
+    // Apply zoom if scale factor is not 1.0
+    // Using a small threshold to avoid jitter
+    if ((scaleFactor - 1.0).abs() > 0.001) {
+        final newZoom = _startZoom * scaleFactor;
+        _currentZoom = newZoom.clamp(_minZoom, _maxZoom);
+        camera.viewfinder.zoom = _currentZoom;
     }
 
     // Pan
-    // Always pan based on delta
     final deltaScreen = info.delta.global;
     
-    // Check if there is actual movement to avoid jitter
-    if (deltaScreen.length2 > 0.1) {
+    // Check if there is actual movement
+    if (deltaScreen.length2 > 0.0) {
        // Apply pan
        final delta = deltaScreen / _currentZoom;
        _cameraPosition -= delta;
@@ -164,6 +158,17 @@ class CityMapGame extends FlameGame with HasGameReference, ScaleDetector {
   @override
   void onScaleEnd(ScaleEndInfo info) {
     // Nothing needed
+  }
+  
+  @override
+  void onScroll(PointerScrollInfo info) {
+    // Handle mouse wheel zoom
+    final scrollDelta = info.scrollDelta.global.y;
+    // Scale factor: scroll down (positive) -> zoom out, scroll up (negative) -> zoom in
+    final zoomFactor = 1.0 - (scrollDelta / 1000.0);
+    _currentZoom = (_currentZoom * zoomFactor).clamp(_minZoom, _maxZoom);
+    camera.viewfinder.zoom = _currentZoom;
+    _clampCameraPosition();
   }
 
   /// Sync machine components with provider state
