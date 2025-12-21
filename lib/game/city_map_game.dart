@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
+import 'package:flame/input.dart';
 import 'package:flame/events.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/providers.dart';
@@ -12,7 +13,7 @@ import 'components/map_truck.dart';
 import '../simulation/models/machine.dart';
 
 /// Main game class for the city map visualization
-class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector {
+class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetector {
   final WidgetRef ref;
   final void Function(Machine)? onMachineTap;
   final Map<String, MapMachine> _machineComponents = {};
@@ -92,26 +93,30 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector {
     final viewportSize = size / _currentZoom;
     final halfViewport = viewportSize / 2;
     
-    // Calculate bounds
-    final minX = halfViewport.x;
-    final maxX = mapWidth - halfViewport.x;
-    final minY = halfViewport.y;
-    final maxY = mapHeight - halfViewport.y;
+    // Calculate bounds allowing panning even if viewport > map
+    // The bounds ensure the map edge aligns with the viewport edge at the limit
+    final minX = math.min(halfViewport.x, mapWidth - halfViewport.x);
+    final maxX = math.max(halfViewport.x, mapWidth - halfViewport.x);
+    final minY = math.min(halfViewport.y, mapHeight - halfViewport.y);
+    final maxY = math.max(halfViewport.y, mapHeight - halfViewport.y);
     
-    // If viewport is larger than map, center the camera
-    if (minX >= maxX) {
-      _cameraPosition.x = mapCenter.x;
-    } else {
-      _cameraPosition.x = _cameraPosition.x.clamp(minX, maxX);
-    }
-
-    if (minY >= maxY) {
-      _cameraPosition.y = mapCenter.y;
-    } else {
-      _cameraPosition.y = _cameraPosition.y.clamp(minY, maxY);
-    }
+    _cameraPosition.x = _cameraPosition.x.clamp(minX, maxX);
+    _cameraPosition.y = _cameraPosition.y.clamp(minY, maxY);
     
     camera.viewfinder.position = _cameraPosition;
+  }
+
+  @override
+  void onTapUp(TapUpInfo info) {
+    // Check for taps on machines
+    final touchedComponents = componentsAtPoint(info.eventPosition.widget);
+    
+    for (final component in touchedComponents) {
+      if (component is MapMachine) {
+        onMachineTap?.call(component.machine);
+        return; // Handle only the top-most machine
+      }
+    }
   }
 
   @override

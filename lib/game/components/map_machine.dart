@@ -6,7 +6,7 @@ import '../../simulation/models/zone.dart';
 import '../city_map_game.dart';
 
 /// Component that represents a machine on the city map
-class MapMachine extends PositionComponent with TapCallbacks, HasGameReference<CityMapGame> {
+class MapMachine extends PositionComponent with HasGameReference<CityMapGame> {
   Machine machine;
   double _blinkTimer = 0.0;
   static const double _blinkSpeed = 2.0; // Blinks per second
@@ -16,11 +16,6 @@ class MapMachine extends PositionComponent with TapCallbacks, HasGameReference<C
     super.position,
     super.size,
   }) : super(anchor: Anchor.center);
-
-  @override
-  void onTapUp(TapUpEvent event) {
-    game.onMachineTap?.call(machine);
-  }
 
   /// Update the machine reference (for when machine state changes)
   void updateMachine(Machine newMachine) {
