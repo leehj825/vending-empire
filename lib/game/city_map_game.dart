@@ -24,13 +24,14 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   // Camera State
   double _minZoom = 0.1;
   double _maxZoom = 5.0;
-  double _lastScale = 1.0;
   double _startZoom = 1.0;
   bool _hasInitialized = false;
   
-  // Mouse drag pan state
-  Vector2? _dragStartPosition;
+  // Pan state for single-finger drag
   Vector2? _lastDragPosition;
+  
+  // Scale state for pinch-to-zoom
+  bool _isScaling = false;
 
   // Legacy callback
   final void Function(Machine)? onMachineTap;
@@ -100,32 +101,40 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
 
   @override
   void onScaleStart(ScaleStartInfo info) {
-    // Store the initial zoom when gesture starts
+    // Pinch-to-zoom gesture started (2 fingers)
+    _isScaling = true;
     _startZoom = camera.viewfinder.zoom;
-    _lastScale = 1.0;
   }
 
   @override
   void onScaleUpdate(ScaleUpdateInfo info) {
-    // 1. Zoom (using cumulative scale factor)
-    // Use the y component of scale (or average of x and y)
-    final scaleFactor = info.scale.global.y;
-    if (!scaleFactor.isNaN && scaleFactor > 0) {
-      final newZoom = (_startZoom * scaleFactor).clamp(_minZoom, _maxZoom);
+    if (!_isScaling) return;
+    
+    // Handle pinch-to-zoom (2 fingers)
+    // Use the scale factor to adjust zoom
+    final scaleFactor = info.scale.global;
+    // Use average of x and y scale for more stable zoom
+    final avgScale = (scaleFactor.x + scaleFactor.y) / 2.0;
+    
+    if (!avgScale.isNaN && avgScale > 0) {
+      final newZoom = (_startZoom * avgScale).clamp(_minZoom, _maxZoom);
       camera.viewfinder.zoom = newZoom;
     }
 
-    // 2. Pan
-    // Convert delta from screen space to world space
-    // The delta is already in screen coordinates, so we need to convert it
+    // Also handle panning during pinch (when fingers move while pinching)
     final delta = info.delta.global;
     if (delta.x != 0 || delta.y != 0) {
       final worldDelta = delta / camera.viewfinder.zoom;
       camera.viewfinder.position -= worldDelta;
     }
-
-    // 3. Clamp
+    
+    // Clamp camera position
     _clampCamera();
+  }
+
+  @override
+  void onScaleEnd(ScaleEndInfo info) {
+    _isScaling = false;
   }
 
   void _clampCamera() {
@@ -156,14 +165,17 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
 
   @override
   void onPanStart(DragStartInfo info) {
+    // Only handle pan if not currently scaling (single finger drag)
+    if (_isScaling) return;
+    
     // Store drag start position for panning
-    _dragStartPosition = info.eventPosition.widget;
     _lastDragPosition = info.eventPosition.widget;
   }
 
   @override
   void onPanUpdate(DragUpdateInfo info) {
-    if (_lastDragPosition == null) return;
+    // Only handle pan if not currently scaling and we have a valid last position
+    if (_isScaling || _lastDragPosition == null) return;
     
     // Calculate drag delta (incremental from last position)
     final currentPosition = info.eventPosition.widget;
@@ -185,13 +197,11 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
 
   @override
   void onPanEnd(DragEndInfo info) {
-    _dragStartPosition = null;
     _lastDragPosition = null;
   }
 
   @override
   void onPanCancel() {
-    _dragStartPosition = null;
     _lastDragPosition = null;
   }
 
