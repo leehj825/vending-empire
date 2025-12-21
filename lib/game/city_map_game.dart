@@ -108,36 +108,38 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
     // Cancel any active pan gesture immediately
     _isPanning = false;
     _lastDragPosition = null;
+    _panStartPosition = null;
     
     _isScaling = true;
     _startZoom = camera.viewfinder.zoom;
     
-    debugPrint('[Scale] Started - initial zoom: $_startZoom');
+    debugPrint('[Scale] Started - initial zoom: $_startZoom, pointers: ${info.pointerCount}');
   }
 
   @override
   void onScaleUpdate(ScaleUpdateInfo info) {
-    // Always process scale updates, even if _isScaling wasn't set
-    // This handles cases where scale starts before pan is cancelled
+    // Always cancel pan when scale is detected
+    _isPanning = false;
+    _lastDragPosition = null;
+    _panStartPosition = null;
+    
+    // Always process scale updates - if scale gesture is happening, prioritize it
     if (!_isScaling) {
-      // Scale gesture detected - cancel pan
-      _isPanning = false;
-      _lastDragPosition = null;
       _isScaling = true;
       _startZoom = camera.viewfinder.zoom;
     }
     
     // Handle pinch-to-zoom (2 fingers)
-    // Try both local and global scale
+    // Use the global scale factor
     final scaleFactor = info.scale.global;
-    // Check if scale is actually changing (not just 1.0)
+    // Use average of x and y for more stable zoom
     final avgScale = (scaleFactor.x + scaleFactor.y) / 2.0;
     
-    // Only process if scale is significantly different from 1.0
-    if (!avgScale.isNaN && avgScale > 0 && (avgScale < 0.99 || avgScale > 1.01)) {
+    // Process zoom if scale factor is valid
+    if (!avgScale.isNaN && avgScale > 0) {
       final newZoom = (_startZoom * avgScale).clamp(_minZoom, _maxZoom);
       camera.viewfinder.zoom = newZoom;
-      debugPrint('[Scale] Update - scale: $avgScale, zoom: $newZoom');
+      debugPrint('[Scale] Update - scale: $avgScale, zoom: $newZoom, pointers: ${info.pointerCount}');
     }
 
     // Also handle panning during pinch (when fingers move while pinching)
@@ -154,6 +156,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   @override
   void onScaleEnd(ScaleEndInfo info) {
     _isScaling = false;
+    debugPrint('[Scale] Ended');
   }
 
   void _clampCamera() {
@@ -205,6 +208,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   @override
   void onPanUpdate(DragUpdateInfo info) {
     // If scale is active, cancel pan immediately
+    // This is the key: scale gesture takes priority
     if (_isScaling) {
       _isPanning = false;
       _lastDragPosition = null;
