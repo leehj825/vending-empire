@@ -31,9 +31,10 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   Vector2? _lastDragPosition;
   Vector2? _panStartPosition;
   bool _isPanning = false;
-  static const double _panThreshold = 20.0; // Increased threshold to allow scale gesture time to be detected
+  static const double _panThreshold = 30.0; // Increased threshold significantly for touch screens
   DateTime? _panStartTime; // Track when pan gesture started
-  static const Duration _panDelay = Duration(milliseconds: 100); // Delay before pan activates
+  static const Duration _panDelay = Duration(milliseconds: 200); // Longer delay for touch screens
+  Vector2? _panInitialPosition; // Store initial position to detect if scale might be happening
   
   // Scale state for pinch-to-zoom
   bool _isScaling = false;
@@ -107,31 +108,33 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   @override
   void onScaleStart(ScaleStartInfo info) {
     // Pinch-to-zoom gesture started (2 fingers)
-    // Cancel any active pan gesture immediately - this is critical for Android
+    // Cancel any active pan gesture immediately - this is critical for touch screens
     _isPanning = false;
     _lastDragPosition = null;
     _panStartPosition = null;
     _panStartTime = null;
+    _panInitialPosition = null;
     
     _isScaling = true;
     _startZoom = camera.viewfinder.zoom;
     
-    debugPrint('[Scale] Started - initial zoom: $_startZoom, cancelled pan');
+    debugPrint('[Scale] ⚡ STARTED - initial zoom: $_startZoom, cancelled pan');
   }
 
   @override
   void onScaleUpdate(ScaleUpdateInfo info) {
-    // Always cancel pan when scale is detected - critical for Android
+    // Always cancel pan when scale is detected - critical for touch screens
     _isPanning = false;
     _lastDragPosition = null;
     _panStartPosition = null;
     _panStartTime = null;
+    _panInitialPosition = null;
     
     // Always process scale updates - if scale gesture is happening, prioritize it
     if (!_isScaling) {
       _isScaling = true;
       _startZoom = camera.viewfinder.zoom;
-      debugPrint('[Scale] Detected during update - cancelling pan');
+      debugPrint('[Scale] ⚡ DETECTED during update - cancelling pan, scale: ${info.scale.global}');
     }
     
     // Handle pinch-to-zoom (2 fingers)
@@ -145,8 +148,10 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
       // Only update if zoom actually changed to avoid unnecessary updates
       if ((newZoom - camera.viewfinder.zoom).abs() > 0.001) {
         camera.viewfinder.zoom = newZoom;
-        debugPrint('[Scale] Update - scale: $scaleFactor, zoom: $newZoom (from $_startZoom)');
+        debugPrint('[Scale] ⚡ UPDATE - scale: $scaleFactor, zoom: $newZoom (from $_startZoom)');
       }
+    } else {
+      debugPrint('[Scale] ⚠️ Invalid scale factor: $scaleFactor, global: ${info.scale.global}');
     }
 
     // Also handle panning during pinch (when fingers move while pinching)
@@ -163,7 +168,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   @override
   void onScaleEnd(ScaleEndInfo info) {
     _isScaling = false;
-    debugPrint('[Scale] Ended - final zoom: ${camera.viewfinder.zoom}');
+    debugPrint('[Scale] ⚡ ENDED - final zoom: ${camera.viewfinder.zoom}');
   }
 
   void _clampCamera() {
@@ -205,36 +210,50 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
       _lastDragPosition = null;
       _panStartPosition = null;
       _panStartTime = null;
+      _panInitialPosition = null;
       debugPrint('[Pan] Start cancelled - scale is active');
       return;
     }
     
     // Store initial position and time but don't activate pan yet
     // Wait for threshold movement AND delay to distinguish from potential pinch
-    // This gives scale gesture time to be detected on Android
+    // This gives scale gesture time to be detected on touch screens
     _panStartPosition = info.eventPosition.widget;
+    _panInitialPosition = info.eventPosition.widget;
     _lastDragPosition = info.eventPosition.widget;
     _panStartTime = DateTime.now();
     _isPanning = false; // Not active until threshold AND delay are met
-    debugPrint('[Pan] Start detected - waiting for threshold and delay');
+    debugPrint('[Pan] Start detected - waiting for threshold and delay (touch screen mode)');
   }
 
   @override
   void onPanUpdate(DragUpdateInfo info) {
-    // If scale is active, cancel pan immediately - critical for Android
+    // If scale is active, cancel pan immediately - critical for touch screens
     // This is the key: scale gesture takes priority
     if (_isScaling) {
       _isPanning = false;
       _lastDragPosition = null;
       _panStartPosition = null;
       _panStartTime = null;
+      _panInitialPosition = null;
       return;
     }
     
     final currentPosition = info.eventPosition.widget;
     
+    // Check if movement pattern suggests a pinch gesture (fingers moving apart/together)
+    // If initial position and current position suggest radial movement, might be pinch
+    if (_panInitialPosition != null && !_isPanning) {
+      final totalMovement = (currentPosition - _panInitialPosition!).length;
+      // If movement is very small, might be waiting for second finger
+      if (totalMovement < 15.0) {
+        _lastDragPosition = currentPosition;
+        return; // Wait longer, might be starting pinch
+      }
+    }
+    
     // If pan hasn't been activated yet, check both threshold AND delay
-    // This gives scale gesture time to be detected on Android before pan activates
+    // This gives scale gesture time to be detected on touch screens before pan activates
     if (!_isPanning && _panStartPosition != null && _panStartTime != null) {
       final movement = (currentPosition - _panStartPosition!).length;
       final timeSinceStart = DateTime.now().difference(_panStartTime!);
@@ -281,6 +300,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
     _lastDragPosition = null;
     _panStartPosition = null;
     _panStartTime = null;
+    _panInitialPosition = null;
   }
 
   @override
@@ -289,6 +309,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
     _lastDragPosition = null;
     _panStartPosition = null;
     _panStartTime = null;
+    _panInitialPosition = null;
   }
 
   @override
