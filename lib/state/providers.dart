@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart' show StateNotifierProvider;
+import 'package:flutter_riverpod/legacy.dart' show StateNotifierProvider, StateProvider;
 import 'package:state_notifier/state_notifier.dart';
 import 'package:uuid/uuid.dart';
 import '../simulation/engine.dart';
@@ -440,4 +440,7 @@ final trucksProvider = Provider<List<Truck>>((ref) {
 final warehouseProvider = Provider<Warehouse>((ref) {
   return ref.watch(gameControllerProvider).warehouse;
 });
+
+/// Provider for selected machine ID on the map
+final selectedMachineIdProvider = StateProvider<String?>((ref) => null);
 

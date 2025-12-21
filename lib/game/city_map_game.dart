@@ -111,11 +111,22 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
     // Check for taps on machines
     final touchedComponents = componentsAtPoint(info.eventPosition.widget);
     
+    // We already have MapMachine.onTapUp handling the selection. 
+    // This top-level handler might be redundant if we want to rely on the component's tap callback.
+    // However, if we want to allow clicking *off* a machine to deselect, we can do that here.
+    
+    bool machineTapped = false;
     for (final component in touchedComponents) {
       if (component is MapMachine) {
-        onMachineTap?.call(component.machine);
-        return; // Handle only the top-most machine
+        // Component handles its own tap
+        machineTapped = true;
+        break; 
       }
+    }
+    
+    // If no machine was tapped, deselect
+    if (!machineTapped) {
+       ref.read(selectedMachineIdProvider.notifier).state = null;
     }
   }
 
