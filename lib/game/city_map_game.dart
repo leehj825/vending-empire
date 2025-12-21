@@ -28,7 +28,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   double _minZoom = 0.05; // Allow zooming out more
   double _maxZoom = 5.0; // Allow zooming in more
   double _currentZoom = 1.0;
-  double _startZoom = 1.0;
+  double _lastScale = 1.0;
   Vector2 _cameraPosition = mapCenter;
 
   CityMapGame(this.ref, {this.onMachineTap});
@@ -146,31 +146,34 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
 
   @override
   bool onScaleStart(ScaleStartInfo info) {
-    // Capture the zoom level when fingers first touch
-    _startZoom = camera.viewfinder.zoom;
+    // Reset the scale tracker when a new gesture begins
+    _lastScale = 1.0;
     return true;
   }
 
   @override
   bool onScaleUpdate(ScaleUpdateInfo info) {
-    // --- 1. ZOOM LOGIC ---
-    // info.scale.global gives the scale factor (starts at 1.0)
-    final scale = info.scale.global;
+    // --- 1. ZOOM (Incremental) ---
+    final currentScale = info.scale.global.x;
     
-    // Calculate new zoom based on the snapshot we took in onScaleStart
-    final newZoom = (_startZoom * scale.x).clamp(_minZoom, _maxZoom);
-    
-    camera.viewfinder.zoom = newZoom;
-    _currentZoom = newZoom;
-    
-    // --- 2. PAN LOGIC ---
-    // info.delta.global gives the movement vector (for 1 finger OR the center of 2 fingers)
-    // We divide by zoom so the map moves exactly under the finger (1:1 ratio)
+    if (!currentScale.isNaN && currentScale > 0) {
+      // Calculate delta since last frame
+      final scaleDelta = currentScale / _lastScale;
+      
+      // Apply delta
+      final newZoom = (camera.viewfinder.zoom * scaleDelta).clamp(_minZoom, _maxZoom);
+      camera.viewfinder.zoom = newZoom;
+      _currentZoom = newZoom;
+      
+      // Update tracker
+      _lastScale = currentScale;
+    }
+
+    // --- 2. PAN ---
+    // Standard delta movement
     final delta = info.delta.global / camera.viewfinder.zoom;
-    
-    // Subtract delta to move camera opposite to drag direction
     _cameraPosition = camera.viewfinder.position - delta;
-    
+
     // --- 3. CLAMP ---
     _clampCameraPosition();
     
