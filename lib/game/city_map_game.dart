@@ -30,6 +30,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   
   // Mouse drag zoom state
   Vector2? _dragStartPosition;
+  Vector2? _lastDragPosition;
   double _dragStartZoom = 1.0;
 
   // Legacy callback
@@ -150,6 +151,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
     // Check if this is a mouse event (not touch)
     // For mouse drag zoom, we'll use vertical drag
     _dragStartPosition = info.eventPosition.widget;
+    _lastDragPosition = info.eventPosition.widget;
     _dragStartZoom = camera.viewfinder.zoom;
     
     debugPrint('[Mouse Drag Zoom Start] position: $_dragStartPosition, startZoom: $_dragStartZoom');
@@ -157,23 +159,26 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
 
   @override
   void onPanUpdate(DragUpdateInfo info) {
-    if (_dragStartPosition == null) return;
+    if (_dragStartPosition == null || _lastDragPosition == null) return;
     
-    // Calculate vertical drag delta
+    // Calculate incremental vertical drag delta (from last position, not start position)
     final currentPosition = info.eventPosition.widget;
-    final verticalDelta = currentPosition.y - _dragStartPosition!.y;
+    final verticalDelta = currentPosition.y - _lastDragPosition!.y;
     
     // Convert vertical drag to zoom change
-    // Dragging down = zoom out, dragging up = zoom in
-    // Use a sensitivity factor (adjust as needed)
-    const zoomSensitivity = 0.002; // Adjust this to make zoom more/less sensitive
-    final zoomChange = 1.0 - (verticalDelta * zoomSensitivity);
-    final newZoom = (_dragStartZoom * zoomChange).clamp(_minZoom, _maxZoom);
+    // Dragging down (positive delta) = zoom out, dragging up (negative delta) = zoom in
+    // Use incremental updates for smoother zoom
+    const zoomSensitivity = 0.015; // Increased sensitivity
+    // Negative delta (dragging up) should increase zoom, positive delta (dragging down) should decrease zoom
+    final zoomFactor = 1.0 - (verticalDelta * zoomSensitivity);
+    final oldZoom = camera.viewfinder.zoom;
+    final newZoom = (oldZoom * zoomFactor).clamp(_minZoom, _maxZoom);
     
     camera.viewfinder.zoom = newZoom;
+    _lastDragPosition = currentPosition;
     
     // Debug output
-    debugPrint('[Mouse Drag Zoom] verticalDelta: $verticalDelta, zoomChange: $zoomChange, oldZoom: $_dragStartZoom, newZoom: $newZoom');
+    debugPrint('[Mouse Drag Zoom] verticalDelta: $verticalDelta, zoomFactor: $zoomFactor, oldZoom: $oldZoom, newZoom: $newZoom, minZoom: $_minZoom, maxZoom: $_maxZoom');
     
     _clampCamera();
   }
@@ -181,12 +186,14 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   @override
   void onPanEnd(DragEndInfo info) {
     _dragStartPosition = null;
+    _lastDragPosition = null;
     debugPrint('[Mouse Drag Zoom End]');
   }
 
   @override
   void onPanCancel() {
     _dragStartPosition = null;
+    _lastDragPosition = null;
     debugPrint('[Mouse Drag Zoom Cancel]');
   }
 
