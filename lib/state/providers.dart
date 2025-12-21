@@ -397,6 +397,45 @@ class GameController extends StateNotifier<GlobalGameState> {
   /// Get warehouse inventory
   Warehouse get warehouse => state.warehouse;
 
+  /// Retrieve cash from a machine
+  void retrieveCash(String machineId) {
+    // Find the machine
+    final machineIndex = state.machines.indexWhere((m) => m.id == machineId);
+    if (machineIndex == -1) {
+      state = state.addLogMessage('Machine not found');
+      return;
+    }
+
+    final machine = state.machines[machineIndex];
+    final cashToRetrieve = machine.currentCash;
+
+    if (cashToRetrieve <= 0) {
+      state = state.addLogMessage('${machine.name} has no cash to retrieve');
+      return;
+    }
+
+    // Update machine (set cash to 0)
+    final updatedMachine = machine.copyWith(currentCash: 0.0);
+    final updatedMachines = [...state.machines];
+    updatedMachines[machineIndex] = updatedMachine;
+
+    // Add cash to player's total
+    final newCash = state.cash + cashToRetrieve;
+
+    // Update state
+    state = state.copyWith(
+      machines: updatedMachines,
+      cash: newCash,
+    );
+    state = state.addLogMessage(
+      'Retrieved \$${cashToRetrieve.toStringAsFixed(2)} from ${machine.name}',
+    );
+
+    // Sync to simulation engine
+    simulationEngine.updateMachines(updatedMachines);
+    simulationEngine.updateCash(newCash);
+  }
+
   // No dispose method needed in GameController for SimulationEngine as it's not a provider but an internal object.
   // We just want to make sure the timer stops.
   @override
