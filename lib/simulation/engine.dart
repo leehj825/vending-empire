@@ -375,20 +375,26 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       );
 
       // Calculate Manhattan distance (for grid-based movement along roads)
-      final dx = destination.zone.x - truck.currentX;
-      final dy = destination.zone.y - truck.currentY;
+      // Use road coordinates for distance calculation
+      final truckRoadX = truck.currentX.round().toDouble();
+      final truckRoadY = truck.currentY.round().toDouble();
+      final destRoadX = destination.zone.x.round().toDouble();
+      final destRoadY = destination.zone.y.round().toDouble();
+      
+      final dx = destRoadX - truckRoadX;
+      final dy = destRoadY - truckRoadY;
       final manhattanDistance = dx.abs() + dy.abs();
 
-      // If truck is at destination, start restocking
-      if (manhattanDistance < 0.1) {
-        // Truck arrived - mark as restocking.
+      // If truck is at destination road, start restocking
+      if (manhattanDistance == 0) {
+        // Truck arrived at destination road - mark as restocking.
         // IMPORTANT: Do NOT advance currentRouteIndex here.
         // Restocking logic relies on truck.currentDestination (based on currentRouteIndex).
         return truck.copyWith(
           status: TruckStatus.restocking,
-          // Snap to destination to avoid jitter on the map
-          currentX: destination.zone.x,
-          currentY: destination.zone.y,
+          // Snap to destination road coordinates
+          currentX: destRoadX,
+          currentY: destRoadY,
           targetX: destination.zone.x,
           targetY: destination.zone.y,
         );
@@ -401,20 +407,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       // IMPORTANT: Trucks must ALWAYS stay on roads (integer coordinates)
       
       // First, ensure truck is on a road (snap to nearest road if not)
-      double currentX = truck.currentX;
-      double currentY = truck.currentY;
-      
-      // Snap to nearest road if not already on one (within 0.05 tolerance)
-      if ((currentX - currentX.round()).abs() > 0.05) {
-        currentX = currentX.round().toDouble();
-      }
-      if ((currentY - currentY.round()).abs() > 0.05) {
-        currentY = currentY.round().toDouble();
-      }
-      
-      final moveDistance = 0.1; // Movement per tick in zone coordinates
-      double newX = currentX;
-      double newY = currentY;
+      double currentX = truck.currentX.round().toDouble();
+      double currentY = truck.currentY.round().toDouble();
       
       // Determine target road coordinates (snap destination to nearest road for pathfinding)
       // Roads are at integer coordinates, so round the destination zone coordinates
@@ -426,39 +420,28 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       final dyToRoad = targetRoadY - currentY;
       
       // Manhattan pathfinding: move along one axis, then the other
-      // Always keep coordinates as integers (on roads)
+      // Move in integer steps (1.0 per tick) since trucks must stay on roads
+      double newX = currentX;
+      double newY = currentY;
+      
       if (dxToRoad.abs() > dyToRoad.abs()) {
         // Move horizontally first
-        if (dxToRoad.abs() > moveDistance) {
-          newX += dxToRoad > 0 ? moveDistance : -moveDistance;
-          // Snap to road (integer coordinate)
-          newX = newX.round().toDouble();
+        if (dxToRoad != 0) {
+          newX += dxToRoad > 0 ? 1.0 : -1.0; // Move one road segment at a time
         } else {
-          newX = targetRoadX;
-          // Then move vertically
-          if (dyToRoad.abs() > moveDistance) {
-            newY += dyToRoad > 0 ? moveDistance : -moveDistance;
-            // Snap to road (integer coordinate)
-            newY = newY.round().toDouble();
-          } else {
-            newY = targetRoadY;
+          // Horizontal is aligned, move vertically
+          if (dyToRoad != 0) {
+            newY += dyToRoad > 0 ? 1.0 : -1.0; // Move one road segment at a time
           }
         }
       } else {
         // Move vertically first
-        if (dyToRoad.abs() > moveDistance) {
-          newY += dyToRoad > 0 ? moveDistance : -moveDistance;
-          // Snap to road (integer coordinate)
-          newY = newY.round().toDouble();
+        if (dyToRoad != 0) {
+          newY += dyToRoad > 0 ? 1.0 : -1.0; // Move one road segment at a time
         } else {
-          newY = targetRoadY;
-          // Then move horizontally
-          if (dxToRoad.abs() > moveDistance) {
-            newX += dxToRoad > 0 ? moveDistance : -moveDistance;
-            // Snap to road (integer coordinate)
-            newX = newX.round().toDouble();
-          } else {
-            newX = targetRoadX;
+          // Vertical is aligned, move horizontally
+          if (dxToRoad != 0) {
+            newX += dxToRoad > 0 ? 1.0 : -1.0; // Move one road segment at a time
           }
         }
       }
