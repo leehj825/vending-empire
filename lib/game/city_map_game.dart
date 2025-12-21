@@ -27,8 +27,8 @@ class CityMapGame extends FlameGame with HasGameReference, PanDetector, ScaleDet
   double _minZoom = 0.1;
   double _maxZoom = 3.0;
   double _currentZoom = 1.0;
+  double _startZoom = 1.0;
   Vector2 _cameraPosition = mapCenter;
-  Vector2? _panStartPosition;
 
   CityMapGame(this.ref, {this.onMachineTap});
 
@@ -122,19 +122,17 @@ class CityMapGame extends FlameGame with HasGameReference, PanDetector, ScaleDet
   // Pan (drag) handling
   @override
   bool onPanStart(DragStartInfo info) {
-    _panStartPosition = camera.viewfinder.position.clone();
     return true;
   }
 
   @override
   bool onPanUpdate(DragUpdateInfo info) {
-    if (_panStartPosition == null) return false;
-    
     // Calculate pan delta in world coordinates
-    // EventDelta.global gives us the delta in global coordinate space as Vector2
     final deltaScreen = info.delta.global;
     final delta = deltaScreen / _currentZoom;
-    _cameraPosition = _panStartPosition! - delta;
+    
+    // Move camera in opposite direction of drag
+    _cameraPosition -= delta;
     
     // Clamp camera position
     _clampCameraPosition();
@@ -144,29 +142,35 @@ class CityMapGame extends FlameGame with HasGameReference, PanDetector, ScaleDet
 
   @override
   bool onPanEnd(DragEndInfo info) {
-    _panStartPosition = null;
     return true;
   }
 
   // Zoom (pinch) handling
   @override
   bool onScaleStart(ScaleStartInfo info) {
+    _startZoom = _currentZoom;
     return true;
   }
 
   @override
   bool onScaleUpdate(ScaleUpdateInfo info) {
-    // Calculate new zoom level
-    // ScaleInfo.global is a Vector2, use the average of x and y
+    // Zoom
     final scaleVector = info.scale.global;
     final scaleFactor = (scaleVector.x + scaleVector.y) / 2.0;
-    final newZoom = _currentZoom * scaleFactor;
+    
+    // Calculate new zoom based on start zoom and current scale factor
+    final newZoom = _startZoom * scaleFactor;
     _currentZoom = newZoom.clamp(_minZoom, _maxZoom);
     
     // Apply zoom
     camera.viewfinder.zoom = _currentZoom;
     
-    // Clamp camera position after zoom
+    // Pan (2 finger move)
+    final deltaScreen = info.delta.global;
+    final delta = deltaScreen / _currentZoom;
+    _cameraPosition -= delta;
+
+    // Clamp camera position after zoom and pan
     _clampCameraPosition();
     
     return true;
