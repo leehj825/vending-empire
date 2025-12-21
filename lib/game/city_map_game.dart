@@ -31,11 +31,12 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   Vector2? _lastDragPosition;
   Vector2? _panStartPosition;
   bool _isPanning = false;
-  static const double _panThreshold = 10.0; // Minimum movement to start panning
+  static const double _panThreshold = 20.0; // Increased threshold to allow scale gesture time to be detected
+  DateTime? _panStartTime; // Track when pan gesture started
+  static const Duration _panDelay = Duration(milliseconds: 100); // Delay before pan activates
   
   // Scale state for pinch-to-zoom
   bool _isScaling = false;
-  double _lastScaleFactor = 1.0;
 
   // Legacy callback
   final void Function(Machine)? onMachineTap;
@@ -106,30 +107,31 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   @override
   void onScaleStart(ScaleStartInfo info) {
     // Pinch-to-zoom gesture started (2 fingers)
-    // Cancel any active pan gesture immediately
+    // Cancel any active pan gesture immediately - this is critical for Android
     _isPanning = false;
     _lastDragPosition = null;
     _panStartPosition = null;
+    _panStartTime = null;
     
     _isScaling = true;
     _startZoom = camera.viewfinder.zoom;
-    _lastScaleFactor = 1.0;
     
-    debugPrint('[Scale] Started - initial zoom: $_startZoom');
+    debugPrint('[Scale] Started - initial zoom: $_startZoom, cancelled pan');
   }
 
   @override
   void onScaleUpdate(ScaleUpdateInfo info) {
-    // Always cancel pan when scale is detected
+    // Always cancel pan when scale is detected - critical for Android
     _isPanning = false;
     _lastDragPosition = null;
     _panStartPosition = null;
+    _panStartTime = null;
     
     // Always process scale updates - if scale gesture is happening, prioritize it
     if (!_isScaling) {
       _isScaling = true;
       _startZoom = camera.viewfinder.zoom;
-      _lastScaleFactor = 1.0;
+      debugPrint('[Scale] Detected during update - cancelling pan');
     }
     
     // Handle pinch-to-zoom (2 fingers)
@@ -137,12 +139,14 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
     // Use .y component which is typically used for pinch gestures
     final scaleFactor = info.scale.global.y;
     
-    // Process zoom if scale factor is valid and different from last
-    if (!scaleFactor.isNaN && scaleFactor > 0 && scaleFactor != _lastScaleFactor) {
+    // Process zoom if scale factor is valid
+    if (!scaleFactor.isNaN && scaleFactor > 0) {
       final newZoom = (_startZoom * scaleFactor).clamp(_minZoom, _maxZoom);
-      camera.viewfinder.zoom = newZoom;
-      _lastScaleFactor = scaleFactor;
-      debugPrint('[Scale] Update - scale: $scaleFactor, zoom: $newZoom (from $_startZoom)');
+      // Only update if zoom actually changed to avoid unnecessary updates
+      if ((newZoom - camera.viewfinder.zoom).abs() > 0.001) {
+        camera.viewfinder.zoom = newZoom;
+        debugPrint('[Scale] Update - scale: $scaleFactor, zoom: $newZoom (from $_startZoom)');
+      }
     }
 
     // Also handle panning during pinch (when fingers move while pinching)
@@ -159,7 +163,6 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   @override
   void onScaleEnd(ScaleEndInfo info) {
     _isScaling = false;
-    _lastScaleFactor = 1.0;
     debugPrint('[Scale] Ended - final zoom: ${camera.viewfinder.zoom}');
   }
 
@@ -201,41 +204,50 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
       _isPanning = false;
       _lastDragPosition = null;
       _panStartPosition = null;
+      _panStartTime = null;
       debugPrint('[Pan] Start cancelled - scale is active');
       return;
     }
     
-    // Store initial position but don't activate pan yet
-    // Wait for threshold movement to distinguish from potential pinch
+    // Store initial position and time but don't activate pan yet
+    // Wait for threshold movement AND delay to distinguish from potential pinch
+    // This gives scale gesture time to be detected on Android
     _panStartPosition = info.eventPosition.widget;
     _lastDragPosition = info.eventPosition.widget;
-    _isPanning = false; // Not active until threshold is met
-    debugPrint('[Pan] Start detected - waiting for threshold');
+    _panStartTime = DateTime.now();
+    _isPanning = false; // Not active until threshold AND delay are met
+    debugPrint('[Pan] Start detected - waiting for threshold and delay');
   }
 
   @override
   void onPanUpdate(DragUpdateInfo info) {
-    // If scale is active, cancel pan immediately
+    // If scale is active, cancel pan immediately - critical for Android
     // This is the key: scale gesture takes priority
     if (_isScaling) {
       _isPanning = false;
       _lastDragPosition = null;
       _panStartPosition = null;
+      _panStartTime = null;
       return;
     }
     
     final currentPosition = info.eventPosition.widget;
     
-    // If pan hasn't been activated yet, check if we've moved enough
-    if (!_isPanning && _panStartPosition != null) {
+    // If pan hasn't been activated yet, check both threshold AND delay
+    // This gives scale gesture time to be detected on Android before pan activates
+    if (!_isPanning && _panStartPosition != null && _panStartTime != null) {
       final movement = (currentPosition - _panStartPosition!).length;
-      if (movement >= _panThreshold) {
-        // Enough movement - this is a pan, not a pinch
+      final timeSinceStart = DateTime.now().difference(_panStartTime!);
+      
+      // Require BOTH sufficient movement AND time delay before activating pan
+      // This prevents pan from starting when user is about to add second finger
+      if (movement >= _panThreshold && timeSinceStart >= _panDelay) {
+        // Enough movement AND enough time - this is a pan, not a pinch
         _isPanning = true;
         _lastDragPosition = _panStartPosition;
-        debugPrint('[Pan] Activated after threshold');
+        debugPrint('[Pan] Activated after threshold ($movement) and delay (${timeSinceStart.inMilliseconds}ms)');
       } else {
-        // Not enough movement yet - might be starting a pinch
+        // Not enough movement or time yet - might be starting a pinch
         _lastDragPosition = currentPosition;
         return;
       }
@@ -268,6 +280,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
     _isPanning = false;
     _lastDragPosition = null;
     _panStartPosition = null;
+    _panStartTime = null;
   }
 
   @override
@@ -275,6 +288,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
     _isPanning = false;
     _lastDragPosition = null;
     _panStartPosition = null;
+    _panStartTime = null;
   }
 
   @override
@@ -300,10 +314,26 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
       });
       for (final m in machines) {
          // Zone coordinates are in 1.0-9.0 range, map is 1000x1000 with 100px grid cells
-         // Grid cells: cell 1 (0-100) center at 50, cell 2 (100-200) center at 150, etc.
-         // Zone x=1.0 should map to cell 1 (0-100), zone x=2.0 to cell 2 (100-200), etc.
-         // Formula: (zone.x - 1) * 100 + 50 centers in the correct cell
-         final pos = Vector2((m.zone.x - 1) * 100 + 50, (m.zone.y - 1) * 100 + 50);
+         // Grid lines are drawn at 0, 100, 200, 300, ..., 1000 (gray roads)
+         // Green blocks are BETWEEN grid lines:
+         //   Block 1: 0-100 (center at 50) - NOT on grid line at 0 or 100
+         //   Block 2: 100-200 (center at 150) - NOT on grid line at 100 or 200
+         //   Block 3: 200-300 (center at 250) - NOT on grid line at 200 or 300
+         //   etc.
+         // Zone x=1.0 should map to block 1 (center at 50), zone x=2.0 to block 2 (center at 150)
+         // Formula: (zone.x - 1) * 100 + 50 centers in the correct block
+         // Ensure we're centering in blocks, not placing on grid lines
+         final blockX = (m.zone.x - 1.0).floor();
+         final blockY = (m.zone.y - 1.0).floor();
+         // Center in block: block * 100 + 50 (this ensures position is NOT a multiple of 100)
+         final posX = blockX * 100.0 + 50.0;
+         final posY = blockY * 100.0 + 50.0;
+         final pos = Vector2(posX, posY);
+         
+         // Debug: verify position is not on a grid line
+         if (posX % 100 == 0 || posY % 100 == 0) {
+           debugPrint('[Machine Position] WARNING: Machine ${m.name} at ($posX, $posY) is on grid line! Zone: (${m.zone.x}, ${m.zone.y})');
+         }
          if (_machineComponents.containsKey(m.id)) {
             _machineComponents[m.id]!.updateMachine(m);
             _machineComponents[m.id]!.position = pos;
