@@ -9,51 +9,46 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/providers.dart';
 import 'components/map_machine.dart';
 import 'components/map_truck.dart';
-
 import '../simulation/models/machine.dart';
 
-/// Main game class for the city map visualization
-class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetector {
+class CityMapGame extends FlameGame with ScaleDetector, TapDetector {
   final WidgetRef ref;
-  final void Function(Machine)? onMachineTap;
+  
+  // Game State Containers
   final Map<String, MapMachine> _machineComponents = {};
   final Map<String, MapTruck> _truckComponents = {};
   
-  // Map bounds (1000x1000 grid)
+  // Constants
   static const double mapWidth = 1000.0;
   static const double mapHeight = 1000.0;
   static final Vector2 mapCenter = Vector2(500.0, 500.0);
   
-  // Camera constraints
-  double _minZoom = 0.05; // Allow zooming out more
-  double _maxZoom = 5.0; // Allow zooming in more
-  double _currentZoom = 1.0;
+  // Camera State
+  double _minZoom = 0.1;
+  double _maxZoom = 4.0;
   double _lastScale = 1.0;
-  Vector2 _cameraPosition = mapCenter;
+
+  // Legacy callback for backward compatibility (can be removed if no longer used)
+  final void Function(Machine)? onMachineTap;
 
   CityMapGame(this.ref, {this.onMachineTap});
 
   @override
-  Color backgroundColor() => const Color(0xFF388E3C);
+  Color backgroundColor() => const Color(0xFF388E3C); // Grass Green
 
   @override
   Future<void> onLoad() async {
     super.onLoad();
 
-    // Setup camera for 1000x1000 grid
+    // 1. Setup Camera
+    // Anchor to center makes zooming/scaling much easier
     camera.viewfinder.anchor = Anchor.center;
-    // Don't use FixedResolutionViewport - let it be responsive
-
-    // Center camera on map
     camera.viewfinder.position = mapCenter;
-    
-    // Calculate initial zoom to fit map width
-    _updateZoom();
 
-    // Add grid background
+    // 2. Add Background Grid
     add(GridComponent());
 
-    // Initial load of machines and trucks
+    // 3. Initial Sync
     _syncMachines();
     _syncTrucks();
   }
@@ -61,232 +56,162 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   @override
   void onGameResize(Vector2 size) {
     super.onGameResize(size);
-    // Recalculate zoom when screen size changes
-    _updateZoom();
+    // When screen resizes (or loads), calculate the zoom to fit the map
+    _fitMapToScreen();
   }
 
-  /// Calculate zoom level to fit the map width on screen
-  void _updateZoom() {
-    if (size.x == 0 || size.y == 0) return;
-    
-    // Calculate zoom based on screen size.
-    // Fit the whole map on screen by default
-    final widthZoom = size.x / mapWidth;
-    final heightZoom = size.y / mapHeight;
-    
-    // Start from the smaller fit to ensure the whole map is visible
-    final baseZoom = math.min(widthZoom, heightZoom);
-    _currentZoom = baseZoom * 0.95; // Add a small margin
-    
-    // Clamp zoom
-    _currentZoom = _currentZoom.clamp(_minZoom, _maxZoom);
-    
-    // Apply zoom
-    camera.viewfinder.zoom = _currentZoom;
-    
-    // Ensure camera stays centered on map
-    _clampCameraPosition();
-  }
+  void _fitMapToScreen() {
+    if (size.x <= 0 || size.y <= 0) return;
 
-  /// Clamp camera position to keep map visible
-  void _clampCameraPosition() {
-    final viewportSize = size / _currentZoom;
-    final halfViewport = viewportSize / 2;
-    
-    // Calculate bounds allowing panning even if viewport > map
-    // The bounds ensure the map edge aligns with the viewport edge at the limit
-    final minX = math.min(halfViewport.x, mapWidth - halfViewport.x);
-    final maxX = math.max(halfViewport.x, mapWidth - halfViewport.x);
-    final minY = math.min(halfViewport.y, mapHeight - halfViewport.y);
-    final maxY = math.max(halfViewport.y, mapHeight - halfViewport.y);
-    
-    // Update local variable
-    _cameraPosition.x = _cameraPosition.x.clamp(minX, maxX);
-    _cameraPosition.y = _cameraPosition.y.clamp(minY, maxY);
-    
-    // CRITICAL: Apply to camera
-    camera.viewfinder.position = _cameraPosition;
-  }
+    // Calculate ratio to fit width and height
+    final zoomX = size.x / mapWidth;
+    final zoomY = size.y / mapHeight;
 
-  @override
-  void onTapUp(TapUpInfo info) {
-    // Check for taps on machines
-    final touchedComponents = componentsAtPoint(info.eventPosition.widget);
+    // Use the smaller zoom to ensure the WHOLE map is visible
+    // "0.9" gives a 10% padding margin
+    final fitZoom = math.min(zoomX, zoomY) * 0.9;
     
-    bool machineTapped = false;
-    for (final component in touchedComponents) {
-      if (component is MapMachine) {
-        // Component handles its own tap via TapCallbacks
-        machineTapped = true;
-        break; 
-      }
-    }
+    // Update camera and constraints
+    _minZoom = fitZoom; // Don't let user zoom out further than "fit"
+    camera.viewfinder.zoom = fitZoom;
     
-    // If no machine was tapped, deselect
-    if (!machineTapped) {
-       // We need to access the provider container to clear selection
-       // Since we don't have direct access to the specific ProviderContainer of the widget tree here
-       // (ref is a WidgetRef passed in constructor, which is fine)
-       try {
-         ref.read(selectedMachineIdProvider.notifier).state = null;
-       } catch (e) {
-         // ignore if provider not found (e.g. during test)
-       }
-    }
+    // Re-center
+    camera.viewfinder.position = mapCenter;
   }
 
   @override
   void update(double dt) {
     super.update(dt);
-
-    // Sync machines and trucks every frame to update positions
+    // Constant sync loop for positions
     _syncMachines();
     _syncTrucks();
   }
 
+  // --- GESTURE HANDLING ---
+
   @override
-  bool onScaleStart(ScaleStartInfo info) {
-    // Reset the scale tracker when a new gesture begins
+  void onScaleStart(ScaleStartInfo info) {
+    // Reset the incremental scale tracker
     _lastScale = 1.0;
-    return true;
   }
 
   @override
-  bool onScaleUpdate(ScaleUpdateInfo info) {
-    // --- 1. ZOOM (Incremental) ---
+  void onScaleUpdate(ScaleUpdateInfo info) {
+    // 1. Handle Zoom (Pinch)
     final currentScale = info.scale.global.x;
-    
     if (!currentScale.isNaN && currentScale > 0) {
-      // Calculate delta since last frame
       final scaleDelta = currentScale / _lastScale;
-      
-      // Apply delta
       final newZoom = (camera.viewfinder.zoom * scaleDelta).clamp(_minZoom, _maxZoom);
       camera.viewfinder.zoom = newZoom;
-      _currentZoom = newZoom;
-      
-      // Update tracker
       _lastScale = currentScale;
     }
 
-    // --- 2. PAN ---
-    // Standard delta movement
+    // 2. Handle Pan (Drag)
+    // Divide delta by zoom to keep movement 1:1 with finger
     final delta = info.delta.global / camera.viewfinder.zoom;
-    _cameraPosition = camera.viewfinder.position - delta;
+    camera.viewfinder.position -= delta;
 
-    // --- 3. CLAMP ---
-    _clampCameraPosition();
+    // 3. Apply Clamp
+    _clampCamera();
+  }
+
+  void _clampCamera() {
+    // Calculate visible area
+    final visibleSize = size / camera.viewfinder.zoom;
     
-    return true;
+    // If map fits on screen, lock to center
+    if (visibleSize.x >= mapWidth) {
+      camera.viewfinder.position.x = mapCenter.x;
+    } else {
+      // Otherwise, clamp edges
+      final halfW = visibleSize.x / 2;
+      camera.viewfinder.position.x = camera.viewfinder.position.x.clamp(halfW, mapWidth - halfW);
+    }
+
+    if (visibleSize.y >= mapHeight) {
+      camera.viewfinder.position.y = mapCenter.y;
+    } else {
+      final halfH = visibleSize.y / 2;
+      camera.viewfinder.position.y = camera.viewfinder.position.y.clamp(halfH, mapHeight - halfH);
+    }
   }
 
+  // --- ENTITY SYNC LOGIC ---
+
   @override
-  bool onScaleEnd(ScaleEndInfo info) {
-    return true;
-  }
-  
-  @override
-  void onScroll(PointerScrollInfo info) {
-    // Handle mouse wheel zoom
-    final scrollDelta = info.scrollDelta.global.y;
-    // Scale factor: scroll down (positive) -> zoom out, scroll up (negative) -> zoom in
-    final zoomFactor = 1.0 - (scrollDelta / 1000.0);
-    _currentZoom = (_currentZoom * zoomFactor).clamp(_minZoom, _maxZoom);
-    camera.viewfinder.zoom = _currentZoom;
-    _clampCameraPosition();
+  void onTapUp(TapUpInfo info) {
+    // Handle Taps
+    final touched = componentsAtPoint(info.eventPosition.widget);
+    bool hit = false;
+    for (final c in touched) {
+      if (c is MapMachine) {
+        hit = true; 
+        break; // MapMachine handles its own onTap via TapCallbacks
+      }
+    }
+    // Deselect if background tapped
+    if (!hit) {
+      try {
+        ref.read(selectedMachineIdProvider.notifier).state = null;
+      } catch (_) {}
+    }
   }
 
-  /// Sync machine components with provider state
   void _syncMachines() {
     try {
       final machines = ref.read(machinesProvider);
-
-      // Remove machines that no longer exist
+      
       final machineIds = machines.map((m) => m.id).toSet();
-      final componentsToRemove = _machineComponents.keys
-          .where((id) => !machineIds.contains(id))
-          .toList();
-
-      for (final id in componentsToRemove) {
-        final component = _machineComponents.remove(id);
-        component?.removeFromParent();
+      _machineComponents.keys.where((id) => !machineIds.contains(id)).toList().forEach((id) {
+         _machineComponents.remove(id)?.removeFromParent();
+      });
+      for (final m in machines) {
+         if (_machineComponents.containsKey(m.id)) {
+            _machineComponents[m.id]!.updateMachine(m);
+            // Update pos
+            _machineComponents[m.id]!.position = Vector2(m.zone.x * 100, m.zone.y * 100);
+         } else {
+            final c = MapMachine(machine: m, position: Vector2(m.zone.x * 100, m.zone.y * 100));
+            _machineComponents[m.id] = c;
+            add(c);
+         }
       }
-
-      // Add or update machines
-      for (final machine in machines) {
-        if (_machineComponents.containsKey(machine.id)) {
-          // Update existing component
-          final component = _machineComponents[machine.id]!;
-          component.updateMachine(machine);
-          // Update position if zone changed
-          final newPosition = Vector2(machine.zone.x * 100, machine.zone.y * 100);
-          if (component.position != newPosition) {
-            component.position = newPosition;
-          }
-        } else {
-          // Create new component at machine's zone position
-          final component = MapMachine(
-            machine: machine,
-            position: Vector2(machine.zone.x * 100, machine.zone.y * 100),
-          );
-          _machineComponents[machine.id] = component;
-          add(component);
-        }
-      }
-    } catch (e) {
-      // Provider might not be available yet
-      // Ignore for now
-    }
+    } catch (_) {}
   }
 
-  /// Sync truck components with provider state
   void _syncTrucks() {
     try {
       final trucks = ref.read(trucksProvider);
-
-      // Remove trucks that no longer exist
       final truckIds = trucks.map((t) => t.id).toSet();
-      final componentsToRemove = _truckComponents.keys
-          .where((id) => !truckIds.contains(id))
-          .toList();
-
-      for (final id in componentsToRemove) {
-        final component = _truckComponents.remove(id);
-        component?.removeFromParent();
-      }
-
-      // Add or update trucks
-      for (final truck in trucks) {
-        if (_truckComponents.containsKey(truck.id)) {
-          // Update existing component
-          final component = _truckComponents[truck.id]!;
-          component.updateTruck(truck);
+      _truckComponents.keys.where((id) => !truckIds.contains(id)).toList().forEach((id) {
+         _truckComponents.remove(id)?.removeFromParent();
+      });
+      for (final t in trucks) {
+        final pos = Vector2(t.currentX * 100, t.currentY * 100);
+        if (_truckComponents.containsKey(t.id)) {
+           _truckComponents[t.id]!.updateTruck(t);
+           // Lerp/Move truck
+           _truckComponents[t.id]!.position = pos;
         } else {
-          // Create new component at truck's current position
-          final component = MapTruck(
-            truck: truck,
-            position: Vector2(truck.currentX * 100, truck.currentY * 100),
-          );
-          _truckComponents[truck.id] = component;
-          add(component);
+           final c = MapTruck(truck: t, position: pos);
+           _truckComponents[t.id] = c;
+           add(c);
         }
       }
-    } catch (e) {
-      // Provider might not be available yet
-      // Ignore for now
-    }
+    } catch (_) {}
   }
 }
 
-/// Grid component that draws grid lines
 class GridComponent extends PositionComponent {
   @override
   void render(Canvas canvas) {
     final paint = Paint()..color = const Color(0xFF757575)..strokeWidth = 20;
+    // Draw Border
+    canvas.drawRect(Rect.fromLTWH(0,0,1000,1000), Paint()..style=PaintingStyle.stroke..color=Colors.white..strokeWidth=10);
+    // Draw Grid
     for (double i = 0; i <= 1000; i += 100) {
       canvas.drawLine(Offset(i, 0), Offset(i, 1000), paint);
       canvas.drawLine(Offset(0, i), Offset(1000, i), paint);
     }
   }
 }
-
