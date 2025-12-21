@@ -12,7 +12,7 @@ import 'components/map_truck.dart';
 import '../simulation/models/machine.dart';
 
 /// Main game class for the city map visualization
-class CityMapGame extends FlameGame with HasGameReference, PanDetector, ScaleDetector {
+class CityMapGame extends FlameGame with HasGameReference, ScaleDetector {
   final WidgetRef ref;
   final void Function(Machine)? onMachineTap;
   final Map<String, MapMachine> _machineComponents = {};
@@ -119,33 +119,7 @@ class CityMapGame extends FlameGame with HasGameReference, PanDetector, ScaleDet
     _syncTrucks();
   }
 
-  // Pan (drag) handling
-  @override
-  bool onPanStart(DragStartInfo info) {
-    return true;
-  }
-
-  @override
-  bool onPanUpdate(DragUpdateInfo info) {
-    // Calculate pan delta in world coordinates
-    final deltaScreen = info.delta.global;
-    final delta = deltaScreen / _currentZoom;
-    
-    // Move camera in opposite direction of drag
-    _cameraPosition -= delta;
-    
-    // Clamp camera position
-    _clampCameraPosition();
-    
-    return true;
-  }
-
-  @override
-  bool onPanEnd(DragEndInfo info) {
-    return true;
-  }
-
-  // Zoom (pinch) handling
+  // Zoom (pinch) and Pan (drag) handling
   @override
   bool onScaleStart(ScaleStartInfo info) {
     _startZoom = _currentZoom;
@@ -159,19 +133,21 @@ class CityMapGame extends FlameGame with HasGameReference, PanDetector, ScaleDet
     final scaleFactor = (scaleVector.x + scaleVector.y) / 2.0;
     
     // Calculate new zoom based on start zoom and current scale factor
-    final newZoom = _startZoom * scaleFactor;
-    _currentZoom = newZoom.clamp(_minZoom, _maxZoom);
+    // Only update zoom if scale is significantly different from 1.0 to avoid jitter during pure pans
+    if ((scaleFactor - 1.0).abs() > 0.01) {
+      final newZoom = _startZoom * scaleFactor;
+      _currentZoom = newZoom.clamp(_minZoom, _maxZoom);
+      camera.viewfinder.zoom = _currentZoom;
+    }
     
-    // Apply zoom
-    camera.viewfinder.zoom = _currentZoom;
-    
-    // Pan (2 finger move)
+    // Pan
     final deltaScreen = info.delta.global;
-    final delta = deltaScreen / _currentZoom;
-    _cameraPosition -= delta;
-
-    // Clamp camera position after zoom and pan
-    _clampCameraPosition();
+    // Don't pan if delta is tiny
+    if (deltaScreen.length2 > 0.5) {
+      final delta = deltaScreen / _currentZoom;
+      _cameraPosition -= delta;
+      _clampCameraPosition();
+    }
     
     return true;
   }
