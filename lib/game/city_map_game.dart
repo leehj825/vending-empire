@@ -29,6 +29,9 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   
   // Pan state for single-finger drag
   Vector2? _lastDragPosition;
+  Vector2? _panStartPosition;
+  bool _isPanning = false;
+  static const double _panThreshold = 10.0; // Minimum movement to start panning
   
   // Scale state for pinch-to-zoom
   bool _isScaling = false;
@@ -102,23 +105,39 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   @override
   void onScaleStart(ScaleStartInfo info) {
     // Pinch-to-zoom gesture started (2 fingers)
+    // Cancel any active pan gesture immediately
+    _isPanning = false;
+    _lastDragPosition = null;
+    
     _isScaling = true;
     _startZoom = camera.viewfinder.zoom;
+    
+    debugPrint('[Scale] Started - initial zoom: $_startZoom');
   }
 
   @override
   void onScaleUpdate(ScaleUpdateInfo info) {
-    if (!_isScaling) return;
+    // Always process scale updates, even if _isScaling wasn't set
+    // This handles cases where scale starts before pan is cancelled
+    if (!_isScaling) {
+      // Scale gesture detected - cancel pan
+      _isPanning = false;
+      _lastDragPosition = null;
+      _isScaling = true;
+      _startZoom = camera.viewfinder.zoom;
+    }
     
     // Handle pinch-to-zoom (2 fingers)
-    // Use the scale factor to adjust zoom
+    // Try both local and global scale
     final scaleFactor = info.scale.global;
-    // Use average of x and y scale for more stable zoom
+    // Check if scale is actually changing (not just 1.0)
     final avgScale = (scaleFactor.x + scaleFactor.y) / 2.0;
     
-    if (!avgScale.isNaN && avgScale > 0) {
+    // Only process if scale is significantly different from 1.0
+    if (!avgScale.isNaN && avgScale > 0 && (avgScale < 0.99 || avgScale > 1.01)) {
       final newZoom = (_startZoom * avgScale).clamp(_minZoom, _maxZoom);
       camera.viewfinder.zoom = newZoom;
+      debugPrint('[Scale] Update - scale: $avgScale, zoom: $newZoom');
     }
 
     // Also handle panning during pinch (when fingers move while pinching)
@@ -166,19 +185,56 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   @override
   void onPanStart(DragStartInfo info) {
     // Only handle pan if not currently scaling (single finger drag)
-    if (_isScaling) return;
+    // If scale is active, don't start pan
+    if (_isScaling) {
+      _isPanning = false;
+      _lastDragPosition = null;
+      _panStartPosition = null;
+      debugPrint('[Pan] Start cancelled - scale is active');
+      return;
+    }
     
-    // Store drag start position for panning
+    // Store initial position but don't activate pan yet
+    // Wait for threshold movement to distinguish from potential pinch
+    _panStartPosition = info.eventPosition.widget;
     _lastDragPosition = info.eventPosition.widget;
+    _isPanning = false; // Not active until threshold is met
+    debugPrint('[Pan] Start detected - waiting for threshold');
   }
 
   @override
   void onPanUpdate(DragUpdateInfo info) {
-    // Only handle pan if not currently scaling and we have a valid last position
-    if (_isScaling || _lastDragPosition == null) return;
+    // If scale is active, cancel pan immediately
+    if (_isScaling) {
+      _isPanning = false;
+      _lastDragPosition = null;
+      _panStartPosition = null;
+      return;
+    }
+    
+    final currentPosition = info.eventPosition.widget;
+    
+    // If pan hasn't been activated yet, check if we've moved enough
+    if (!_isPanning && _panStartPosition != null) {
+      final movement = (currentPosition - _panStartPosition!).length;
+      if (movement >= _panThreshold) {
+        // Enough movement - this is a pan, not a pinch
+        _isPanning = true;
+        _lastDragPosition = _panStartPosition;
+        debugPrint('[Pan] Activated after threshold');
+      } else {
+        // Not enough movement yet - might be starting a pinch
+        _lastDragPosition = currentPosition;
+        return;
+      }
+    }
+    
+    // Only handle pan if it's active and we have a valid last position
+    if (!_isPanning || _lastDragPosition == null) {
+      return;
+    }
     
     // Calculate drag delta (incremental from last position)
-    final currentPosition = info.eventPosition.widget;
     final delta = currentPosition - _lastDragPosition!;
     
     // Skip if delta is too small (avoid jitter)
@@ -197,12 +253,16 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
 
   @override
   void onPanEnd(DragEndInfo info) {
+    _isPanning = false;
     _lastDragPosition = null;
+    _panStartPosition = null;
   }
 
   @override
   void onPanCancel() {
+    _isPanning = false;
     _lastDragPosition = null;
+    _panStartPosition = null;
   }
 
   @override
@@ -227,7 +287,11 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
          _machineComponents.remove(id)?.removeFromParent();
       });
       for (final m in machines) {
-         final pos = Vector2(m.zone.x * 100, m.zone.y * 100);
+         // Zone coordinates are in 1.0-9.0 range, map is 1000x1000 with 100px grid cells
+         // Grid cells: cell 1 (0-100) center at 50, cell 2 (100-200) center at 150, etc.
+         // Zone x=1.0 should map to cell 1 (0-100), zone x=2.0 to cell 2 (100-200), etc.
+         // Formula: (zone.x - 1) * 100 + 50 centers in the correct cell
+         final pos = Vector2((m.zone.x - 1) * 100 + 50, (m.zone.y - 1) * 100 + 50);
          if (_machineComponents.containsKey(m.id)) {
             _machineComponents[m.id]!.updateMachine(m);
             _machineComponents[m.id]!.position = pos;
