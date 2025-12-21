@@ -135,7 +135,13 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
     // Mouse wheel zoom
     final scrollDelta = info.scrollDelta.global.y;
     final zoomFactor = 1.0 - (scrollDelta / 1000.0);
-    camera.viewfinder.zoom = (camera.viewfinder.zoom * zoomFactor).clamp(_minZoom, _maxZoom);
+    final oldZoom = camera.viewfinder.zoom;
+    final newZoom = (oldZoom * zoomFactor).clamp(_minZoom, _maxZoom);
+    camera.viewfinder.zoom = newZoom;
+    
+    // Debug output
+    debugPrint('[Mouse Wheel Zoom] scrollDelta: $scrollDelta, zoomFactor: $zoomFactor, oldZoom: $oldZoom, newZoom: $newZoom');
+    
     _clampCamera();
   }
 
