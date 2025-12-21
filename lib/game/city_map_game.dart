@@ -46,15 +46,19 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   Future<void> onLoad() async {
     super.onLoad();
 
-    // Setup Camera
+    // Setup Camera - ensure it's properly configured
     camera.viewfinder.anchor = Anchor.center;
     camera.viewfinder.position = mapCenter;
     camera.viewfinder.zoom = 0.5; // Start zoomed out slightly
     
+    // Stop any camera following to allow manual control
+    camera.stop();
+    
     debugPrint('[Camera Setup] position: ${camera.viewfinder.position}, zoom: ${camera.viewfinder.zoom}, anchor: ${camera.viewfinder.anchor}');
+    debugPrint('[Camera Setup] world: ${world.size}, viewport: ${camera.viewport.size}');
 
-    // Add Content
-    add(GridComponent());
+    // Add Content to world (camera will automatically transform them)
+    world.add(GridComponent());
 
     _syncMachines();
     _syncTrucks();
@@ -189,8 +193,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
     // Only update if zoom actually changed
     if ((newZoom - oldZoom).abs() > 0.001) {
       // Set zoom directly on viewfinder
-      final vf = camera.viewfinder;
-      vf.zoom = newZoom;
+      camera.viewfinder.zoom = newZoom;
       
       // Verify it was set
       final verifyZoom = camera.viewfinder.zoom;
@@ -251,7 +254,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
          } else {
             final c = MapMachine(machine: m, position: pos);
             _machineComponents[m.id] = c;
-            add(c);
+            world.add(c);
          }
       }
     } catch (_) {}
@@ -272,7 +275,7 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
         } else {
            final c = MapTruck(truck: t, position: pos);
            _truckComponents[t.id] = c;
-           add(c);
+           world.add(c);
         }
       }
     } catch (_) {}
@@ -280,6 +283,11 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
 }
 
 class GridComponent extends PositionComponent {
+  GridComponent() : super(
+    position: Vector2.zero(),
+    size: Vector2(CityMapGame.mapWidth, CityMapGame.mapHeight),
+  );
+
   @override
   void render(Canvas canvas) {
     // Normal Grid
