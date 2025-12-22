@@ -9,7 +9,7 @@ part 'game_state.freezed.dart';
 @freezed
 abstract class GlobalGameState with _$GlobalGameState {
   const factory GlobalGameState({
-    @Default(400.0) double cash, // Starting cash: $400 (enough for 1 shop machine)
+    @Default(1000.0) double cash, // Starting cash: $1000 (enough for 1 shop machine + 1 truck)
     @Default(100) int reputation, // Starting reputation: 100
     @Default(1) int dayCount, // Current day number
     @Default(8) int hourOfDay, // Current hour (0-23), starts at 8 AM
