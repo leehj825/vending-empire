@@ -8,6 +8,9 @@ enum TileType {
   gym,
   office,
   school,
+  gasStation,
+  park,
+  house,
 }
 
 enum RoadDirection {
@@ -42,6 +45,11 @@ class _TileCityScreenState extends State<TileCityScreen> {
   // Adjusted to make buildings larger
   static const double buildingImageHeight = 65.0; // Increased from 60.0
   static const double buildingScale = 0.83; // Increased from 0.75 to make buildings larger
+  
+  // Individual building scales (adjustable separately for different image sizes)
+  static const double gasStationScale = 0.83; // Adjust for gas_station.png
+  static const double parkScale = 0.83; // Adjust for park.png
+  static const double houseScale = 0.83; // Adjust for house.png
   
   // Block dimensions - minimum 2x2, maximum 2x3 or 3x2
   static const int minBlockSize = 2;
@@ -186,6 +194,9 @@ class _TileCityScreenState extends State<TileCityScreen> {
       TileType.gym,
       TileType.office,
       TileType.school,
+      TileType.gasStation,
+      TileType.park,
+      TileType.house,
     ];
 
     // Track building type counts globally
@@ -194,6 +205,9 @@ class _TileCityScreenState extends State<TileCityScreen> {
       TileType.gym: 0,
       TileType.office: 0,
       TileType.school: 0,
+      TileType.gasStation: 0,
+      TileType.park: 0,
+      TileType.house: 0,
     };
 
     // Find all rectangular areas that can fit building blocks (2x3 or 3x2)
@@ -264,6 +278,11 @@ class _TileCityScreenState extends State<TileCityScreen> {
         final bx = tile[0];
         final by = tile[1];
         
+        // Only place buildings on tiles that are directly adjacent to a road
+        if (!_isTileAdjacentToRoad(bx, by)) {
+          continue; // Skip this tile if not adjacent to road
+        }
+        
         // Get available building types (not used in this block, and under global limit)
         final availableTypes = buildingTypes.where((type) => 
           !blockBuildingTypes.contains(type) && buildingCounts[type]! < 2
@@ -275,12 +294,9 @@ class _TileCityScreenState extends State<TileCityScreen> {
         buildingCounts[buildingType] = buildingCounts[buildingType]! + 1;
         blockBuildingTypes.add(buildingType);
         
-        // Determine orientation based on which edge is adjacent to a road
-        // Buildings face toward the road
-        final orientation = _getBuildingOrientationTowardRoad(bx, by);
-        
+        // Always use normal orientation (no flipping)
         _grid[by][bx] = buildingType;
-        _buildingOrientations[by][bx] = orientation;
+        _buildingOrientations[by][bx] = BuildingOrientation.normal;
         placedTiles.add('$bx,$by');
       }
     }
@@ -348,33 +364,14 @@ class _TileCityScreenState extends State<TileCityScreen> {
     return adjacentToRoad;
   }
 
-  /// Determine building orientation to face toward the nearest road
-  /// Returns flipped if road is on the left or top, normal if on right or bottom
-  BuildingOrientation _getBuildingOrientationTowardRoad(int x, int y) {
-    // Check which edges are adjacent to roads
-    final bool hasRoadTop = y > 0 && _grid[y - 1][x] == TileType.road;
-    final bool hasRoadBottom = y < gridSize - 1 && _grid[y + 1][x] == TileType.road;
-    final bool hasRoadLeft = x > 0 && _grid[y][x - 1] == TileType.road;
-    final bool hasRoadRight = x < gridSize - 1 && _grid[y][x + 1] == TileType.road;
-    
-    // Count roads on each side to determine primary facing direction
-    // In isometric view, buildings should face the road they're closest to
-    // If road is on left or top, flip horizontally to face it
-    if (hasRoadLeft || hasRoadTop) {
-      // If there's also a road on right/bottom, prefer the one with more roads
-      if (hasRoadRight || hasRoadBottom) {
-        final leftTopCount = (hasRoadLeft ? 1 : 0) + (hasRoadTop ? 1 : 0);
-        final rightBottomCount = (hasRoadRight ? 1 : 0) + (hasRoadBottom ? 1 : 0);
-        // If right/bottom has more roads, use normal orientation
-        if (rightBottomCount > leftTopCount) {
-          return BuildingOrientation.normal;
-        }
-      }
-      return BuildingOrientation.flippedHorizontal;
-    }
-    
-    // Default: face right/bottom (normal orientation)
-    return BuildingOrientation.normal;
+  /// Check if a specific tile is adjacent to a road
+  bool _isTileAdjacentToRoad(int x, int y) {
+    // Check all four directions
+    if (x > 0 && _grid[y][x - 1] == TileType.road) return true;
+    if (x < gridSize - 1 && _grid[y][x + 1] == TileType.road) return true;
+    if (y > 0 && _grid[y - 1][x] == TileType.road) return true;
+    if (y < gridSize - 1 && _grid[y + 1][x] == TileType.road) return true;
+    return false;
   }
 
   /// Convert grid coordinates to isometric screen coordinates
@@ -408,6 +405,12 @@ class _TileCityScreenState extends State<TileCityScreen> {
         return 'assets/images/tiles/office.png';
       case TileType.school:
         return 'assets/images/tiles/school.png';
+      case TileType.gasStation:
+        return 'assets/images/tiles/gas_station.png';
+      case TileType.park:
+        return 'assets/images/tiles/park.png';
+      case TileType.house:
+        return 'assets/images/tiles/house.png';
     }
   }
 
@@ -415,7 +418,24 @@ class _TileCityScreenState extends State<TileCityScreen> {
     return tileType == TileType.shop ||
         tileType == TileType.gym ||
         tileType == TileType.office ||
-        tileType == TileType.school;
+        tileType == TileType.school ||
+        tileType == TileType.gasStation ||
+        tileType == TileType.park ||
+        tileType == TileType.house;
+  }
+
+  /// Get the scale factor for a specific building type
+  double _getBuildingScale(TileType tileType) {
+    switch (tileType) {
+      case TileType.gasStation:
+        return gasStationScale;
+      case TileType.park:
+        return parkScale;
+      case TileType.house:
+        return houseScale;
+      default:
+        return buildingScale; // Default scale for other buildings
+    }
   }
 
   @override
@@ -569,10 +589,12 @@ class _TileCityScreenState extends State<TileCityScreen> {
 
       // Building tile (if applicable) - anchored at bottom-center, extends upward
       // Scaled down to fit better within tile bounds
+      // Each building type can have its own scale factor
       if (_isBuilding(tileType)) {
-        final scaledBuildingHeight = buildingImageHeight * buildingScale;
+        final buildingScaleFactor = _getBuildingScale(tileType);
+        final scaledBuildingHeight = buildingImageHeight * buildingScaleFactor;
         final buildingTop = positionedY - (scaledBuildingHeight - tileHeight);
-        final scaledWidth = tileWidth * buildingScale;
+        final scaledWidth = tileWidth * buildingScaleFactor;
         final centerOffsetX = (tileWidth - scaledWidth) / 2; // Center the scaled building
         
         tiles.add(
@@ -668,6 +690,12 @@ class _TileCityScreenState extends State<TileCityScreen> {
         return Colors.orange.shade300;
       case TileType.school:
         return Colors.purple.shade300;
+      case TileType.gasStation:
+        return Colors.yellow.shade300;
+      case TileType.park:
+        return Colors.green.shade400;
+      case TileType.house:
+        return Colors.brown.shade300;
     }
   }
 
@@ -685,6 +713,12 @@ class _TileCityScreenState extends State<TileCityScreen> {
         return 'O';
       case TileType.school:
         return 'Sc';
+      case TileType.gasStation:
+        return 'GS';
+      case TileType.park:
+        return 'P';
+      case TileType.house:
+        return 'H';
     }
   }
 }
