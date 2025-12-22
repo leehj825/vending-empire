@@ -242,12 +242,28 @@ class _TileCityScreenState extends State<TileCityScreen> {
       }
     }
 
-    // Shuffle and place blocks
-    validBlocks.shuffle(random);
+    // Sort blocks to prioritize empty blocks (blocks with no buildings)
+    // This spreads buildings across the map instead of clustering them
+    validBlocks.sort((a, b) {
+      // Check if blocks have buildings - prioritize empty blocks
+      final aHasBuildings = _blockHasBuildings(a['x'] as int, a['y'] as int, a['width'] as int, a['height'] as int);
+      final bHasBuildings = _blockHasBuildings(b['x'] as int, b['y'] as int, b['width'] as int, b['height'] as int);
+      if (aHasBuildings != bHasBuildings) {
+        return aHasBuildings ? 1 : -1; // Empty blocks first
+      }
+      return 0; // Keep original order if both are same
+    });
+    
+    // Shuffle blocks with same priority to add some randomness
+    final emptyBlocks = validBlocks.where((b) => !_blockHasBuildings(b['x'] as int, b['y'] as int, b['width'] as int, b['height'] as int)).toList();
+    final blocksWithBuildings = validBlocks.where((b) => _blockHasBuildings(b['x'] as int, b['y'] as int, b['width'] as int, b['height'] as int)).toList();
+    emptyBlocks.shuffle(random);
+    blocksWithBuildings.shuffle(random);
+    final sortedBlocks = [...emptyBlocks, ...blocksWithBuildings];
     
     final placedTiles = <String>{}; // Track placed tiles as "x,y" strings to avoid overlaps
     
-    for (final block in validBlocks) {
+    for (final block in sortedBlocks) {
       final startX = block['x'] as int;
       final startY = block['y'] as int;
       final blockWidth = block['width'] as int;
@@ -276,12 +292,20 @@ class _TileCityScreenState extends State<TileCityScreen> {
         }
       }
       
-      // Shuffle block tiles to randomize placement
-      blockTiles.shuffle(random);
+      // Sort tiles: prefer tiles that are NOT adjacent to other buildings
+      // This spreads buildings within blocks
+      blockTiles.sort((a, b) {
+        final aAdjacent = _isTileAdjacentToBuilding(a[0], a[1], placedTiles);
+        final bAdjacent = _isTileAdjacentToBuilding(b[0], b[1], placedTiles);
+        if (aAdjacent != bAdjacent) {
+          return aAdjacent ? 1 : -1; // Non-adjacent tiles first
+        }
+        return 0;
+      });
       
-      // Place buildings in some tiles (not all - can mix with grass)
-      // Prioritize placing all building types, especially gas_station, park, and house
-      final numBuildings = math.min(blockTiles.length, buildingTypes.length); // Try to place more buildings
+      // Limit buildings per block to spread them out (max 1-2 per block)
+      final maxBuildingsPerBlock = 2;
+      final numBuildings = math.min(math.min(blockTiles.length, maxBuildingsPerBlock), buildingTypes.length);
       
       // First, prioritize placing gas_station, park, and house if they haven't been placed yet
       final priorityTypes = [
@@ -409,6 +433,28 @@ class _TileCityScreenState extends State<TileCityScreen> {
     if (x < gridSize - 1 && _grid[y][x + 1] == TileType.road) return true;
     if (y > 0 && _grid[y - 1][x] == TileType.road) return true;
     if (y < gridSize - 1 && _grid[y + 1][x] == TileType.road) return true;
+    return false;
+  }
+
+  /// Check if a block has any buildings in it
+  bool _blockHasBuildings(int startX, int startY, int width, int height) {
+    for (int y = startY; y < startY + height && y < gridSize; y++) {
+      for (int x = startX; x < startX + width && x < gridSize; x++) {
+        if (_isBuilding(_grid[y][x])) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Check if a tile is adjacent to an existing building
+  bool _isTileAdjacentToBuilding(int x, int y, Set<String> placedTiles) {
+    // Check all four directions
+    if (x > 0 && placedTiles.contains('${x - 1},$y')) return true;
+    if (x < gridSize - 1 && placedTiles.contains('${x + 1},$y')) return true;
+    if (y > 0 && placedTiles.contains('$x,${y - 1}')) return true;
+    if (y < gridSize - 1 && placedTiles.contains('$x,${y + 1}')) return true;
     return false;
   }
 
