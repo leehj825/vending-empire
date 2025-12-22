@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 enum TileType {
   grass,
@@ -11,6 +12,7 @@ enum TileType {
   gasStation,
   park,
   house,
+  warehouse,
 }
 
 enum RoadDirection {
@@ -22,6 +24,21 @@ enum RoadDirection {
 enum BuildingOrientation {
   normal,
   flippedHorizontal,
+}
+
+enum TruckDirection {
+  north,
+  south,
+  east,
+  west,
+}
+
+class Truck {
+  double x; // Grid position (can be fractional for smooth movement)
+  double y;
+  TruckDirection direction;
+  
+  Truck(this.x, this.y, this.direction);
 }
 
 class TileCityScreen extends StatefulWidget {
@@ -58,11 +75,23 @@ class _TileCityScreenState extends State<TileCityScreen> {
   late List<List<TileType>> _grid;
   late List<List<RoadDirection?>> _roadDirections;
   late List<List<BuildingOrientation?>> _buildingOrientations;
+  
+  // Truck state
+  final List<Truck> _trucks = [];
+  Timer? _truckMovementTimer;
 
   @override
   void initState() {
     super.initState();
     _generateMap();
+    _initializeTrucks();
+    _startTruckMovement();
+  }
+
+  @override
+  void dispose() {
+    _truckMovementTimer?.cancel();
+    super.dispose();
   }
 
   void _generateMap() {
@@ -82,6 +111,9 @@ class _TileCityScreenState extends State<TileCityScreen> {
 
     // Generate grid-based road system
     _generateRoadGrid();
+
+    // Place warehouse (only one, anywhere)
+    _placeWarehouse();
 
     // Place building blocks
     _placeBuildingBlocks();
@@ -118,6 +150,124 @@ class _TileCityScreenState extends State<TileCityScreen> {
     
     // Update road directions
     _updateRoadDirections();
+  }
+
+  /// Place warehouse (only one instance, anywhere in town)
+  void _placeWarehouse() {
+    final random = math.Random();
+    final validSpots = <List<int>>[];
+    
+    // Find all grass tiles adjacent to roads
+    for (int y = 0; y < gridSize; y++) {
+      for (int x = 0; x < gridSize; x++) {
+        if (_grid[y][x] == TileType.grass && _isTileAdjacentToRoad(x, y)) {
+          validSpots.add([x, y]);
+        }
+      }
+    }
+    
+    if (validSpots.isNotEmpty) {
+      final spot = validSpots[random.nextInt(validSpots.length)];
+      _grid[spot[1]][spot[0]] = TileType.warehouse;
+    }
+  }
+
+  /// Initialize trucks on roads
+  void _initializeTrucks() {
+    _trucks.clear();
+    final random = math.Random();
+    final roadTiles = <List<int>>[];
+    
+    // Find all road tiles
+    for (int y = 0; y < gridSize; y++) {
+      for (int x = 0; x < gridSize; x++) {
+        if (_grid[y][x] == TileType.road) {
+          roadTiles.add([x, y]);
+        }
+      }
+    }
+    
+    // Place 2-3 trucks randomly on roads
+    final numTrucks = math.min(3, roadTiles.length);
+    roadTiles.shuffle(random);
+    
+    for (int i = 0; i < numTrucks && i < roadTiles.length; i++) {
+      final tile = roadTiles[i];
+      final direction = TruckDirection.values[random.nextInt(TruckDirection.values.length)];
+      _trucks.add(Truck(tile[0].toDouble(), tile[1].toDouble(), direction));
+    }
+  }
+
+  /// Start truck movement animation
+  void _startTruckMovement() {
+    _truckMovementTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (mounted) {
+        setState(() {
+          _moveTrucks();
+        });
+      }
+    });
+  }
+
+  /// Move trucks along roads
+  void _moveTrucks() {
+    final random = math.Random();
+    
+    for (final truck in _trucks) {
+      // Try to move in current direction
+      double nextX = truck.x;
+      double nextY = truck.y;
+      
+      switch (truck.direction) {
+        case TruckDirection.north:
+          nextY -= 1;
+          break;
+        case TruckDirection.south:
+          nextY += 1;
+          break;
+        case TruckDirection.east:
+          nextX += 1;
+          break;
+        case TruckDirection.west:
+          nextX -= 1;
+          break;
+      }
+      
+      // Check if next position is valid (on road and within bounds)
+      final nextXInt = nextX.round();
+      final nextYInt = nextY.round();
+      
+      if (nextXInt >= 0 && nextXInt < gridSize && 
+          nextYInt >= 0 && nextYInt < gridSize &&
+          _grid[nextYInt][nextXInt] == TileType.road) {
+        // Move truck
+        truck.x = nextX;
+        truck.y = nextY;
+      } else {
+        // Can't move forward, choose a new direction
+        final possibleDirections = <TruckDirection>[];
+        final currentX = truck.x.round();
+        final currentY = truck.y.round();
+        
+        // Check all four directions for valid roads
+        if (currentY > 0 && _grid[currentY - 1][currentX] == TileType.road) {
+          possibleDirections.add(TruckDirection.north);
+        }
+        if (currentY < gridSize - 1 && _grid[currentY + 1][currentX] == TileType.road) {
+          possibleDirections.add(TruckDirection.south);
+        }
+        if (currentX < gridSize - 1 && _grid[currentY][currentX + 1] == TileType.road) {
+          possibleDirections.add(TruckDirection.east);
+        }
+        if (currentX > 0 && _grid[currentY][currentX - 1] == TileType.road) {
+          possibleDirections.add(TruckDirection.west);
+        }
+        
+        if (possibleDirections.isNotEmpty) {
+          truck.direction = possibleDirections[random.nextInt(possibleDirections.length)];
+        }
+      }
+    }
   }
 
   void _updateRoadDirections() {
@@ -471,6 +621,13 @@ class _TileCityScreenState extends State<TileCityScreen> {
     return Offset(screenX, screenY);
   }
 
+  /// Convert grid coordinates (double) to isometric screen coordinates for smooth truck movement
+  Offset _gridToScreenDouble(double gridX, double gridY) {
+    final screenX = (gridX - gridY) * (tileWidth / 2) * horizontalSpacingFactor;
+    final screenY = (gridX + gridY) * (tileHeight / 2) * tileSpacingFactor;
+    return Offset(screenX, screenY);
+  }
+
   String _getTileAssetPath(TileType tileType, RoadDirection? roadDir) {
     switch (tileType) {
       case TileType.grass:
@@ -495,6 +652,8 @@ class _TileCityScreenState extends State<TileCityScreen> {
         return 'assets/images/tiles/park.png';
       case TileType.house:
         return 'assets/images/tiles/house.png';
+      case TileType.warehouse:
+        return 'assets/images/tiles/warehouse.png';
     }
   }
 
@@ -505,7 +664,8 @@ class _TileCityScreenState extends State<TileCityScreen> {
         tileType == TileType.school ||
         tileType == TileType.gasStation ||
         tileType == TileType.park ||
-        tileType == TileType.house;
+        tileType == TileType.house ||
+        tileType == TileType.warehouse;
   }
 
   /// Get the scale factor for a specific building type
@@ -599,7 +759,10 @@ class _TileCityScreenState extends State<TileCityScreen> {
             child: FloatingActionButton.small(
               onPressed: () {
                 setState(() {
+                  _truckMovementTimer?.cancel();
                   _generateMap();
+                  _initializeTrucks();
+                  _startTruckMovement();
                 });
               },
               child: const Icon(Icons.refresh),
@@ -693,7 +856,64 @@ class _TileCityScreenState extends State<TileCityScreen> {
       }
     }
 
+    // Add trucks on top of tiles
+    for (final truck in _trucks) {
+      final screenPos = _gridToScreenDouble(truck.x, truck.y);
+      final positionedX = screenPos.dx + centerOffset.dx;
+      final positionedY = screenPos.dy + centerOffset.dy;
+      
+      tiles.add(
+        Positioned(
+          left: positionedX,
+          top: positionedY - 20, // Slightly above the road
+          width: tileWidth * 0.6,
+          height: tileHeight * 0.8,
+          child: _buildTruck(truck),
+        ),
+      );
+    }
+
     return tiles;
+  }
+
+  /// Build truck widget with front/back assets and flipping
+  Widget _buildTruck(Truck truck) {
+    // Determine which asset to use (front or back) based on direction
+    final bool useFront = truck.direction == TruckDirection.north || truck.direction == TruckDirection.south;
+    final String assetPath = useFront 
+        ? 'assets/images/tiles/truck_front.png'
+        : 'assets/images/tiles/truck_back.png';
+    
+    // Determine if truck should be flipped horizontally
+    // Flip if moving west (left) or south (down in isometric)
+    final bool shouldFlip = truck.direction == TruckDirection.west || truck.direction == TruckDirection.south;
+    
+    Widget truckWidget = Image.asset(
+      assetPath,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.blue.shade300,
+          child: Center(
+            child: Text(
+              'T',
+              style: const TextStyle(fontSize: 12, color: Colors.white),
+            ),
+          ),
+        );
+      },
+    );
+    
+    if (shouldFlip) {
+      return Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()..scale(-1.0, 1.0), // Flip horizontally
+        child: truckWidget,
+      );
+    }
+    
+    return truckWidget;
   }
 
   Widget _buildGroundTile(TileType tileType, RoadDirection? roadDir) {
@@ -780,6 +1000,8 @@ class _TileCityScreenState extends State<TileCityScreen> {
         return Colors.green.shade400;
       case TileType.house:
         return Colors.brown.shade300;
+      case TileType.warehouse:
+        return Colors.grey.shade400;
     }
   }
 
@@ -803,6 +1025,8 @@ class _TileCityScreenState extends State<TileCityScreen> {
         return 'P';
       case TileType.house:
         return 'H';
+      case TileType.warehouse:
+        return 'W';
     }
   }
 }
