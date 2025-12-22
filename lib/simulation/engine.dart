@@ -904,8 +904,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         // Update truck inventory
         final updatedTruckInventory = itemsToTransfer;
         
-        // Check if truck still has items to stock
-        final hasMoreItems = updatedTruckInventory.isNotEmpty;
+        // Check if there are more destinations in the route
         final hasMoreDestinations = truck.currentRouteIndex + 1 < truck.route.length;
         
         // Get warehouse position for returning
@@ -948,12 +947,31 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         // Keep truck on road
         final roadX = truck.currentX.round().toDouble();
         final roadY = truck.currentY.round().toDouble();
-        updatedTrucks[i] = truck.copyWith(
-          status: TruckStatus.traveling,
-          currentRouteIndex: truck.currentRouteIndex + 1,
-          currentX: roadX,
-          currentY: roadY,
-        );
+        final hasMoreDestinations = truck.currentRouteIndex + 1 < truck.route.length;
+        
+        if (hasMoreDestinations) {
+          // Still have more destinations - continue to next machine
+          updatedTrucks[i] = truck.copyWith(
+            status: TruckStatus.traveling,
+            currentRouteIndex: truck.currentRouteIndex + 1,
+            currentX: roadX,
+            currentY: roadY,
+          );
+        } else {
+          // Last destination - return to warehouse
+          final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback if not set
+          final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback if not set
+          updatedTrucks[i] = truck.copyWith(
+            status: TruckStatus.traveling,
+            currentRouteIndex: truck.currentRouteIndex + 1, // Mark route as complete
+            targetX: warehouseRoadX,
+            targetY: warehouseRoadY,
+            path: [], // Clear path so it recalculates to warehouse
+            pathIndex: 0,
+            currentX: roadX,
+            currentY: roadY,
+          );
+        }
       }
     }
 
