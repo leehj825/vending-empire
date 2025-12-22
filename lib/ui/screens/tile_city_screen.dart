@@ -172,7 +172,7 @@ class _TileCityScreenState extends State<TileCityScreen> {
     }
   }
 
-  /// Initialize trucks on roads
+  /// Initialize trucks on roads (only one truck)
   void _initializeTrucks() {
     _trucks.clear();
     final random = math.Random();
@@ -187,13 +187,35 @@ class _TileCityScreenState extends State<TileCityScreen> {
       }
     }
     
-    // Place 2-3 trucks randomly on roads
-    final numTrucks = math.min(3, roadTiles.length);
-    roadTiles.shuffle(random);
-    
-    for (int i = 0; i < numTrucks && i < roadTiles.length; i++) {
-      final tile = roadTiles[i];
-      final direction = TruckDirection.values[random.nextInt(TruckDirection.values.length)];
+    // Place only one truck on a road tile
+    if (roadTiles.isNotEmpty) {
+      roadTiles.shuffle(random);
+      final tile = roadTiles[0];
+      
+      // Determine initial direction based on road connections
+      final x = tile[0];
+      final y = tile[1];
+      final possibleDirections = <TruckDirection>[];
+      
+      // Check which directions have roads
+      if (y > 0 && _grid[y - 1][x] == TileType.road) {
+        possibleDirections.add(TruckDirection.north);
+      }
+      if (y < gridSize - 1 && _grid[y + 1][x] == TileType.road) {
+        possibleDirections.add(TruckDirection.south);
+      }
+      if (x < gridSize - 1 && _grid[y][x + 1] == TileType.road) {
+        possibleDirections.add(TruckDirection.east);
+      }
+      if (x > 0 && _grid[y][x - 1] == TileType.road) {
+        possibleDirections.add(TruckDirection.west);
+      }
+      
+      // Choose a valid direction, or default to east if no roads found
+      final direction = possibleDirections.isNotEmpty
+          ? possibleDirections[random.nextInt(possibleDirections.length)]
+          : TruckDirection.east;
+      
       _trucks.add(Truck(tile[0].toDouble(), tile[1].toDouble(), direction));
     }
   }
@@ -209,27 +231,27 @@ class _TileCityScreenState extends State<TileCityScreen> {
     });
   }
 
-  /// Move trucks along roads
+  /// Move trucks along roads - trucks move in the direction they're facing
   void _moveTrucks() {
     final random = math.Random();
     
     for (final truck in _trucks) {
-      // Try to move in current direction
+      // Calculate next position based on current facing direction
       double nextX = truck.x;
       double nextY = truck.y;
       
       switch (truck.direction) {
         case TruckDirection.north:
-          nextY -= 1;
+          nextY -= 0.2; // Move in small increments for smooth animation
           break;
         case TruckDirection.south:
-          nextY += 1;
+          nextY += 0.2;
           break;
         case TruckDirection.east:
-          nextX += 1;
+          nextX += 0.2;
           break;
         case TruckDirection.west:
-          nextX -= 1;
+          nextX -= 0.2;
           break;
       }
       
@@ -237,34 +259,83 @@ class _TileCityScreenState extends State<TileCityScreen> {
       final nextXInt = nextX.round();
       final nextYInt = nextY.round();
       
+      // Verify current position is still on road
+      final currentXInt = truck.x.round();
+      final currentYInt = truck.y.round();
+      
+      if (currentXInt >= 0 && currentXInt < gridSize && 
+          currentYInt >= 0 && currentYInt < gridSize &&
+          _grid[currentYInt][currentXInt] != TileType.road) {
+        // Truck is off road, find nearest road and place it there
+        _repositionTruckOnRoad(truck);
+        continue;
+      }
+      
       if (nextXInt >= 0 && nextXInt < gridSize && 
           nextYInt >= 0 && nextYInt < gridSize &&
           _grid[nextYInt][nextXInt] == TileType.road) {
-        // Move truck
+        // Move truck in the direction it's facing
         truck.x = nextX;
         truck.y = nextY;
       } else {
-        // Can't move forward, choose a new direction
-        final possibleDirections = <TruckDirection>[];
-        final currentX = truck.x.round();
-        final currentY = truck.y.round();
-        
-        // Check all four directions for valid roads
-        if (currentY > 0 && _grid[currentY - 1][currentX] == TileType.road) {
-          possibleDirections.add(TruckDirection.north);
+        // Can't move forward in current direction, find a new direction that continues forward
+        // Only change direction if we've reached a tile boundary
+        if ((nextXInt != currentXInt || nextYInt != currentYInt)) {
+          final possibleDirections = <TruckDirection>[];
+          final currentX = truck.x.round();
+          final currentY = truck.y.round();
+          
+          // Check all four directions for valid roads
+          if (currentY > 0 && _grid[currentY - 1][currentX] == TileType.road) {
+            possibleDirections.add(TruckDirection.north);
+          }
+          if (currentY < gridSize - 1 && _grid[currentY + 1][currentX] == TileType.road) {
+            possibleDirections.add(TruckDirection.south);
+          }
+          if (currentX < gridSize - 1 && _grid[currentY][currentX + 1] == TileType.road) {
+            possibleDirections.add(TruckDirection.east);
+          }
+          if (currentX > 0 && _grid[currentY][currentX - 1] == TileType.road) {
+            possibleDirections.add(TruckDirection.west);
+          }
+          
+          // Prefer continuing in current direction if possible
+          if (possibleDirections.contains(truck.direction)) {
+            // Keep current direction, just snap to grid
+            truck.x = currentX.toDouble();
+            truck.y = currentY.toDouble();
+          } else if (possibleDirections.isNotEmpty) {
+            // Change to a valid direction
+            truck.direction = possibleDirections[random.nextInt(possibleDirections.length)];
+            truck.x = currentX.toDouble();
+            truck.y = currentY.toDouble();
+          }
         }
-        if (currentY < gridSize - 1 && _grid[currentY + 1][currentX] == TileType.road) {
-          possibleDirections.add(TruckDirection.south);
-        }
-        if (currentX < gridSize - 1 && _grid[currentY][currentX + 1] == TileType.road) {
-          possibleDirections.add(TruckDirection.east);
-        }
-        if (currentX > 0 && _grid[currentY][currentX - 1] == TileType.road) {
-          possibleDirections.add(TruckDirection.west);
-        }
-        
-        if (possibleDirections.isNotEmpty) {
-          truck.direction = possibleDirections[random.nextInt(possibleDirections.length)];
+      }
+    }
+  }
+
+  /// Reposition truck on nearest road tile
+  void _repositionTruckOnRoad(Truck truck) {
+    final currentX = truck.x.round();
+    final currentY = truck.y.round();
+    
+    // Find nearest road tile
+    for (int radius = 0; radius < gridSize; radius++) {
+      for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
+          if (dx.abs() + dy.abs() != radius) continue;
+          
+          final checkX = currentX + dx;
+          final checkY = currentY + dy;
+          
+          if (checkX >= 0 && checkX < gridSize && 
+              checkY >= 0 && checkY < gridSize &&
+              _grid[checkY][checkX] == TileType.road) {
+            truck.x = checkX.toDouble();
+            truck.y = checkY.toDouble();
+            return;
+          }
         }
       }
     }
