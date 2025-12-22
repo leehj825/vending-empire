@@ -4,6 +4,7 @@ import 'dashboard_screen.dart';
 import 'map_screen.dart';
 import 'route_planner_screen.dart';
 import 'warehouse_screen.dart';
+import 'tile_city_screen.dart';
 
 /// Main navigation screen with bottom navigation bar
 class MainScreen extends ConsumerStatefulWidget {
@@ -22,6 +23,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     MapScreen(),
     RoutePlannerScreen(),
     WarehouseScreen(),
+    TileCityScreen(),
   ];
 
   /// App bar titles for each tab
@@ -30,6 +32,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     'City View',
     'Fleet Manager',
     'Wholesale Market',
+    'Tile City Map',
   ];
 
   void _onItemTapped(int index) {
@@ -78,6 +81,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.store_rounded),
             label: 'Market',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.grid_on),
+            label: 'Tile Map',
           ),
         ],
       ),
