@@ -293,16 +293,16 @@ class _TileCityScreenState extends State<TileCityScreen> {
           final possibleDirections = <TruckDirection>[];
           
           // Check all four directions for valid roads (forward directions only)
-          if (currentY > 0 && _grid[currentY - 1][currentX] == TileType.road) {
+          if (currentYInt > 0 && _grid[currentYInt - 1][currentXInt] == TileType.road) {
             possibleDirections.add(TruckDirection.north);
           }
-          if (currentY < gridSize - 1 && _grid[currentY + 1][currentX] == TileType.road) {
+          if (currentYInt < gridSize - 1 && _grid[currentYInt + 1][currentXInt] == TileType.road) {
             possibleDirections.add(TruckDirection.south);
           }
-          if (currentX < gridSize - 1 && _grid[currentY][currentX + 1] == TileType.road) {
+          if (currentXInt < gridSize - 1 && _grid[currentYInt][currentXInt + 1] == TileType.road) {
             possibleDirections.add(TruckDirection.east);
           }
-          if (currentX > 0 && _grid[currentY][currentX - 1] == TileType.road) {
+          if (currentXInt > 0 && _grid[currentYInt][currentXInt - 1] == TileType.road) {
             possibleDirections.add(TruckDirection.west);
           }
           
