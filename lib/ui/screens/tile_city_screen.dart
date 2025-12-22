@@ -61,7 +61,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   static const double warehouseScale = 0.72; // Adjust for warehouse.png
   
   // Vertical offset for warehouse (negative to lower it, positive to raise it)
-  static const double warehouseVerticalOffset = -5.0; // Lower warehouse to sit on ground properly
+  static const double warehouseVerticalOffset = 5.0; // Raise warehouse slightly above ground
   
   // Block dimensions - minimum 2x2, maximum 2x3 or 3x2
   static const int minBlockSize = 2;
@@ -707,8 +707,20 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       final positionedY = data['positionedY'] as double;
 
         // Ground tile (grass or road) - anchored at base
-        // Skip ground tile for buildings - they should show grass/road underneath
-        if (!_isBuilding(tileType)) {
+        // For warehouse, render it as the ground tile (replacing grass)
+        if (tileType == TileType.warehouse) {
+          // Render warehouse as ground tile, raised slightly
+          tiles.add(
+            Positioned(
+              left: positionedX,
+              top: positionedY - warehouseVerticalOffset,
+              width: tileWidth,
+              height: tileHeight,
+              child: _buildGroundTile(tileType, roadDir),
+            ),
+          );
+        } else if (!_isBuilding(tileType)) {
+          // Regular ground tiles (grass, road)
           tiles.add(
             Positioned(
               left: positionedX,
@@ -719,7 +731,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
             ),
           );
         } else {
-          // For buildings, show grass as the ground tile underneath
+          // For other buildings, show grass as the ground tile underneath
           tiles.add(
             Positioned(
               left: positionedX,
@@ -734,7 +746,8 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       // Building tile (if applicable) - anchored at bottom-center, extends upward
       // Scaled down to fit better within tile bounds
       // Each building type can have its own scale factor
-      if (_isBuilding(tileType)) {
+      // Skip warehouse here since it's rendered as a ground tile above
+      if (_isBuilding(tileType) && tileType != TileType.warehouse) {
         final buildingScaleFactor = _getBuildingScale(tileType);
         final scaledBuildingHeight = buildingImageHeight * buildingScaleFactor;
         final buildingTop = positionedY - (scaledBuildingHeight - tileHeight);
