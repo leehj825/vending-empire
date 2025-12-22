@@ -374,9 +374,11 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   ) {
     // Valid road coordinates (roads are at grid positions 3, 6, 9 = zone 4.0, 7.0, 10.0, plus edge at 1.0)
     const validRoads = [1.0, 4.0, 7.0, 10.0];
+    // Outward roads (edges - avoid unless necessary, prefer inward roads 4.0, 7.0)
+    const outwardRoads = [1.0, 10.0];
     
-    // Movement speed: 0.2 units per tick = 5 ticks per road tile
-    const double movementSpeed = 0.2;
+    // Movement speed: 1.0 units per tick = 1 tick per road tile (5x faster)
+    const double movementSpeed = 1.0;
     
     // Helper function to snap to nearest valid road coordinate
     double snapToNearestRoad(double coord) {
@@ -412,7 +414,11 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       // - Horizontal roads: Y is fixed (1.0, 4.0, 7.0, 10.0), X can be any road coordinate
       // - Vertical roads: X is fixed (1.0, 4.0, 7.0, 10.0), Y can be any road coordinate
       // - Intersections: both X and Y are road coordinates
+      // - Prefer inward roads (4.0, 7.0) and avoid outward roads (1.0, 10.0) when possible
       final graph = <({double x, double y}), List<({double x, double y})>>{};
+      
+      // Helper to check if a coordinate is on an outward road
+      bool isOutwardRoad(double coord) => outwardRoads.contains(coord);
       
       // Add all road intersections
       for (final roadX in validRoads) {
@@ -420,17 +426,43 @@ class SimulationEngine extends StateNotifier<SimulationState> {
           final node = (x: roadX, y: roadY);
           graph[node] = [];
           
-          // Connect to all nodes on the same horizontal road (same Y)
+          // Connect to nodes on the same horizontal road (same Y)
+          // Prefer inward roads, only connect to outward roads if necessary
           for (final otherRoadX in validRoads) {
             if (otherRoadX != roadX) {
-              graph[node]!.add((x: otherRoadX, y: roadY));
+              // Only connect to outward roads if:
+              // 1. Current node is on an outward road, OR
+              // 2. Target node is the start or end, OR
+              // 3. Both are inward roads (always allow)
+              final targetNode = (x: otherRoadX, y: roadY);
+              final isCurrentOutward = isOutwardRoad(roadX);
+              final isTargetOutward = isOutwardRoad(otherRoadX);
+              final isTargetStartOrEnd = (targetNode.x == start.x && targetNode.y == start.y) ||
+                                        (targetNode.x == end.x && targetNode.y == end.y);
+              
+              if (!isTargetOutward || isCurrentOutward || isTargetStartOrEnd) {
+                graph[node]!.add(targetNode);
+              }
             }
           }
           
-          // Connect to all nodes on the same vertical road (same X)
+          // Connect to nodes on the same vertical road (same X)
+          // Prefer inward roads, only connect to outward roads if necessary
           for (final otherRoadY in validRoads) {
             if (otherRoadY != roadY) {
-              graph[node]!.add((x: roadX, y: otherRoadY));
+              // Only connect to outward roads if:
+              // 1. Current node is on an outward road, OR
+              // 2. Target node is the start or end, OR
+              // 3. Both are inward roads (always allow)
+              final targetNode = (x: roadX, y: otherRoadY);
+              final isCurrentOutward = isOutwardRoad(roadY);
+              final isTargetOutward = isOutwardRoad(otherRoadY);
+              final isTargetStartOrEnd = (targetNode.x == start.x && targetNode.y == start.y) ||
+                                        (targetNode.x == end.x && targetNode.y == end.y);
+              
+              if (!isTargetOutward || isCurrentOutward || isTargetStartOrEnd) {
+                graph[node]!.add(targetNode);
+              }
             }
           }
         }
@@ -472,7 +504,13 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         
         for (final neighbor in neighbors) {
           // Manhattan distance as edge cost
-          final edgeCost = (neighbor.x - current.x).abs() + (neighbor.y - current.y).abs();
+          double edgeCost = (neighbor.x - current.x).abs() + (neighbor.y - current.y).abs();
+          
+          // Add penalty for using outward roads (encourages using inward roads)
+          if (isOutwardRoad(neighbor.x) || isOutwardRoad(neighbor.y)) {
+            edgeCost += 10.0; // Large penalty to prefer inward roads
+          }
+          
           final tentativeG = (gScore[current] ?? double.infinity) + edgeCost;
           
           if (tentativeG < (gScore[neighbor] ?? double.infinity)) {
@@ -754,8 +792,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   double _processFuelCosts(List<Truck> trucks, double currentCash) {
     double totalFuelCost = 0.0;
     
-    // Movement speed: 0.2 units per tick = 5 ticks per road tile
-    const double movementSpeed = 0.2;
+    // Movement speed: 1.0 units per tick = 1 tick per road tile (matches truck movement speed)
+    const double movementSpeed = 1.0;
 
     for (final truck in trucks) {
       // Only charge fuel when truck is actually moving
