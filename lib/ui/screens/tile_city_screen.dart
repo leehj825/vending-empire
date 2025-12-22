@@ -955,13 +955,13 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   String _getViewImagePath(ZoneType zoneType) {
     switch (zoneType) {
       case ZoneType.shop:
-        return 'assets/views/shop_view.png';
+        return 'assets/images/views/shop_view.png';
       case ZoneType.school:
-        return 'assets/views/school_view.png';
+        return 'assets/images/views/school_view.png';
       case ZoneType.gym:
-        return 'assets/views/gym_view.png';
+        return 'assets/images/views/gym_view.png';
       case ZoneType.office:
-        return 'assets/views/office_view.png';
+        return 'assets/images/views/office_view.png';
     }
   }
 
