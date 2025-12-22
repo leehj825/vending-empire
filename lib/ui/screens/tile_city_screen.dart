@@ -224,7 +224,7 @@ class _TileCityScreenState extends State<TileCityScreen> {
   /// Start truck movement animation
   void _startTruckMovement() {
     // Slower updates for smoother, more controlled movement
-    _truckMovementTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+    _truckMovementTimer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
       if (mounted) {
         setState(() {
           _moveTrucks();
@@ -1034,8 +1034,8 @@ class _TileCityScreenState extends State<TileCityScreen> {
     final positionedY = pos.dy + centerOffset.dy;
     
     // 2. Size & Centering Logic
-    // Make truck half the size of a tile so it fits in the lane
-    final double truckSize = tileWidth * 0.5; 
+    // Make truck smaller (40% of tile width, reduced by 20% from original 50%)
+    final double truckSize = tileWidth * 0.4; 
     
     // Center logic:
     // X: Tile Left + (TileWidth - TruckWidth) / 2
