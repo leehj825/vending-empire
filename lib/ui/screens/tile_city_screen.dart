@@ -11,8 +11,8 @@ enum TileType {
 }
 
 enum RoadDirection {
-  northSouth,
-  eastWest,
+  vertical, // Connects (X, Y-1) and (X, Y+1) in isometric view
+  horizontal, // Connects (X-1, Y) and (X+1, Y) in isometric view
   intersection,
 }
 
@@ -25,6 +25,14 @@ class TileCityScreen extends StatefulWidget {
 
 class _TileCityScreenState extends State<TileCityScreen> {
   static const int gridSize = 20;
+  
+  // Isometric tile dimensions (tweakable constants)
+  static const double tileWidth = 64.0;
+  static const double tileHeight = 32.0;
+  
+  // Building image height (assumed taller than ground tiles)
+  static const double buildingImageHeight = 80.0; // Adjust based on actual building image height
+  
   late List<List<TileType>> _grid;
   late List<List<RoadDirection?>> _roadDirections;
 
@@ -112,6 +120,9 @@ class _TileCityScreenState extends State<TileCityScreen> {
   }
 
   RoadDirection _getRoadDirection(int x, int y) {
+    // In isometric view:
+    // Vertical: connects (X, Y-1) and (X, Y+1)
+    // Horizontal: connects (X-1, Y) and (X+1, Y)
     final bool hasNorth = y > 0 && _grid[y - 1][x] == TileType.road;
     final bool hasSouth = y < gridSize - 1 && _grid[y + 1][x] == TileType.road;
     final bool hasEast = x < gridSize - 1 && _grid[y][x + 1] == TileType.road;
@@ -128,10 +139,11 @@ class _TileCityScreenState extends State<TileCityScreen> {
     }
 
     // Straight roads
-    if ((hasNorth && hasSouth) || (hasEast && hasWest)) {
-      return hasNorth && hasSouth
-          ? RoadDirection.northSouth
-          : RoadDirection.eastWest;
+    if (hasNorth && hasSouth) {
+      return RoadDirection.vertical;
+    }
+    if (hasEast && hasWest) {
+      return RoadDirection.horizontal;
     }
 
     // Default to intersection for corners and dead ends
@@ -177,10 +189,14 @@ class _TileCityScreenState extends State<TileCityScreen> {
     return false;
   }
 
-  String _getTileAssetPath(int x, int y) {
-    final tileType = _grid[y][x];
-    final roadDir = _roadDirections[y][x];
+  /// Convert grid coordinates to isometric screen coordinates
+  Offset _gridToScreen(int gridX, int gridY) {
+    final screenX = (gridX - gridY) * (tileWidth / 2);
+    final screenY = (gridX + gridY) * (tileHeight / 2);
+    return Offset(screenX, screenY);
+  }
 
+  String _getTileAssetPath(TileType tileType, RoadDirection? roadDir) {
     switch (tileType) {
       case TileType.grass:
         return 'assets/images/tiles/grass.png';
@@ -201,16 +217,44 @@ class _TileCityScreenState extends State<TileCityScreen> {
     }
   }
 
-  double _getRoadRotation(int x, int y) {
-    final roadDir = _roadDirections[y][x];
-    if (roadDir == RoadDirection.northSouth) {
-      return math.pi / 2; // 90 degrees for North-South
+  double _getRoadRotation(RoadDirection? roadDir) {
+    // In isometric view, vertical roads (North-South) may need rotation
+    // Adjust based on how the sprite is oriented
+    if (roadDir == RoadDirection.vertical) {
+      return math.pi / 2; // 90 degrees
     }
-    return 0.0; // East-West (default)
+    return 0.0; // Horizontal or intersection (default)
+  }
+
+  bool _isBuilding(TileType tileType) {
+    return tileType == TileType.shop ||
+        tileType == TileType.gym ||
+        tileType == TileType.office ||
+        tileType == TileType.school;
   }
 
   @override
   Widget build(BuildContext context) {
+    // Calculate map bounds for centering
+    final topLeft = _gridToScreen(0, 0);
+    final topRight = _gridToScreen(gridSize - 1, 0);
+    final bottomLeft = _gridToScreen(0, gridSize - 1);
+    final bottomRight = _gridToScreen(gridSize - 1, gridSize - 1);
+    
+    final minX = math.min(math.min(topLeft.dx, topRight.dx), math.min(bottomLeft.dx, bottomRight.dx));
+    final maxX = math.max(math.max(topLeft.dx, topRight.dx), math.max(bottomLeft.dx, bottomRight.dx));
+    final minY = math.min(math.min(topLeft.dy, topRight.dy), math.min(bottomLeft.dy, bottomRight.dy));
+    final maxY = math.max(math.max(topLeft.dy, topRight.dy), math.max(bottomLeft.dy, bottomRight.dy));
+    
+    final mapWidth = maxX - minX + tileWidth;
+    final mapHeight = maxY - minY + tileHeight + buildingImageHeight; // Add extra height for buildings
+    
+    // Center offset to position map in viewport
+    final centerOffset = Offset(
+      (MediaQuery.of(context).size.width - mapWidth) / 2 - minX,
+      (MediaQuery.of(context).size.height - mapHeight) / 2 - minY,
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tile City Map'),
@@ -228,48 +272,107 @@ class _TileCityScreenState extends State<TileCityScreen> {
           ),
         ],
       ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(8.0),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: gridSize,
-          crossAxisSpacing: 0,
-          mainAxisSpacing: 0,
-          childAspectRatio: 1.0,
+      body: InteractiveViewer(
+        boundaryMargin: const EdgeInsets.all(100),
+        minScale: 0.5,
+        maxScale: 3.0,
+        child: SizedBox(
+          width: mapWidth,
+          height: mapHeight,
+          child: Stack(
+            children: _buildTiles(centerOffset),
+          ),
         ),
-        itemCount: gridSize * gridSize,
-        itemBuilder: (context, index) {
-          final x = index % gridSize;
-          final y = index ~/ gridSize;
-          final tileType = _grid[y][x];
-          final isRoad = tileType == TileType.road;
-          final rotation = isRoad ? _getRoadRotation(x, y) : 0.0;
+      ),
+    );
+  }
 
-          return Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300, width: 0.5),
+  /// Build all tiles in correct render order (Y loop, then X loop for painter's algorithm)
+  List<Widget> _buildTiles(Offset centerOffset) {
+    final tiles = <Widget>[];
+
+    // Render in depth order: Y from 0 to max, then X from 0 to max
+    // This ensures tiles "further back" (lower X+Y) are drawn before tiles "in front"
+    for (int y = 0; y < gridSize; y++) {
+      for (int x = 0; x < gridSize; x++) {
+        final tileType = _grid[y][x];
+        final roadDir = _roadDirections[y][x];
+        final screenPos = _gridToScreen(x, y);
+        final positionedX = screenPos.dx + centerOffset.dx;
+        final positionedY = screenPos.dy + centerOffset.dy;
+
+        // Ground tile (grass or road)
+        tiles.add(
+          Positioned(
+            left: positionedX,
+            top: positionedY,
+            width: tileWidth,
+            height: tileHeight,
+            child: _buildGroundTile(tileType, roadDir),
+          ),
+        );
+
+        // Building tile (if applicable) - anchored at bottom-center
+        if (_isBuilding(tileType)) {
+          final buildingTop = positionedY - (buildingImageHeight - tileHeight);
+          tiles.add(
+            Positioned(
+              left: positionedX + (tileWidth / 2) - (tileWidth / 2), // Center horizontally
+              top: buildingTop,
+              width: tileWidth,
+              height: buildingImageHeight,
+              child: _buildBuildingTile(tileType),
             ),
-            child: Transform.rotate(
-              angle: rotation,
-              child: Image.asset(
-                _getTileAssetPath(x, y),
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  // Fallback if image fails to load
-                  return Container(
-                    color: _getFallbackColor(tileType),
-                    child: Center(
-                      child: Text(
-                        _getTileLabel(tileType),
-                        style: const TextStyle(fontSize: 8),
-                      ),
-                    ),
-                  );
-                },
+          );
+        }
+      }
+    }
+
+    return tiles;
+  }
+
+  Widget _buildGroundTile(TileType tileType, RoadDirection? roadDir) {
+    final isRoad = tileType == TileType.road;
+    final rotation = isRoad ? _getRoadRotation(roadDir) : 0.0;
+
+    return Transform.rotate(
+      angle: rotation,
+      child: Image.asset(
+        _getTileAssetPath(tileType, roadDir),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: _getFallbackColor(tileType),
+            child: Center(
+              child: Text(
+                _getTileLabel(tileType),
+                style: const TextStyle(fontSize: 8),
               ),
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildBuildingTile(TileType tileType) {
+    return Image.asset(
+      _getTileAssetPath(tileType, null),
+      fit: BoxFit.contain,
+      alignment: Alignment.bottomCenter,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: _getFallbackColor(tileType),
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 4.0),
+            child: Text(
+              _getTileLabel(tileType),
+              style: const TextStyle(fontSize: 10),
+            ),
+          ),
+        );
+      },
     );
   }
 
