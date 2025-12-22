@@ -29,6 +29,10 @@ abstract class Truck with _$Truck {
     /// Target position (x, y) when traveling
     @Default(0.0) double targetX,
     @Default(0.0) double targetY,
+    /// Path waypoints for smooth movement (list of (x, y) positions)
+    @Default([]) List<({double x, double y})> path,
+    /// Current index in the path
+    @Default(0) int pathIndex,
     @Default({}) Map<Product, int> inventory,
   }) = _Truck;
 
