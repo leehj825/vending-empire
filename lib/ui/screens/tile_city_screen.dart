@@ -233,7 +233,7 @@ class _TileCityScreenState extends State<TileCityScreen> {
     });
   }
 
-  /// Move trucks along roads - trucks move forward in the direction they're facing
+  /// Move trucks along roads - trucks explore different roads, especially at intersections
   void _moveTrucks() {
     final random = math.Random();
     
@@ -255,69 +255,136 @@ class _TileCityScreenState extends State<TileCityScreen> {
         continue;
       }
       
-      // Calculate next position based on current facing direction (forward only)
+      // Get all possible directions from current position
+      final possibleDirections = <TruckDirection>[];
+      
+      if (currentYInt > 0 && _grid[currentYInt - 1][currentXInt] == TileType.road) {
+        possibleDirections.add(TruckDirection.north);
+      }
+      if (currentYInt < gridSize - 1 && _grid[currentYInt + 1][currentXInt] == TileType.road) {
+        possibleDirections.add(TruckDirection.south);
+      }
+      if (currentXInt < gridSize - 1 && _grid[currentYInt][currentXInt + 1] == TileType.road) {
+        possibleDirections.add(TruckDirection.east);
+      }
+      if (currentXInt > 0 && _grid[currentYInt][currentXInt - 1] == TileType.road) {
+        possibleDirections.add(TruckDirection.west);
+      }
+      
+      if (possibleDirections.isEmpty) continue;
+      
+      // Check if we're at an intersection (3+ connections = 4-way or T-junction)
+      final isIntersection = possibleDirections.length >= 3;
+      
+      // Calculate next position based on current facing direction
       int nextXInt = currentXInt;
       int nextYInt = currentYInt;
       
       switch (truck.direction) {
         case TruckDirection.north:
-          nextYInt -= 1; // Move forward (north) - one tile at a time
+          nextYInt -= 1;
           break;
         case TruckDirection.south:
-          nextYInt += 1; // Move forward (south)
+          nextYInt += 1;
           break;
         case TruckDirection.east:
-          nextXInt += 1; // Move forward (east)
+          nextXInt += 1;
           break;
         case TruckDirection.west:
-          nextXInt -= 1; // Move forward (west)
+          nextXInt -= 1;
           break;
       }
       
-      // Check if next position is a valid road tile
-      if (nextXInt >= 0 && nextXInt < gridSize && 
+      // Check if we can move forward
+      final canMoveForward = nextXInt >= 0 && nextXInt < gridSize && 
           nextYInt >= 0 && nextYInt < gridSize &&
-          _grid[nextYInt][nextXInt] == TileType.road) {
-        // Move truck forward to next road tile (snapped to center)
+          _grid[nextYInt][nextXInt] == TileType.road &&
+          possibleDirections.contains(truck.direction);
+      
+      if (canMoveForward && !isIntersection) {
+        // Move forward on straight road (not at intersection)
         truck.x = nextXInt.toDouble();
         truck.y = nextYInt.toDouble();
       } else {
-        // Can't move forward in current direction - need to change direction
-        final possibleDirections = <TruckDirection>[];
+        // At intersection or can't move forward - choose a new direction
+        // At intersections, explore different roads (don't always go straight)
+        final oppositeDirection = _getOppositeDirection(truck.direction);
         
-        // Check all four directions for valid roads
-        if (currentYInt > 0 && _grid[currentYInt - 1][currentXInt] == TileType.road) {
-          possibleDirections.add(TruckDirection.north);
-        }
-        if (currentYInt < gridSize - 1 && _grid[currentYInt + 1][currentXInt] == TileType.road) {
-          possibleDirections.add(TruckDirection.south);
-        }
-        if (currentXInt < gridSize - 1 && _grid[currentYInt][currentXInt + 1] == TileType.road) {
-          possibleDirections.add(TruckDirection.east);
-        }
-        if (currentXInt > 0 && _grid[currentYInt][currentXInt - 1] == TileType.road) {
-          possibleDirections.add(TruckDirection.west);
-        }
+        // Remove opposite direction to avoid going backward
+        final forwardDirections = possibleDirections.where((dir) => dir != oppositeDirection).toList();
         
-        if (possibleDirections.isNotEmpty) {
-          // Prefer continuing in current direction if possible
-          if (possibleDirections.contains(truck.direction)) {
-            // Can continue forward - truck stays in place this frame, will move next frame
-            // This ensures smooth forward movement
-          } else {
-            // Must change direction - choose a valid direction (not backward)
-            // Remove opposite direction to prevent backward movement
-            final oppositeDirection = _getOppositeDirection(truck.direction);
-            final forwardDirections = possibleDirections.where((dir) => dir != oppositeDirection).toList();
-            
-            if (forwardDirections.isNotEmpty) {
-              // Choose from forward directions (not backward)
-              truck.direction = forwardDirections[random.nextInt(forwardDirections.length)];
+        if (forwardDirections.isNotEmpty) {
+          // At intersections, randomly choose a direction to explore different roads
+          // On straight roads, prefer continuing forward
+          if (isIntersection) {
+            // At intersection: 70% chance to turn, 30% to continue straight
+            if (forwardDirections.contains(truck.direction) && random.nextDouble() < 0.3) {
+              // Continue straight
+              truck.x = nextXInt.toDouble();
+              truck.y = nextYInt.toDouble();
             } else {
-              // Only backward available (shouldn't happen often), choose it
-              truck.direction = possibleDirections[random.nextInt(possibleDirections.length)];
+              // Turn to explore different road
+              // Remove current direction from options to force a turn
+              final turnOptions = forwardDirections.where((dir) => dir != truck.direction).toList();
+              if (turnOptions.isNotEmpty) {
+                truck.direction = turnOptions[random.nextInt(turnOptions.length)];
+                // Move in new direction
+                switch (truck.direction) {
+                  case TruckDirection.north:
+                    truck.x = currentXInt.toDouble();
+                    truck.y = (currentYInt - 1).toDouble();
+                    break;
+                  case TruckDirection.south:
+                    truck.x = currentXInt.toDouble();
+                    truck.y = (currentYInt + 1).toDouble();
+                    break;
+                  case TruckDirection.east:
+                    truck.x = (currentXInt + 1).toDouble();
+                    truck.y = currentYInt.toDouble();
+                    break;
+                  case TruckDirection.west:
+                    truck.x = (currentXInt - 1).toDouble();
+                    truck.y = currentYInt.toDouble();
+                    break;
+                }
+              } else {
+                // Can only continue forward
+                truck.x = nextXInt.toDouble();
+                truck.y = nextYInt.toDouble();
+              }
+            }
+          } else {
+            // Not at intersection - prefer continuing forward
+            if (forwardDirections.contains(truck.direction)) {
+              truck.x = nextXInt.toDouble();
+              truck.y = nextYInt.toDouble();
+            } else {
+              // Must change direction
+              truck.direction = forwardDirections[random.nextInt(forwardDirections.length)];
+              // Move in new direction
+              switch (truck.direction) {
+                case TruckDirection.north:
+                  truck.x = currentXInt.toDouble();
+                  truck.y = (currentYInt - 1).toDouble();
+                  break;
+                case TruckDirection.south:
+                  truck.x = currentXInt.toDouble();
+                  truck.y = (currentYInt + 1).toDouble();
+                  break;
+                case TruckDirection.east:
+                  truck.x = (currentXInt + 1).toDouble();
+                  truck.y = currentYInt.toDouble();
+                  break;
+                case TruckDirection.west:
+                  truck.x = (currentXInt - 1).toDouble();
+                  truck.y = currentYInt.toDouble();
+                  break;
+              }
             }
           }
+        } else {
+          // Only backward available, must go back
+          truck.direction = possibleDirections[random.nextInt(possibleDirections.length)];
         }
       }
     }
