@@ -359,7 +359,11 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   ) {
     return trucks.map((truck) {
       // If route is complete, check if truck needs to return to warehouse
+      // Note: Warehouse position should be passed from game state, but for now use a default
+      // This will be updated when we have access to game state in the engine
       if (truck.isRouteComplete) {
+        // TODO: Get warehouse position from game state
+        // For now, use a reasonable default that should work
         const warehouseRoadX = 4.0;
         const warehouseRoadY = 4.0;
         final currentX = truck.currentX.round().toDouble();
@@ -727,6 +731,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             );
           } else {
             // Route complete and empty - return to warehouse
+            // TODO: Get warehouse position from game state
+            // For now, use a reasonable default
             const warehouseRoadX = 4.0;
             const warehouseRoadY = 4.0;
             updatedTrucks[i] = truck.copyWith(

@@ -59,6 +59,8 @@ class GameController extends StateNotifier<GlobalGameState> {
           machines: [],
           trucks: [],
           warehouse: Warehouse(),
+          warehouseRoadX: null, // Will be set when map is generated
+          warehouseRoadY: null, // Will be set when map is generated
         )) {
     _setupSimulationListener();
   }
@@ -451,11 +453,9 @@ class GameController extends StateNotifier<GlobalGameState> {
       return;
     }
 
-    // Warehouse is typically at a fixed position or near center
-    // For now, use road position (4.0, 4.0) as warehouse road
-    // This should be a road tile next to where warehouse is placed
-    const warehouseRoadX = 4.0;
-    const warehouseRoadY = 4.0;
+    // Get warehouse road position from game state (set when map is generated)
+    final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback to 4.0 if not set
+    final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback to 4.0 if not set
 
     final truck = Truck(
       id: _uuid.v4(),
@@ -484,6 +484,14 @@ class GameController extends StateNotifier<GlobalGameState> {
 
   /// Get current machines list
   List<Machine> get machines => state.machines;
+
+  /// Set warehouse road position (called when map is generated)
+  void setWarehouseRoadPosition(double roadX, double roadY) {
+    state = state.copyWith(
+      warehouseRoadX: roadX,
+      warehouseRoadY: roadY,
+    );
+  }
 
   /// Get current trucks list
   List<Truck> get trucks => state.trucks;

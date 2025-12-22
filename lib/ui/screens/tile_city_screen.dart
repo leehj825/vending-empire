@@ -163,6 +163,53 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       _warehouseX = spot[0];
       _warehouseY = spot[1];
       _grid[spot[1]][spot[0]] = TileType.warehouse;
+      
+      // Find the nearest road tile and store it in game state
+      _updateWarehouseRoadPosition();
+    }
+  }
+
+  /// Find the nearest road tile to warehouse and update game state
+  void _updateWarehouseRoadPosition() {
+    if (_warehouseX == null || _warehouseY == null) return;
+    
+    // Find the nearest road tile (check all four directions)
+    double? nearestRoadX;
+    double? nearestRoadY;
+    double minDistance = double.infinity;
+    
+    // Check all four directions for roads
+    final directions = [
+      [-1, 0], [1, 0], [0, -1], [0, 1], // Left, Right, Up, Down
+    ];
+    
+    for (final dir in directions) {
+      final checkX = (_warehouseX! + dir[0]).toInt();
+      final checkY = (_warehouseY! + dir[1]).toInt();
+      
+      if (checkX >= 0 && checkX < gridSize && 
+          checkY >= 0 && checkY < gridSize &&
+          _grid[checkY][checkX] == TileType.road) {
+        // Found a road - convert grid coordinates to zone coordinates
+        // Grid: 0-9, Zone: 1.0-10.0 (roads are at integers)
+        final zoneX = (checkX + 1).toDouble();
+        final zoneY = (checkY + 1).toDouble();
+        
+        // Calculate distance (Manhattan for simplicity)
+        final distance = (checkX - _warehouseX!).abs().toDouble() + (checkY - _warehouseY!).abs().toDouble();
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestRoadX = zoneX;
+          nearestRoadY = zoneY;
+        }
+      }
+    }
+    
+    // If we found a road, update game state
+    if (nearestRoadX != null && nearestRoadY != null) {
+      final controller = ref.read(gameControllerProvider.notifier);
+      controller.setWarehouseRoadPosition(nearestRoadX, nearestRoadY);
     }
   }
 

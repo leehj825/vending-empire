@@ -17,6 +17,8 @@ abstract class GlobalGameState with _$GlobalGameState {
     @Default([]) List<Machine> machines,
     @Default([]) List<Truck> trucks,
     @Default(Warehouse()) Warehouse warehouse,
+    @Default(null) double? warehouseRoadX, // Road tile X coordinate next to warehouse (zone coordinates)
+    @Default(null) double? warehouseRoadY, // Road tile Y coordinate next to warehouse (zone coordinates)
   }) = _GlobalGameState;
 
   const GlobalGameState._();
