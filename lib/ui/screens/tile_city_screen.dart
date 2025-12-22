@@ -138,7 +138,8 @@ class _TileCityScreenState extends State<TileCityScreen> {
   }
 
   /// Place building blocks (2x3 or 2x4 tiles) in areas between roads
-  /// Maximum 2 of each building type
+  /// Maximum 2 of each building type globally
+  /// Within each block, no duplicate building types (can mix with grass)
   void _placeBuildingBlocks() {
     final random = math.Random();
     final buildingTypes = [
@@ -148,7 +149,7 @@ class _TileCityScreenState extends State<TileCityScreen> {
       TileType.school,
     ];
 
-    // Track building type counts
+    // Track building type counts globally
     final buildingCounts = <TileType, int>{
       TileType.shop: 0,
       TileType.gym: 0,
@@ -178,7 +179,7 @@ class _TileCityScreenState extends State<TileCityScreen> {
     // Shuffle and place blocks
     validBlocks.shuffle(random);
     
-    final placedBlocks = <List<int>>[]; // Track placed tiles to avoid overlaps
+    final placedTiles = <String>{}; // Track placed tiles as "x,y" strings to avoid overlaps
     
     for (final block in validBlocks) {
       final startX = block['x'] as int;
@@ -186,11 +187,11 @@ class _TileCityScreenState extends State<TileCityScreen> {
       final blockWidth = block['width'] as int;
       final blockHeight = block['height'] as int;
       
-      // Check if this block overlaps with already placed blocks
+      // Check if this block overlaps with already placed buildings
       bool overlaps = false;
       for (int by = startY; by < startY + blockHeight && !overlaps; by++) {
         for (int bx = startX; bx < startX + blockWidth && !overlaps; bx++) {
-          if (placedBlocks.any((tile) => tile[0] == bx && tile[1] == by)) {
+          if (placedTiles.contains('$bx,$by')) {
             overlaps = true;
           }
         }
@@ -198,26 +199,46 @@ class _TileCityScreenState extends State<TileCityScreen> {
       
       if (overlaps) continue;
       
-      // Determine building type - ensure max 2 of each type
-      TileType? buildingType;
-      final availableTypes = buildingTypes.where((type) => buildingCounts[type]! < 2).toList();
+      // Track building types used in this block (to avoid duplicates within block)
+      final blockBuildingTypes = <TileType>{};
       
-      if (availableTypes.isEmpty) break; // All building types have reached max count
-      
-      buildingType = availableTypes[random.nextInt(availableTypes.length)];
-      buildingCounts[buildingType] = buildingCounts[buildingType]! + 1;
-      
-      final orientation = random.nextBool() 
-          ? BuildingOrientation.normal 
-          : BuildingOrientation.flippedHorizontal;
-      
-      // Place the building block
+      // Place buildings in this block - mix with grass, no duplicates in block
+      final blockTiles = <List<int>>[];
       for (int by = startY; by < startY + blockHeight && by < gridSize; by++) {
         for (int bx = startX; bx < startX + blockWidth && bx < gridSize; bx++) {
-          _grid[by][bx] = buildingType;
-          _buildingOrientations[by][bx] = orientation;
-          placedBlocks.add([bx, by]);
+          blockTiles.add([bx, by]);
         }
+      }
+      
+      // Shuffle block tiles to randomize placement
+      blockTiles.shuffle(random);
+      
+      // Place buildings in some tiles (not all - can mix with grass)
+      final numBuildings = random.nextInt(blockTiles.length ~/ 2) + 1; // At least 1, up to half
+      
+      for (int i = 0; i < numBuildings && i < blockTiles.length; i++) {
+        final tile = blockTiles[i];
+        final bx = tile[0];
+        final by = tile[1];
+        
+        // Get available building types (not used in this block, and under global limit)
+        final availableTypes = buildingTypes.where((type) => 
+          !blockBuildingTypes.contains(type) && buildingCounts[type]! < 2
+        ).toList();
+        
+        if (availableTypes.isEmpty) break; // No more types available
+        
+        final buildingType = availableTypes[random.nextInt(availableTypes.length)];
+        buildingCounts[buildingType] = buildingCounts[buildingType]! + 1;
+        blockBuildingTypes.add(buildingType);
+        
+        final orientation = random.nextBool() 
+            ? BuildingOrientation.normal 
+            : BuildingOrientation.flippedHorizontal;
+        
+        _grid[by][bx] = buildingType;
+        _buildingOrientations[by][bx] = orientation;
+        placedTiles.add('$bx,$by');
       }
     }
   }
@@ -337,15 +358,20 @@ class _TileCityScreenState extends State<TileCityScreen> {
     double maxY = math.max(math.max(topLeft.dy, topRight.dy), math.max(bottomLeft.dy, bottomRight.dy));
     
     // Account for building heights that extend above ground tiles
+    // Buildings extend upward by (buildingImageHeight - tileHeight)
     final buildingOverhang = buildingImageHeight - tileHeight;
     minY -= buildingOverhang;
     
-    // Add padding to ensure nothing is clipped
-    const double padding = 50.0;
-    minX -= padding;
-    maxX += padding + tileWidth;
-    minY -= padding;
-    maxY += padding + tileHeight;
+    // Add extra padding at the top to ensure building tops are fully visible
+    // Add more padding at top since buildings extend upward
+    const double sidePadding = 50.0;
+    const double topPadding = 100.0; // Extra padding for building tops
+    const double bottomPadding = 50.0;
+    
+    minX -= sidePadding;
+    maxX += sidePadding + tileWidth;
+    minY -= topPadding; // Extra padding at top
+    maxY += bottomPadding + tileHeight;
     
     final mapWidth = maxX - minX;
     final mapHeight = maxY - minY;
