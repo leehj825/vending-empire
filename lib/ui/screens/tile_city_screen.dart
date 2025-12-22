@@ -80,23 +80,35 @@ class _TileCityScreenState extends State<TileCityScreen> {
   }
 
   /// Generate a grid-based road system that forms rectangular blocks
+  /// Roads are spaced to create maximum 2x3 or 3x2 blocks
   void _generateRoadGrid() {
-    // Create a grid pattern with roads every few tiles
-    // This creates rectangular blocks
-    const int roadSpacing = 4; // Roads every 4 tiles (creates ~3x3 blocks)
+    // Create a grid pattern with roads every 2-3 tiles
+    // This ensures grass blocks are maximum 2x3 or 3x2
+    // Use alternating spacing: 2, 3, 2, 3 to create varied but small blocks
+    int currentY = 2;
+    bool useShortSpacing = true;
     
     // Horizontal roads (running East-West in grid, diagonal in isometric)
-    for (int y = roadSpacing; y < gridSize - roadSpacing; y += roadSpacing) {
+    while (currentY < gridSize - 1) {
       for (int x = 0; x < gridSize; x++) {
-        _grid[y][x] = TileType.road;
+        _grid[currentY][x] = TileType.road;
       }
+      // Alternate between spacing of 2 and 3
+      currentY += useShortSpacing ? 2 : 3;
+      useShortSpacing = !useShortSpacing;
     }
     
+    int currentX = 2;
+    useShortSpacing = true;
+    
     // Vertical roads (running North-South in grid, diagonal in isometric)
-    for (int x = roadSpacing; x < gridSize - roadSpacing; x += roadSpacing) {
+    while (currentX < gridSize - 1) {
       for (int y = 0; y < gridSize; y++) {
-        _grid[y][x] = TileType.road;
+        _grid[y][currentX] = TileType.road;
       }
+      // Alternate between spacing of 2 and 3
+      currentX += useShortSpacing ? 2 : 3;
+      useShortSpacing = !useShortSpacing;
     }
     
     // Update road directions
