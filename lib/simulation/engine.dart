@@ -908,18 +908,12 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         final hasMoreItems = updatedTruckInventory.isNotEmpty;
         final hasMoreDestinations = truck.currentRouteIndex + 1 < truck.route.length;
         
-        if (hasMoreItems && hasMoreDestinations) {
-          // Truck has more items and more destinations - continue to next machine
-          updatedTrucks[i] = truck.copyWith(
-            inventory: updatedTruckInventory,
-            status: TruckStatus.traveling,
-            currentRouteIndex: truck.currentRouteIndex + 1,
-            // Keep truck on road
-            currentX: roadX,
-            currentY: roadY,
-          );
-        } else if (hasMoreItems && !hasMoreDestinations) {
-          // Truck has items but no more destinations - this shouldn't happen, but continue route
+        // Get warehouse position for returning
+        final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback if not set
+        final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback if not set
+        
+        if (hasMoreDestinations) {
+          // Still have more destinations - continue to next machine
           updatedTrucks[i] = truck.copyWith(
             inventory: updatedTruckInventory,
             status: TruckStatus.traveling,
@@ -929,33 +923,19 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             currentY: roadY,
           );
         } else {
-          // Truck is empty - return to warehouse or mark as idle if route complete
-          if (hasMoreDestinations) {
-            // Still have destinations but no items - continue route (might reload at warehouse later)
-            updatedTrucks[i] = truck.copyWith(
-              inventory: updatedTruckInventory,
-              status: TruckStatus.traveling,
-              currentRouteIndex: truck.currentRouteIndex + 1,
-              // Keep truck on road
-              currentX: roadX,
-              currentY: roadY,
-            );
-          } else {
-            // Route complete and empty - return to warehouse
-            // Get warehouse position from simulation state
-            final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback if not set
-            final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback if not set
-            updatedTrucks[i] = truck.copyWith(
-              inventory: updatedTruckInventory,
-              status: TruckStatus.traveling,
-              currentRouteIndex: truck.currentRouteIndex + 1, // Mark route as complete
-              targetX: warehouseRoadX,
-              targetY: warehouseRoadY,
-              // Keep truck on road while transitioning
-              currentX: roadX,
-              currentY: roadY,
-            );
-          }
+          // Last destination completed - return to warehouse
+          updatedTrucks[i] = truck.copyWith(
+            inventory: updatedTruckInventory,
+            status: TruckStatus.traveling,
+            currentRouteIndex: truck.currentRouteIndex + 1, // Mark route as complete
+            targetX: warehouseRoadX,
+            targetY: warehouseRoadY,
+            path: [], // Clear path so it recalculates to warehouse
+            pathIndex: 0,
+            // Keep truck on road while transitioning
+            currentX: roadX,
+            currentY: roadY,
+          );
         }
 
         // Update machine
