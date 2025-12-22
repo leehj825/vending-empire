@@ -58,7 +58,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   static const double gasStationScale = 0.72; // Adjust for gas_station.png
   static const double parkScale = 0.72; // Adjust for park.png
   static const double houseScale = 0.72; // Adjust for house.png
-  static const double warehouseScale = 0.75; // Adjust for warehouse.png
+  static const double warehouseScale = 0.90; // Adjust for warehouse.png
   
   // Vertical offset for warehouse (negative to lower it, positive to raise it)
   static const double warehouseVerticalOffset = 5.0; // Raise warehouse slightly above ground
@@ -707,15 +707,22 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       final positionedY = data['positionedY'] as double;
 
         // Ground tile (grass or road) - anchored at base
-        // For warehouse, render it as the ground tile (replacing grass)
+        // For warehouse, render it as the ground tile (replacing grass) with scaling
         if (tileType == TileType.warehouse) {
-          // Render warehouse as ground tile, raised slightly
+          // Apply warehouse scale
+          final warehouseScaleFactor = warehouseScale;
+          final scaledWidth = tileWidth * warehouseScaleFactor;
+          final scaledHeight = tileHeight * warehouseScaleFactor;
+          final centerOffsetX = (tileWidth - scaledWidth) / 2; // Center the scaled warehouse
+          final centerOffsetY = (tileHeight - scaledHeight) / 2; // Center vertically
+          
+          // Render warehouse as ground tile, raised slightly and scaled
           tiles.add(
             Positioned(
-              left: positionedX,
-              top: positionedY - warehouseVerticalOffset,
-              width: tileWidth,
-              height: tileHeight,
+              left: positionedX + centerOffsetX,
+              top: positionedY - warehouseVerticalOffset + centerOffsetY,
+              width: scaledWidth,
+              height: scaledHeight,
               child: _buildGroundTile(tileType, roadDir),
             ),
           );
