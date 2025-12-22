@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dashboard_screen.dart';
-import 'map_screen.dart';
 import 'route_planner_screen.dart';
 import 'warehouse_screen.dart';
 import 'tile_city_screen.dart';
@@ -20,10 +19,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   /// List of screens for the IndexedStack
   final List<Widget> _screens = const [
     DashboardScreen(),
-    MapScreen(),
+    TileCityScreen(),
     RoutePlannerScreen(),
     WarehouseScreen(),
-    TileCityScreen(),
   ];
 
   /// App bar titles for each tab
@@ -32,7 +30,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     'City View',
     'Fleet Manager',
     'Wholesale Market',
-    'Tile City Map',
   ];
 
   void _onItemTapped(int index) {
@@ -81,10 +78,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.store_rounded),
             label: 'Market',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.grid_on),
-            label: 'Tile Map',
           ),
         ],
       ),
