@@ -1037,12 +1037,40 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         final isTruckEmpty = updatedTruckInventory.isEmpty;
         final hasMoreDestinations = truck.currentRouteIndex + 1 < truck.route.length;
         
+        // Check if any remaining destinations need items from the truck
+        bool remainingDestinationsNeedItems = false;
+        if (!isTruckEmpty && hasMoreDestinations) {
+          // Check remaining machines in route
+          for (int routeIdx = truck.currentRouteIndex + 1; routeIdx < truck.route.length; routeIdx++) {
+            final remainingMachineId = truck.route[routeIdx];
+            final remainingMachine = updatedMachines.firstWhere(
+              (m) => m.id == remainingMachineId,
+              orElse: () => updatedMachines.first, // Fallback (shouldn't happen)
+            );
+            
+            // Check if this machine needs any of the products the truck is carrying
+            for (final entry in updatedTruckInventory.entries) {
+              final product = entry.key;
+              final truckQuantity = entry.value;
+              if (truckQuantity <= 0) continue;
+              
+              final currentProductStock = remainingMachine.inventory[product]?.quantity ?? 0;
+              if (currentProductStock < maxItemsPerProduct) {
+                remainingDestinationsNeedItems = true;
+                break;
+              }
+            }
+            
+            if (remainingDestinationsNeedItems) break;
+          }
+        }
+        
         // Get warehouse position for returning
         final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback if not set
         final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback if not set
         
-        if (isTruckEmpty || !hasMoreDestinations) {
-          // Truck is empty OR last destination completed - return to warehouse
+        if (isTruckEmpty || !hasMoreDestinations || !remainingDestinationsNeedItems) {
+          // Truck is empty OR last destination completed OR no remaining destinations need items - return to warehouse
           updatedTrucks[i] = truck.copyWith(
             inventory: updatedTruckInventory,
             status: TruckStatus.traveling,
@@ -1056,7 +1084,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             currentY: roadY,
           );
         } else {
-          // Still have inventory and more destinations - continue to next machine
+          // Still have inventory and more destinations that need items - continue to next machine
           updatedTrucks[i] = truck.copyWith(
             inventory: updatedTruckInventory,
             status: TruckStatus.traveling,
@@ -1073,19 +1101,47 @@ class SimulationEngine extends StateNotifier<SimulationState> {
           hoursSinceRestock: 0.0,
         );
       } else {
-        // No space or no items, still advance route so the truck doesn't get stuck.
+        // No items transferred (machine already full or truck empty)
         // Keep truck on road
         final roadX = truck.currentX.round().toDouble();
         final roadY = truck.currentY.round().toDouble();
         final isTruckEmpty = truck.inventory.isEmpty;
         final hasMoreDestinations = truck.currentRouteIndex + 1 < truck.route.length;
         
+        // Check if any remaining destinations need items from the truck
+        bool remainingDestinationsNeedItems = false;
+        if (!isTruckEmpty && hasMoreDestinations) {
+          // Check remaining machines in route
+          for (int routeIdx = truck.currentRouteIndex + 1; routeIdx < truck.route.length; routeIdx++) {
+            final remainingMachineId = truck.route[routeIdx];
+            final remainingMachine = updatedMachines.firstWhere(
+              (m) => m.id == remainingMachineId,
+              orElse: () => updatedMachines.first, // Fallback (shouldn't happen)
+            );
+            
+            // Check if this machine needs any of the products the truck is carrying
+            for (final entry in truck.inventory.entries) {
+              final product = entry.key;
+              final truckQuantity = entry.value;
+              if (truckQuantity <= 0) continue;
+              
+              final currentProductStock = remainingMachine.inventory[product]?.quantity ?? 0;
+              if (currentProductStock < maxItemsPerProduct) {
+                remainingDestinationsNeedItems = true;
+                break;
+              }
+            }
+            
+            if (remainingDestinationsNeedItems) break;
+          }
+        }
+        
         // Get warehouse position for returning
         final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback if not set
         final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback if not set
         
-        if (isTruckEmpty || !hasMoreDestinations) {
-          // Truck is empty OR last destination - return to warehouse
+        if (isTruckEmpty || !hasMoreDestinations || !remainingDestinationsNeedItems) {
+          // Truck is empty OR last destination OR no remaining destinations need items - return to warehouse
           updatedTrucks[i] = truck.copyWith(
             status: TruckStatus.traveling,
             currentRouteIndex: truck.route.length, // Mark route as complete
@@ -1097,7 +1153,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             currentY: roadY,
           );
         } else {
-          // Still have inventory and more destinations - continue to next machine
+          // Still have inventory and more destinations that need items - continue to next machine
           updatedTrucks[i] = truck.copyWith(
             status: TruckStatus.traveling,
             currentRouteIndex: truck.currentRouteIndex + 1,
