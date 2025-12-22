@@ -89,34 +89,31 @@ class _TileCityScreenState extends State<TileCityScreen> {
 
   /// Generate a grid-based road system that forms rectangular blocks
   /// Roads are spaced to create maximum 2x3 or 3x2 blocks
+  /// Roads must be at least 2 tiles apart (minimum 2 grass tiles between roads)
   void _generateRoadGrid() {
-    // Create a grid pattern with roads every 2-3 tiles
-    // This ensures grass blocks are maximum 2x3 or 3x2
-    // Use alternating spacing: 2, 3, 2, 3 to create varied but small blocks
-    int currentY = 2;
-    bool useShortSpacing = true;
+    // Create a grid pattern with roads spaced at least 3 tiles apart
+    // This ensures at least 2 grass tiles between roads (spacing of 3 means: road, grass, grass, road)
+    // Use spacing of 3 or 4 to create blocks of 2x2, 2x3, or 3x2
+    int currentY = 3;
     
     // Horizontal roads (running East-West in grid, diagonal in isometric)
-    while (currentY < gridSize - 1) {
+    while (currentY < gridSize - 2) {
       for (int x = 0; x < gridSize; x++) {
         _grid[currentY][x] = TileType.road;
       }
-      // Alternate between spacing of 2 and 3
-      currentY += useShortSpacing ? 2 : 3;
-      useShortSpacing = !useShortSpacing;
+      // Space roads at least 3 tiles apart (ensures 2 grass tiles between)
+      currentY += 3;
     }
     
-    int currentX = 2;
-    useShortSpacing = true;
+    int currentX = 3;
     
     // Vertical roads (running North-South in grid, diagonal in isometric)
-    while (currentX < gridSize - 1) {
+    while (currentX < gridSize - 2) {
       for (int y = 0; y < gridSize; y++) {
         _grid[y][currentX] = TileType.road;
       }
-      // Alternate between spacing of 2 and 3
-      currentX += useShortSpacing ? 2 : 3;
-      useShortSpacing = !useShortSpacing;
+      // Space roads at least 3 tiles apart (ensures 2 grass tiles between)
+      currentX += 3;
     }
     
     // Update road directions
@@ -271,7 +268,19 @@ class _TileCityScreenState extends State<TileCityScreen> {
       blockTiles.shuffle(random);
       
       // Place buildings in some tiles (not all - can mix with grass)
-      final numBuildings = random.nextInt(blockTiles.length ~/ 2) + 1; // At least 1, up to half
+      // Prioritize placing all building types, especially gas_station, park, and house
+      final numBuildings = math.min(blockTiles.length, buildingTypes.length); // Try to place more buildings
+      
+      // First, prioritize placing gas_station, park, and house if they haven't been placed yet
+      final priorityTypes = [
+        TileType.gasStation,
+        TileType.park,
+        TileType.house,
+        TileType.shop,
+        TileType.gym,
+        TileType.office,
+        TileType.school,
+      ];
       
       for (int i = 0; i < numBuildings && i < blockTiles.length; i++) {
         final tile = blockTiles[i];
@@ -284,13 +293,23 @@ class _TileCityScreenState extends State<TileCityScreen> {
         }
         
         // Get available building types (not used in this block, and under global limit)
+        // Prioritize types that haven't been placed yet
         final availableTypes = buildingTypes.where((type) => 
           !blockBuildingTypes.contains(type) && buildingCounts[type]! < 2
         ).toList();
         
         if (availableTypes.isEmpty) break; // No more types available
         
-        final buildingType = availableTypes[random.nextInt(availableTypes.length)];
+        // Prefer priority types (gas_station, park, house) if they haven't been placed yet
+        final priorityAvailable = availableTypes.where((type) => 
+          priorityTypes.contains(type) && buildingCounts[type]! < 2
+        ).toList();
+        
+        // Use priority types if available, otherwise use any available type
+        final buildingType = priorityAvailable.isNotEmpty 
+            ? priorityAvailable[random.nextInt(priorityAvailable.length)]
+            : availableTypes[random.nextInt(availableTypes.length)];
+        
         buildingCounts[buildingType] = buildingCounts[buildingType]! + 1;
         blockBuildingTypes.add(buildingType);
         
