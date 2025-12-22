@@ -76,16 +76,14 @@ class MapMachine extends PositionComponent with TapCallbacks, HasGameReference<C
   /// Get size for different zone types
   Vector2 _getSizeForZone(ZoneType zoneType) {
     switch (zoneType) {
+      case ZoneType.shop:
+        return Vector2(50, 50); // Circle
       case ZoneType.office:
         return Vector2(40, 60); // Tall rectangle
       case ZoneType.gym:
         return Vector2(50, 50); // Square
       case ZoneType.school:
         return Vector2(45, 45);
-      case ZoneType.subway:
-        return Vector2(35, 35);
-      case ZoneType.park:
-        return Vector2(50, 50); // Circle
     }
   }
 
@@ -150,31 +148,16 @@ class MapMachine extends PositionComponent with TapCallbacks, HasGameReference<C
         );
         break;
 
-      case ZoneType.subway:
-        // Grey rectangle
-        paint.color = const Color(0xFF757575);
-        canvas.drawRect(rect, paint);
-        // Add entrance
-        paint.color = const Color(0xFF424242);
-        final entranceRect = Rect.fromLTWH(
-          size.x / 2 - 10,
-          size.y - 15,
-          20,
-          15,
-        );
-        canvas.drawRect(entranceRect, paint);
-        break;
-
-      case ZoneType.park:
-        // Green Circle
-        paint.color = const Color(0xFF4CAF50);
+      case ZoneType.shop:
+        // Blue Circle (shop)
+        paint.color = const Color(0xFF2196F3);
         canvas.drawCircle(
           Offset(size.x / 2, size.y / 2),
           size.x / 2,
           paint,
         );
-        // Add tree (simple)
-        paint.color = const Color(0xFF2E7D32);
+        // Add shopping cart icon (simple representation)
+        paint.color = Colors.white;
         canvas.drawCircle(
           Offset(size.x / 2, size.y / 2),
           size.x / 4,

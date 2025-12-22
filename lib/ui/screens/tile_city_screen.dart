@@ -699,7 +699,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
               height: mapHeight,
               child: Stack(
                 clipBehavior: Clip.none, // Don't clip content
-                children: _buildTiles(centerOffset),
+                children: _buildTiles(context, centerOffset),
               ),
             ),
           ),
@@ -711,7 +711,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   /// Build all tiles in correct render order
   /// Render from farthest (top) to closest (bottom) using painter's algorithm
   /// Sort by depth: (x+y) ascending, then y ascending, then x ascending
-  List<Widget> _buildTiles(Offset centerOffset) {
+  List<Widget> _buildTiles(BuildContext context, Offset centerOffset) {
     final tileData = <Map<String, dynamic>>[];
 
     // Collect all tile data with their positions
@@ -880,7 +880,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     // Add real machines from simulation on top of tiles
     final gameMachines = ref.watch(machinesProvider);
     for (final machine in gameMachines) {
-      tiles.add(_buildGameMachine(machine, centerOffset));
+      tiles.add(_buildGameMachine(context, machine, centerOffset));
     }
 
     // Add real trucks from simulation on top of tiles (above machines)
@@ -893,7 +893,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   }
 
   /// Build positioned game machine widget
-  Widget _buildGameMachine(sim.Machine machine, Offset centerOffset) {
+  Widget _buildGameMachine(BuildContext context, sim.Machine machine, Offset centerOffset) {
     // Convert zone coordinates to grid coordinates
     final gridPos = _zoneToGrid(machine.zone.x, machine.zone.y);
     
@@ -912,7 +912,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     // Determine machine color based on type
     Color machineColor;
     switch (machine.zone.type) {
-      case ZoneType.park: // Shop
+      case ZoneType.shop:
         machineColor = Colors.blue;
         break;
       case ZoneType.school:
@@ -924,8 +924,6 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       case ZoneType.office:
         machineColor = Colors.orange;
         break;
-      default:
-        machineColor = Colors.grey;
     }
 
     return Positioned(
@@ -933,18 +931,86 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       top: top,
       width: machineSize,
       height: machineSize,
-      child: Container(
-        decoration: BoxDecoration(
-          color: machineColor,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 2),
-        ),
-        child: Center(
-          child: Icon(
-            Icons.shopping_cart,
-            color: Colors.white,
-            size: machineSize * 0.6,
+      child: GestureDetector(
+        onTap: () => _showMachineView(context, machine.zone.type),
+        child: Container(
+          decoration: BoxDecoration(
+            color: machineColor,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
           ),
+          child: Center(
+            child: Icon(
+              Icons.search,
+              color: Colors.white,
+              size: machineSize * 0.6,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Get view image path for zone type
+  String _getViewImagePath(ZoneType zoneType) {
+    switch (zoneType) {
+      case ZoneType.shop:
+        return 'assets/views/shop_view.png';
+      case ZoneType.school:
+        return 'assets/views/school_view.png';
+      case ZoneType.gym:
+        return 'assets/views/gym_view.png';
+      case ZoneType.office:
+        return 'assets/views/office_view.png';
+    }
+  }
+
+  /// Show machine view popup
+  void _showMachineView(BuildContext context, ZoneType zoneType) {
+    final imagePath = _getViewImagePath(zoneType);
+    
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Stack(
+          children: [
+            // Image
+            Center(
+              child: Image.asset(
+                imagePath,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 300,
+                    height: 300,
+                    color: Colors.grey[800],
+                    child: const Center(
+                      child: Text(
+                        'View image not found',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            // Close button (X mark)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                onPressed: () => Navigator.of(context).pop(),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(alpha: 0.5),
+                  padding: const EdgeInsets.all(8),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1261,7 +1327,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   ZoneType? _tileTypeToZoneType(TileType tileType) {
     switch (tileType) {
       case TileType.shop:
-        return ZoneType.park; // Shop maps to park zone
+        return ZoneType.shop;
       case TileType.school:
         return ZoneType.school;
       case TileType.gym:
@@ -1277,13 +1343,13 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   /// Progression: Shop (2) -> School (2) -> Gym (2) -> Office (2)
   bool _canPurchaseMachine(ZoneType zoneType) {
     final machines = ref.read(machinesProvider);
-    final shopMachines = machines.where((m) => m.zone.type == ZoneType.park).length;
+    final shopMachines = machines.where((m) => m.zone.type == ZoneType.shop).length;
     final schoolMachines = machines.where((m) => m.zone.type == ZoneType.school).length;
     final gymMachines = machines.where((m) => m.zone.type == ZoneType.gym).length;
     final officeMachines = machines.where((m) => m.zone.type == ZoneType.office).length;
 
     switch (zoneType) {
-      case ZoneType.park: // Shop
+      case ZoneType.shop:
         return shopMachines < 2;
       case ZoneType.school:
         return shopMachines >= 2 && schoolMachines < 2;
@@ -1291,21 +1357,19 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         return schoolMachines >= 2 && gymMachines < 2;
       case ZoneType.office:
         return gymMachines >= 2 && officeMachines < 2;
-      default:
-        return false;
     }
   }
 
   /// Get progression message for locked machine types
   String _getProgressionMessage(ZoneType zoneType) {
     final machines = ref.read(machinesProvider);
-    final shopMachines = machines.where((m) => m.zone.type == ZoneType.park).length;
+    final shopMachines = machines.where((m) => m.zone.type == ZoneType.shop).length;
     final schoolMachines = machines.where((m) => m.zone.type == ZoneType.school).length;
     final gymMachines = machines.where((m) => m.zone.type == ZoneType.gym).length;
     final officeMachines = machines.where((m) => m.zone.type == ZoneType.office).length;
     
     switch (zoneType) {
-      case ZoneType.park: // Shop
+      case ZoneType.shop:
         if (shopMachines >= 2) return 'Shop limit reached (have $shopMachines/2). Buy 2 school machines next.';
         return 'Can purchase shop machines ($shopMachines/2)';
       case ZoneType.school:
@@ -1320,8 +1384,6 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         if (gymMachines < 2) return 'Need 2 gym machines first (have $gymMachines/2)';
         if (officeMachines >= 2) return 'Office limit reached (have $officeMachines/2). Maximum machines reached.';
         return 'Can purchase office machines ($officeMachines/2)';
-      default:
-        return 'Cannot purchase this machine type';
     }
   }
 }

@@ -4,11 +4,10 @@ part 'zone.freezed.dart';
 
 /// Zone types in the city
 enum ZoneType {
+  shop,
   school,
   gym,
   office,
-  subway,
-  park,
 }
 
 /// Represents a location zone with demand multipliers
@@ -144,7 +143,7 @@ class ZoneFactory {
     );
   }
 
-  static Zone createSubway({
+  static Zone createShop({
     required String id,
     required String name,
     required double x,
@@ -152,18 +151,19 @@ class ZoneFactory {
   }) {
     return Zone(
       id: id,
-      type: ZoneType.subway,
+      type: ZoneType.shop,
       name: name,
       x: x,
       y: y,
       demandCurve: {
-        7: 1.8,   // 7 AM: Rush hour
-        9: 1.2,   // 9 AM: Still busy
-        17: 1.8,  // 5 PM: Evening rush
-        19: 1.0,  // 7 PM: Normal
+        10: 1.5,  // 10 AM: Morning shoppers
+        12: 2.0,  // 12 PM: Lunch rush
+        15: 1.8,  // 3 PM: Afternoon shopping
+        18: 1.5,  // 6 PM: Evening shoppers
+        20: 1.0,  // 8 PM: Normal
         22: 0.5,  // 10 PM: Late night
       },
-      trafficMultiplier: 1.5,
+      trafficMultiplier: 1.2,
     );
   }
 }

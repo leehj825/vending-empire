@@ -21,8 +21,7 @@ class MachinePrices {
     ZoneType.office: 1.75, // $700 (was $750)
     ZoneType.school: 1.5,  // $600 (was $600)
     ZoneType.gym: 1.25,    // $500 (was $500)
-    ZoneType.subway: 1.3,
-    ZoneType.park: 1.0,    // $400 (was $400) - shop machines
+    ZoneType.shop: 1.0,    // $400 (was $400) - shop machines
   };
 
   static double getPrice(ZoneType zoneType) {
@@ -229,7 +228,7 @@ class GameController extends StateNotifier<GlobalGameState> {
   /// Get initial products for a zone type based on progression rules
   List<Product> _getInitialProductsForZone(ZoneType zoneType) {
     switch (zoneType) {
-      case ZoneType.park: // Shop
+      case ZoneType.shop:
         return [Product.soda, Product.chips];
       case ZoneType.school:
         return [Product.soda, Product.chips, Product.sandwich];
@@ -237,15 +236,13 @@ class GameController extends StateNotifier<GlobalGameState> {
         return [Product.proteinBar];
       case ZoneType.office:
         return [Product.coffee, Product.techGadget];
-      case ZoneType.subway:
-        return [Product.soda, Product.chips]; // Default for subway
     }
   }
 
   /// Get building name for zone type (for machine naming)
   String _getBuildingNameForZone(ZoneType zoneType) {
     switch (zoneType) {
-      case ZoneType.park:
+      case ZoneType.shop:
         return 'Shop';
       case ZoneType.school:
         return 'School';
@@ -253,8 +250,6 @@ class GameController extends StateNotifier<GlobalGameState> {
         return 'Gym';
       case ZoneType.office:
         return 'Office';
-      case ZoneType.subway:
-        return 'Subway';
     }
   }
 
@@ -264,29 +259,14 @@ class GameController extends StateNotifier<GlobalGameState> {
     final name = '${zoneType.name.toUpperCase()} Zone';
 
     switch (zoneType) {
+      case ZoneType.shop:
+        return ZoneFactory.createShop(id: id, name: name, x: x, y: y);
       case ZoneType.office:
         return ZoneFactory.createOffice(id: id, name: name, x: x, y: y);
       case ZoneType.school:
         return ZoneFactory.createSchool(id: id, name: name, x: x, y: y);
       case ZoneType.gym:
         return ZoneFactory.createGym(id: id, name: name, x: x, y: y);
-      case ZoneType.subway:
-        return ZoneFactory.createSubway(id: id, name: name, x: x, y: y);
-      case ZoneType.park:
-        // Create a basic park zone (no factory method yet)
-        return Zone(
-          id: id,
-          type: zoneType,
-          name: name,
-          x: x,
-          y: y,
-          demandCurve: {
-            10: 1.2,  // 10 AM: Moderate
-            14: 1.5,  // 2 PM: Afternoon peak
-            18: 1.0,  // 6 PM: Evening
-          },
-          trafficMultiplier: 0.8,
-        );
     }
   }
 
