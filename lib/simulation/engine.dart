@@ -114,7 +114,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   SimulationEngine({
     required List<Machine> initialMachines,
     required List<Truck> initialTrucks,
-    double initialCash = 1000.0,
+    double initialCash = 2000.0,
     int initialReputation = 100,
   }) : super(
           SimulationState(
