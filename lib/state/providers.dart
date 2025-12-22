@@ -139,10 +139,13 @@ class GameController extends StateNotifier<GlobalGameState> {
     // 1. Create Data
     final zone = _createZoneForType(zoneType, x: x, y: y);
     
+    // Map zone type to building name for display
+    final buildingName = _getBuildingNameForZone(zoneType);
+    
     // Create machine
     final newMachine = Machine(
       id: _uuid.v4(),
-      name: '${zoneType.name.toUpperCase()} Machine ${state.machines.length + 1}',
+      name: '$buildingName Machine ${state.machines.length + 1}',
       zone: zone,
       condition: MachineCondition.excellent,
       inventory: {},
