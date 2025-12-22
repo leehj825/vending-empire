@@ -67,7 +67,7 @@ class _TileCityScreenState extends State<TileCityScreen> {
   static const double gasStationScale = 0.72; // Adjust for gas_station.png
   static const double parkScale = 0.72; // Adjust for park.png
   static const double houseScale = 0.72; // Adjust for house.png
-  static const double warehouseScale = 0.81; // Adjust for warehouse.png
+  static const double warehouseScale = 0.72; // Adjust for warehouse.png
   
   // Block dimensions - minimum 2x2, maximum 2x3 or 3x2
   static const int minBlockSize = 2;
