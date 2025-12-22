@@ -16,6 +16,11 @@ enum RoadDirection {
   intersection,
 }
 
+enum BuildingOrientation {
+  normal,
+  flippedHorizontal,
+}
+
 class TileCityScreen extends StatefulWidget {
   const TileCityScreen({super.key});
 
@@ -31,10 +36,17 @@ class _TileCityScreenState extends State<TileCityScreen> {
   static const double tileHeight = 32.0;
   
   // Building image height (assumed taller than ground tiles)
-  static const double buildingImageHeight = 80.0; // Adjust based on actual building image height
+  static const double buildingImageHeight = 80.0;
+  
+  // Block dimensions
+  static const int minBlockWidth = 2;
+  static const int maxBlockWidth = 4;
+  static const int minBlockHeight = 2;
+  static const int maxBlockHeight = 4;
   
   late List<List<TileType>> _grid;
   late List<List<RoadDirection?>> _roadDirections;
+  late List<List<BuildingOrientation?>> _buildingOrientations;
 
   @override
   void initState() {
@@ -52,60 +64,54 @@ class _TileCityScreenState extends State<TileCityScreen> {
       gridSize,
       (_) => List.filled(gridSize, null),
     );
+    _buildingOrientations = List.generate(
+      gridSize,
+      (_) => List.filled(gridSize, null),
+    );
 
-    // Random walker algorithm to generate roads
-    _generateRoads();
+    // Generate grid-based road system
+    _generateRoadGrid();
 
-    // Place buildings adjacent to roads
-    _placeBuildings();
+    // Place building blocks
+    _placeBuildingBlocks();
   }
 
-  void _generateRoads() {
+  /// Generate a grid-based road system that forms rectangular blocks
+  void _generateRoadGrid() {
     final random = math.Random();
-    final int targetRoadCount = 80 + random.nextInt(21); // 80-100 roads
-    int roadCount = 0;
-
-    // Start at center
-    int x = gridSize ~/ 2;
-    int y = gridSize ~/ 2;
-
-    // Mark starting position as road
-    _grid[y][x] = TileType.road;
-    _roadDirections[y][x] = RoadDirection.intersection;
-    roadCount++;
-
-    // Random walker
-    while (roadCount < targetRoadCount) {
-      // Get valid neighbors (within bounds)
-      final neighbors = <List<int>>[];
-      if (x > 0) neighbors.add([x - 1, y]);
-      if (x < gridSize - 1) neighbors.add([x + 1, y]);
-      if (y > 0) neighbors.add([x, y - 1]);
-      if (y < gridSize - 1) neighbors.add([x, y + 1]);
-
-      // Prefer unvisited neighbors, but allow revisiting to create intersections
-      final unvisited = neighbors.where((n) => _grid[n[1]][n[0]] != TileType.road).toList();
-      final candidates = unvisited.isNotEmpty ? unvisited : neighbors;
-
-      if (candidates.isEmpty) break;
-
-      // Randomly select next position
-      final next = candidates[random.nextInt(candidates.length)];
-      final nextX = next[0];
-      final nextY = next[1];
-
-      // Mark as road
-      if (_grid[nextY][nextX] != TileType.road) {
-        _grid[nextY][nextX] = TileType.road;
-        roadCount++;
+    
+    // Create a grid pattern with roads every few tiles
+    // This creates rectangular blocks
+    const int roadSpacing = 4; // Roads every 4 tiles (creates ~3x3 blocks)
+    
+    // Horizontal roads (running East-West in grid, diagonal in isometric)
+    for (int y = roadSpacing; y < gridSize - roadSpacing; y += roadSpacing) {
+      for (int x = 0; x < gridSize; x++) {
+        if (x >= 0 && x < gridSize) {
+          _grid[y][x] = TileType.road;
+        }
       }
-
-      // Move to next position
-      x = nextX;
-      y = nextY;
     }
-
-    // Determine road directions after all roads are placed
+    
+    // Vertical roads (running North-South in grid, diagonal in isometric)
+    for (int x = roadSpacing; x < gridSize - roadSpacing; x += roadSpacing) {
+      for (int y = 0; y < gridSize; y++) {
+        if (y >= 0 && y < gridSize) {
+          _grid[y][x] = TileType.road;
+        }
+      }
+    }
+    
+    // Add some random additional roads for variety
+    for (int i = 0; i < 10; i++) {
+      final x = random.nextInt(gridSize);
+      final y = random.nextInt(gridSize);
+      if (_grid[y][x] != TileType.road) {
+        _grid[y][x] = TileType.road;
+      }
+    }
+    
+    // Update road directions
     _updateRoadDirections();
   }
 
@@ -120,9 +126,6 @@ class _TileCityScreenState extends State<TileCityScreen> {
   }
 
   RoadDirection _getRoadDirection(int x, int y) {
-    // In isometric view:
-    // Vertical: connects (X, Y-1) and (X, Y+1)
-    // Horizontal: connects (X-1, Y) and (X+1, Y)
     final bool hasNorth = y > 0 && _grid[y - 1][x] == TileType.road;
     final bool hasSouth = y < gridSize - 1 && _grid[y + 1][x] == TileType.road;
     final bool hasEast = x < gridSize - 1 && _grid[y][x + 1] == TileType.road;
@@ -150,7 +153,8 @@ class _TileCityScreenState extends State<TileCityScreen> {
     return RoadDirection.intersection;
   }
 
-  void _placeBuildings() {
+  /// Place building blocks (2x3 or 2x4 tiles) in areas between roads
+  void _placeBuildingBlocks() {
     final random = math.Random();
     final buildingTypes = [
       TileType.shop,
@@ -159,34 +163,127 @@ class _TileCityScreenState extends State<TileCityScreen> {
       TileType.school,
     ];
 
-    // Find all grass tiles adjacent to roads
-    final validSpots = <List<int>>[];
-    for (int y = 0; y < gridSize; y++) {
-      for (int x = 0; x < gridSize; x++) {
-        if (_grid[y][x] == TileType.grass && _isAdjacentToRoad(x, y)) {
-          validSpots.add([x, y]);
+    // Find all rectangular areas that can fit building blocks
+    final validBlocks = <Map<String, dynamic>>[];
+    
+    for (int startY = 0; startY < gridSize; startY++) {
+      for (int startX = 0; startX < gridSize; startX++) {
+        // Try different block sizes
+        for (int blockWidth = minBlockWidth; blockWidth <= maxBlockWidth; blockWidth++) {
+          for (int blockHeight = minBlockHeight; blockHeight <= maxBlockHeight; blockHeight++) {
+            if (_canPlaceBlock(startX, startY, blockWidth, blockHeight)) {
+              validBlocks.add({
+                'x': startX,
+                'y': startY,
+                'width': blockWidth,
+                'height': blockHeight,
+              });
+            }
+          }
         }
       }
     }
 
-    // Shuffle valid spots
-    validSpots.shuffle(random);
-
-    // Place buildings randomly
-    int buildingIndex = 0;
-    for (final spot in validSpots) {
-      if (buildingIndex >= buildingTypes.length * 10) break; // Limit building count
-      _grid[spot[1]][spot[0]] = buildingTypes[buildingIndex % buildingTypes.length];
-      buildingIndex++;
+    // Shuffle and place blocks
+    validBlocks.shuffle(random);
+    
+    final placedBlocks = <List<int>>[]; // Track placed tiles to avoid overlaps
+    
+    for (final block in validBlocks) {
+      final startX = block['x'] as int;
+      final startY = block['y'] as int;
+      final blockWidth = block['width'] as int;
+      final blockHeight = block['height'] as int;
+      
+      // Check if this block overlaps with already placed blocks
+      bool overlaps = false;
+      for (int by = startY; by < startY + blockHeight && !overlaps; by++) {
+        for (int bx = startX; bx < startX + blockWidth && !overlaps; bx++) {
+          if (placedBlocks.any((tile) => tile[0] == bx && tile[1] == by)) {
+            overlaps = true;
+          }
+        }
+      }
+      
+      if (overlaps) continue;
+      
+      // Determine building type and orientation (50% chance of flipping)
+      final buildingType = buildingTypes[random.nextInt(buildingTypes.length)];
+      final orientation = random.nextBool() 
+          ? BuildingOrientation.normal 
+          : BuildingOrientation.flippedHorizontal;
+      
+      // Place the building block
+      for (int by = startY; by < startY + blockHeight && by < gridSize; by++) {
+        for (int bx = startX; bx < startX + blockWidth && bx < gridSize; bx++) {
+          _grid[by][bx] = buildingType;
+          _buildingOrientations[by][bx] = orientation;
+          placedBlocks.add([bx, by]);
+        }
+      }
     }
   }
 
-  bool _isAdjacentToRoad(int x, int y) {
-    if (x > 0 && _grid[y][x - 1] == TileType.road) return true;
-    if (x < gridSize - 1 && _grid[y][x + 1] == TileType.road) return true;
-    if (y > 0 && _grid[y - 1][x] == TileType.road) return true;
-    if (y < gridSize - 1 && _grid[y + 1][x] == TileType.road) return true;
-    return false;
+  /// Check if a block can be placed at the given position
+  bool _canPlaceBlock(int startX, int startY, int width, int height) {
+    // Check bounds
+    if (startX + width > gridSize || startY + height > gridSize) {
+      return false;
+    }
+    
+    // Check that all tiles in the block are grass (not road or already a building)
+    for (int y = startY; y < startY + height; y++) {
+      for (int x = startX; x < startX + width; x++) {
+        if (_grid[y][x] != TileType.grass) {
+          return false;
+        }
+      }
+    }
+    
+    // Check that at least one edge of the block is adjacent to a road
+    bool adjacentToRoad = false;
+    
+    // Check top edge
+    if (startY > 0) {
+      for (int x = startX; x < startX + width; x++) {
+        if (_grid[startY - 1][x] == TileType.road) {
+          adjacentToRoad = true;
+          break;
+        }
+      }
+    }
+    
+    // Check bottom edge
+    if (!adjacentToRoad && startY + height < gridSize) {
+      for (int x = startX; x < startX + width; x++) {
+        if (_grid[startY + height][x] == TileType.road) {
+          adjacentToRoad = true;
+          break;
+        }
+      }
+    }
+    
+    // Check left edge
+    if (!adjacentToRoad && startX > 0) {
+      for (int y = startY; y < startY + height; y++) {
+        if (_grid[y][startX - 1] == TileType.road) {
+          adjacentToRoad = true;
+          break;
+        }
+      }
+    }
+    
+    // Check right edge
+    if (!adjacentToRoad && startX + width < gridSize) {
+      for (int y = startY; y < startY + height; y++) {
+        if (_grid[y][startX + width] == TileType.road) {
+          adjacentToRoad = true;
+          break;
+        }
+      }
+    }
+    
+    return adjacentToRoad;
   }
 
   /// Convert grid coordinates to isometric screen coordinates
@@ -217,15 +314,6 @@ class _TileCityScreenState extends State<TileCityScreen> {
     }
   }
 
-  double _getRoadRotation(RoadDirection? roadDir) {
-    // In isometric view, vertical roads (North-South) may need rotation
-    // Adjust based on how the sprite is oriented
-    if (roadDir == RoadDirection.vertical) {
-      return math.pi / 2; // 90 degrees
-    }
-    return 0.0; // Horizontal or intersection (default)
-  }
-
   bool _isBuilding(TileType tileType) {
     return tileType == TileType.shop ||
         tileType == TileType.gym ||
@@ -247,7 +335,7 @@ class _TileCityScreenState extends State<TileCityScreen> {
     final maxY = math.max(math.max(topLeft.dy, topRight.dy), math.max(bottomLeft.dy, bottomRight.dy));
     
     final mapWidth = maxX - minX + tileWidth;
-    final mapHeight = maxY - minY + tileHeight + buildingImageHeight; // Add extra height for buildings
+    final mapHeight = maxY - minY + tileHeight + buildingImageHeight;
     
     // Center offset to position map in viewport
     final centerOffset = Offset(
@@ -292,11 +380,11 @@ class _TileCityScreenState extends State<TileCityScreen> {
     final tiles = <Widget>[];
 
     // Render in depth order: Y from 0 to max, then X from 0 to max
-    // This ensures tiles "further back" (lower X+Y) are drawn before tiles "in front"
     for (int y = 0; y < gridSize; y++) {
       for (int x = 0; x < gridSize; x++) {
         final tileType = _grid[y][x];
         final roadDir = _roadDirections[y][x];
+        final buildingOrientation = _buildingOrientations[y][x];
         final screenPos = _gridToScreen(x, y);
         final positionedX = screenPos.dx + centerOffset.dx;
         final positionedY = screenPos.dy + centerOffset.dy;
@@ -317,11 +405,11 @@ class _TileCityScreenState extends State<TileCityScreen> {
           final buildingTop = positionedY - (buildingImageHeight - tileHeight);
           tiles.add(
             Positioned(
-              left: positionedX + (tileWidth / 2) - (tileWidth / 2), // Center horizontally
+              left: positionedX,
               top: buildingTop,
               width: tileWidth,
               height: buildingImageHeight,
-              child: _buildBuildingTile(tileType),
+              child: _buildBuildingTile(tileType, buildingOrientation),
             ),
           );
         }
@@ -333,30 +421,38 @@ class _TileCityScreenState extends State<TileCityScreen> {
 
   Widget _buildGroundTile(TileType tileType, RoadDirection? roadDir) {
     final isRoad = tileType == TileType.road;
-    final rotation = isRoad ? _getRoadRotation(roadDir) : 0.0;
+    final needsFlip = isRoad && roadDir == RoadDirection.vertical;
 
-    return Transform.rotate(
-      angle: rotation,
-      child: Image.asset(
-        _getTileAssetPath(tileType, roadDir),
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: _getFallbackColor(tileType),
-            child: Center(
-              child: Text(
-                _getTileLabel(tileType),
-                style: const TextStyle(fontSize: 8),
-              ),
+    Widget imageWidget = Image.asset(
+      _getTileAssetPath(tileType, roadDir),
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: _getFallbackColor(tileType),
+          child: Center(
+            child: Text(
+              _getTileLabel(tileType),
+              style: const TextStyle(fontSize: 8),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
+
+    // Flip road sprites instead of rotating
+    if (needsFlip) {
+      return Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()..scale(-1.0, 1.0), // Flip horizontally
+        child: imageWidget,
+      );
+    }
+
+    return imageWidget;
   }
 
-  Widget _buildBuildingTile(TileType tileType) {
-    return Image.asset(
+  Widget _buildBuildingTile(TileType tileType, BuildingOrientation? orientation) {
+    Widget imageWidget = Image.asset(
       _getTileAssetPath(tileType, null),
       fit: BoxFit.contain,
       alignment: Alignment.bottomCenter,
@@ -374,6 +470,17 @@ class _TileCityScreenState extends State<TileCityScreen> {
         );
       },
     );
+
+    // Apply horizontal flip based on orientation
+    if (orientation == BuildingOrientation.flippedHorizontal) {
+      return Transform(
+        alignment: Alignment.bottomCenter,
+        transform: Matrix4.identity()..scale(-1.0, 1.0), // Flip horizontally
+        child: imageWidget,
+      );
+    }
+
+    return imageWidget;
   }
 
   Color _getFallbackColor(TileType tileType) {
