@@ -170,6 +170,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   }
 
   /// Find the nearest road tile to warehouse and update game state
+  /// This is called after the build phase to avoid modifying providers during widget lifecycle
   void _updateWarehouseRoadPosition() {
     if (_warehouseX == null || _warehouseY == null) return;
     
@@ -206,10 +207,13 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       }
     }
     
-    // If we found a road, update game state
+    // If we found a road, update game state after the build phase
     if (nearestRoadX != null && nearestRoadY != null) {
-      final controller = ref.read(gameControllerProvider.notifier);
-      controller.setWarehouseRoadPosition(nearestRoadX, nearestRoadY);
+      // Delay the update until after the build phase is complete
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final controller = ref.read(gameControllerProvider.notifier);
+        controller.setWarehouseRoadPosition(nearestRoadX!, nearestRoadY!);
+      });
     }
   }
 
