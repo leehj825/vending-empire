@@ -530,149 +530,29 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     }
     
     return trucks.map((truck) {
-      // If route is complete, always return to warehouse (regardless of current status)
+      // ---------------------------------------------------------
+      // CASE 1: ROUTE COMPLETE - RETURN TO WAREHOUSE
+      // ---------------------------------------------------------
       if (truck.isRouteComplete) {
         // Get warehouse position from simulation state
         final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback if not set
         final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback if not set
-        final currentX = truck.currentX.round().toDouble();
-        final currentY = truck.currentY.round().toDouble();
+        
+        // If truck was restocking but is now complete, ensure it's traveling
+        var currentStatus = truck.status;
+        if (currentStatus == TruckStatus.restocking) {
+            currentStatus = TruckStatus.traveling;
+        }
+
+        final currentX = truck.currentX;
+        final currentY = truck.currentY;
+        
+        // Calculate distance to warehouse
         final dxToWarehouse = warehouseRoadX - currentX;
         final dyToWarehouse = warehouseRoadY - currentY;
-        final manhattanDistToWarehouse = dxToWarehouse.abs() + dyToWarehouse.abs();
-        
-        if (manhattanDistToWarehouse == 0) {
-          // At warehouse road - mark as idle and ensure truck is on the road
-          final roadX = truck.currentX.round().toDouble();
-          final roadY = truck.currentY.round().toDouble();
-          return truck.copyWith(
-            status: TruckStatus.idle,
-            currentX: roadX,
-            currentY: roadY,
-            targetX: warehouseRoadX,
-            targetY: warehouseRoadY,
-          );
-        } else {
-          // Not at warehouse yet - continue traveling to warehouse using smooth pathfinding
-          final dxToWarehouse = warehouseRoadX - truck.currentX;
-          final dyToWarehouse = warehouseRoadY - truck.currentY;
-          final distanceToWarehouse = math.sqrt(dxToWarehouse * dxToWarehouse + dyToWarehouse * dyToWarehouse);
-          
-          // Check if we've arrived
-          if (distanceToWarehouse < 0.1) {
-            return truck.copyWith(
-              status: TruckStatus.idle,
-              currentX: warehouseRoadX,
-              currentY: warehouseRoadY,
-              targetX: warehouseRoadX,
-              targetY: warehouseRoadY,
-              path: [],
-              pathIndex: 0,
-            );
-          }
-          
-          // Get or calculate path to warehouse
-          List<({double x, double y})> path = truck.path;
-          int pathIndex = truck.pathIndex;
-          
-          // Recalculate path if needed
-          if (path.isEmpty || 
-              (path.isNotEmpty && (path.last.x != warehouseRoadX || path.last.y != warehouseRoadY)) ||
-              pathIndex >= path.length) {
-            path = findPath(truck.currentX, truck.currentY, warehouseRoadX, warehouseRoadY);
-            pathIndex = 0;
-          }
-          
-          // Move along the path smoothly
-          var currentPathIndex = pathIndex;
-          var currentX = truck.currentX;
-          var currentY = truck.currentY;
-          var newStatus = TruckStatus.traveling;
-
-          while (currentPathIndex < path.length) {
-            final targetWaypoint = path[currentPathIndex];
-            final dx = targetWaypoint.x - currentX;
-            final dy = targetWaypoint.y - currentY;
-            final distance = math.sqrt(dx * dx + dy * dy);
-            
-            if (distance < 0.1) {
-              // Reached waypoint, snap and move to next
-              currentX = targetWaypoint.x;
-              currentY = targetWaypoint.y;
-              currentPathIndex++;
-            } else {
-              // Move towards waypoint
-              final moveDistance = movementSpeed.clamp(0.0, distance);
-              final ratio = moveDistance / distance;
-              currentX += dx * ratio;
-              currentY += dy * ratio;
-              break;
-            }
-          }
-          
-          // Check if we reached the end of the path (warehouse)
-          if (currentPathIndex >= path.length) {
-             newStatus = TruckStatus.idle;
-             currentX = warehouseRoadX;
-             currentY = warehouseRoadY;
-          }
-
-          return truck.copyWith(
-            status: newStatus,
-            currentX: currentX,
-            currentY: currentY,
-            targetX: warehouseRoadX,
-            targetY: warehouseRoadY,
-            path: path,
-            pathIndex: currentPathIndex,
-          );
-          
-          // Fallback
-          return truck.copyWith(
-            status: TruckStatus.traveling,
-            currentX: warehouseRoadX,
-            currentY: warehouseRoadY,
-            targetX: warehouseRoadX,
-            targetY: warehouseRoadY,
-          );
-        }
-      }
-      
-      // If truck is in restocking status but route is complete, transition to traveling to warehouse
-      if (truck.status == TruckStatus.restocking && truck.isRouteComplete) {
-        final warehouseRoadX = state.warehouseRoadX ?? 4.0;
-        final warehouseRoadY = state.warehouseRoadY ?? 4.0;
-        return truck.copyWith(
-          status: TruckStatus.traveling,
-          targetX: warehouseRoadX,
-          targetY: warehouseRoadY,
-          path: [], // Clear path so it recalculates to warehouse
-          pathIndex: 0,
-        );
-      }
-      
-      if (!truck.hasRoute) {
-        // Idle truck - ensure it stays on road (snap to nearest road)
-        final roadX = truck.currentX.round().toDouble();
-        final roadY = truck.currentY.round().toDouble();
-        return truck.copyWith(
-          status: TruckStatus.idle,
-          currentX: roadX,
-          currentY: roadY,
-        );
-      }
-
-      // Get current destination
-      final destinationId = truck.currentDestination;
-      
-      // If route is complete, always return to warehouse (even if we have a destination)
-      if (truck.isRouteComplete) {
-        final warehouseRoadX = state.warehouseRoadX ?? 4.0;
-        final warehouseRoadY = state.warehouseRoadY ?? 4.0;
-        final dxToWarehouse = warehouseRoadX - truck.currentX;
-        final dyToWarehouse = warehouseRoadY - truck.currentY;
         final distanceToWarehouse = math.sqrt(dxToWarehouse * dxToWarehouse + dyToWarehouse * dyToWarehouse);
         
+        // If already very close to warehouse, mark as Idle and snap
         if (distanceToWarehouse < 0.1) {
           return truck.copyWith(
             status: TruckStatus.idle,
@@ -682,69 +562,83 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             targetY: warehouseRoadY,
             path: [],
             pathIndex: 0,
+            // Ensure route index stays complete (redundant but safe)
+            currentRouteIndex: truck.route.length, 
           );
         }
         
-        // Calculate path to warehouse
+        // Not at warehouse yet - calculate movement
+        
+        // Get or calculate path to warehouse
         List<({double x, double y})> path = truck.path;
         int pathIndex = truck.pathIndex;
         
+        // Recalculate path if needed:
+        // 1. Path is empty
+        // 2. Path end point is not warehouse
+        // 3. Path index is invalid
         if (path.isEmpty || 
             (path.isNotEmpty && (path.last.x != warehouseRoadX || path.last.y != warehouseRoadY)) ||
             pathIndex >= path.length) {
-          path = findPath(truck.currentX, truck.currentY, warehouseRoadX, warehouseRoadY);
+          path = findPath(currentX, currentY, warehouseRoadX, warehouseRoadY);
           pathIndex = 0;
         }
         
         // Move along the path
-        if (pathIndex < path.length) {
-          final targetWaypoint = path[pathIndex];
-          final dx = targetWaypoint.x - truck.currentX;
-          final dy = targetWaypoint.y - truck.currentY;
+        var currentPathIndex = pathIndex;
+        var simX = currentX;
+        var simY = currentY;
+        var newStatus = currentStatus == TruckStatus.idle ? TruckStatus.traveling : currentStatus;
+
+        // Process movement (support multiple waypoints per tick)
+        while (currentPathIndex < path.length) {
+          final targetWaypoint = path[currentPathIndex];
+          final dx = targetWaypoint.x - simX;
+          final dy = targetWaypoint.y - simY;
           final distance = math.sqrt(dx * dx + dy * dy);
           
           if (distance < 0.1) {
-            return truck.copyWith(
-              status: TruckStatus.traveling,
-              currentX: targetWaypoint.x,
-              currentY: targetWaypoint.y,
-              targetX: warehouseRoadX,
-              targetY: warehouseRoadY,
-              path: path,
-              pathIndex: pathIndex + 1,
-            );
+            // Reached waypoint, snap and move to next
+            simX = targetWaypoint.x;
+            simY = targetWaypoint.y;
+            currentPathIndex++;
           } else {
+            // Move towards waypoint
             final moveDistance = movementSpeed.clamp(0.0, distance);
             final ratio = moveDistance / distance;
-            final newX = truck.currentX + dx * ratio;
-            final newY = truck.currentY + dy * ratio;
-            
-            return truck.copyWith(
-              status: TruckStatus.traveling,
-              currentX: newX,
-              currentY: newY,
-              targetX: warehouseRoadX,
-              targetY: warehouseRoadY,
-              path: path,
-              pathIndex: pathIndex,
-            );
+            simX += dx * ratio;
+            simY += dy * ratio;
+            break; // Moved max distance for this tick
           }
         }
         
-        // Fallback - teleport to warehouse if path calculation fails
+        // Check if we reached the final destination (Warehouse)
+        if (currentPathIndex >= path.length) {
+           newStatus = TruckStatus.idle;
+           simX = warehouseRoadX;
+           simY = warehouseRoadY;
+        }
+
         return truck.copyWith(
-          status: TruckStatus.idle,
-          currentX: warehouseRoadX,
-          currentY: warehouseRoadY,
+          status: newStatus,
+          currentX: simX,
+          currentY: simY,
           targetX: warehouseRoadX,
           targetY: warehouseRoadY,
-          path: [],
-          pathIndex: 0,
+          path: path,
+          pathIndex: currentPathIndex,
         );
       }
       
+      // ---------------------------------------------------------
+      // CASE 2: ROUTE INCOMPLETE - TRAVEL TO NEXT MACHINE
+      // ---------------------------------------------------------
+      
+      // Get current destination
+      final destinationId = truck.currentDestination;
+      
       if (destinationId == null) {
-        // No destination and route not complete - should not happen, but mark as idle
+        // Should catch this in Case 1, but as fallback:
         return truck.copyWith(status: TruckStatus.idle);
       }
 
@@ -754,26 +648,18 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         orElse: () => machines.first, // Fallback
       );
 
-      // Get machine position
+      // Get machine position and snap to nearest road
       final machineX = destination.zone.x;
       final machineY = destination.zone.y;
       
-      // Ensure truck is always on a road (integer coordinates)
-      // Snap current position to nearest road if not already on one
-      double currentX = truck.currentX.round().toDouble();
-      double currentY = truck.currentY.round().toDouble();
-      
-      // For machines at .5 positions, find the closest VALID road position
-      // Roads are only at specific positions: 1.0, 4.0, 7.0, 10.0
       // Find the closest valid road to the machine
       double destRoadX = validRoads[0];
       double destRoadY = validRoads[0];
       double minDist = double.infinity;
       
-      // Check all valid road positions to find the closest to the machine
+      // Check all valid road positions
       for (final roadX in validRoads) {
         for (final roadY in validRoads) {
-          // Calculate Manhattan distance from machine to this road intersection
           final dist = (machineX - roadX).abs() + (machineY - roadY).abs();
           if (dist < minDist) {
             minDist = dist;
@@ -783,8 +669,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         }
       }
       
-      // Also check if we can use a road line (horizontal or vertical) that's closer
-      // Check horizontal roads (Y is road coordinate, X can be any valid road)
+      // Also check if we can use a road line closer to machine
       for (final roadY in validRoads) {
         final closestRoadX = snapToNearestRoad(machineX);
         final dist = (machineX - closestRoadX).abs() + (machineY - roadY).abs();
@@ -794,8 +679,6 @@ class SimulationEngine extends StateNotifier<SimulationState> {
           destRoadY = roadY;
         }
       }
-      
-      // Check vertical roads (X is road coordinate, Y can be any valid road)
       for (final roadX in validRoads) {
         final closestRoadY = snapToNearestRoad(machineY);
         final dist = (machineX - roadX).abs() + (machineY - closestRoadY).abs();
@@ -806,14 +689,15 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         }
       }
       
-      // Calculate Manhattan distance to destination road
+      // Calculate distance to destination road
+      final currentX = truck.currentX;
+      final currentY = truck.currentY;
       final dxToRoad = destRoadX - currentX;
       final dyToRoad = destRoadY - currentY;
       final manhattanDistance = dxToRoad.abs() + dyToRoad.abs();
 
       // If truck is at the road adjacent to the machine, mark as arrived for restocking
       if (manhattanDistance < 0.1) {
-        // Truck is at the road next to the machine - can restock from here
         return truck.copyWith(
           status: TruckStatus.restocking,
           currentX: destRoadX,
@@ -831,8 +715,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       
       // Recalculate path if:
       // 1. Path is empty
-      // 2. Target has changed
-      // 3. We've reached the end of the current path
+      // 2. Path end point is not current destination
+      // 3. Path index is invalid
       if (path.isEmpty || 
           (path.isNotEmpty && (path.last.x != destRoadX || path.last.y != destRoadY)) ||
           pathIndex >= path.length) {
@@ -840,11 +724,12 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         pathIndex = 0;
       }
       
-      // Move along the path smoothly
+      // Move along the path
       var currentPathIndex = pathIndex;
-      var simX = truck.currentX;
-      var simY = truck.currentY;
-
+      var simX = currentX;
+      var simY = currentY;
+      
+      // Process movement
       while (currentPathIndex < path.length) {
         final targetWaypoint = path[currentPathIndex];
         final dx = targetWaypoint.x - simX;
@@ -852,12 +737,12 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         final distance = math.sqrt(dx * dx + dy * dy);
         
         if (distance < 0.1) {
-          // Reached waypoint, snap and move to next
+          // Reached waypoint
           simX = targetWaypoint.x;
           simY = targetWaypoint.y;
           currentPathIndex++;
         } else {
-          // Move towards waypoint
+          // Move
           final moveDistance = movementSpeed.clamp(0.0, distance);
           final ratio = moveDistance / distance;
           simX += dx * ratio;
@@ -865,24 +750,24 @@ class SimulationEngine extends StateNotifier<SimulationState> {
           break;
         }
       }
+      
+      // Check if reached destination
+      var newStatus = TruckStatus.traveling;
+      if (currentPathIndex >= path.length) {
+         // Arrived at machine road location
+         newStatus = TruckStatus.restocking;
+         simX = destRoadX;
+         simY = destRoadY;
+      }
 
       return truck.copyWith(
-        status: TruckStatus.traveling,
+        status: newStatus,
         currentX: simX,
         currentY: simY,
         targetX: destRoadX,
         targetY: destRoadY,
         path: path,
         pathIndex: currentPathIndex,
-      );
-
-      // Should not reach here, but fallback
-      return truck.copyWith(
-        status: TruckStatus.traveling,
-        currentX: currentX,
-        currentY: currentY,
-        targetX: destRoadX,
-        targetY: destRoadY,
       );
     }).toList();
   }
