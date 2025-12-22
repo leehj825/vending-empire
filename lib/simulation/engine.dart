@@ -68,6 +68,8 @@ class SimulationState {
   final double cash;
   final int reputation;
   final Random random;
+  final double? warehouseRoadX; // Road tile X coordinate next to warehouse
+  final double? warehouseRoadY; // Road tile Y coordinate next to warehouse
 
   const SimulationState({
     required this.time,
@@ -76,6 +78,8 @@ class SimulationState {
     required this.cash,
     required this.reputation,
     required this.random,
+    this.warehouseRoadX,
+    this.warehouseRoadY,
   });
 
   SimulationState copyWith({
@@ -85,6 +89,8 @@ class SimulationState {
     double? cash,
     int? reputation,
     Random? random,
+    double? warehouseRoadX,
+    double? warehouseRoadY,
   }) {
     return SimulationState(
       time: time ?? this.time,
@@ -93,6 +99,8 @@ class SimulationState {
       cash: cash ?? this.cash,
       reputation: reputation ?? this.reputation,
       random: random ?? this.random,
+      warehouseRoadX: warehouseRoadX ?? this.warehouseRoadX,
+      warehouseRoadY: warehouseRoadY ?? this.warehouseRoadY,
     );
   }
 }
@@ -150,6 +158,13 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   void updateMachines(List<Machine> machines) {
     print('🔴 ENGINE: Updating machines list');
     state = state.copyWith(machines: machines);
+    _streamController.add(state);
+  }
+
+  /// Update warehouse road position in the simulation
+  void updateWarehouseRoadPosition(double roadX, double roadY) {
+    print('🔴 ENGINE: Updating warehouse road position to ($roadX, $roadY)');
+    state = state.copyWith(warehouseRoadX: roadX, warehouseRoadY: roadY);
     _streamController.add(state);
   }
 
@@ -359,13 +374,10 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   ) {
     return trucks.map((truck) {
       // If route is complete, check if truck needs to return to warehouse
-      // Note: Warehouse position should be passed from game state, but for now use a default
-      // This will be updated when we have access to game state in the engine
       if (truck.isRouteComplete) {
-        // TODO: Get warehouse position from game state
-        // For now, use a reasonable default that should work
-        const warehouseRoadX = 4.0;
-        const warehouseRoadY = 4.0;
+        // Get warehouse position from simulation state
+        final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback if not set
+        final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback if not set
         final currentX = truck.currentX.round().toDouble();
         final currentY = truck.currentY.round().toDouble();
         final dxToWarehouse = warehouseRoadX - currentX;
@@ -731,10 +743,9 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             );
           } else {
             // Route complete and empty - return to warehouse
-            // TODO: Get warehouse position from game state
-            // For now, use a reasonable default
-            const warehouseRoadX = 4.0;
-            const warehouseRoadY = 4.0;
+            // Get warehouse position from simulation state
+            final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback if not set
+            final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback if not set
             updatedTrucks[i] = truck.copyWith(
               inventory: updatedTruckInventory,
               status: TruckStatus.traveling,
