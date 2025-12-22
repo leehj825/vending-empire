@@ -345,33 +345,41 @@ class _TileCityScreenState extends State<TileCityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Calculate map bounds for centering
-    // First, find the bounds of ground tiles
-    final topLeft = _gridToScreen(0, 0);
-    final topRight = _gridToScreen(gridSize - 1, 0);
-    final bottomLeft = _gridToScreen(0, gridSize - 1);
-    final bottomRight = _gridToScreen(gridSize - 1, gridSize - 1);
+    // Calculate map bounds - need to find the actual bounds including all tile content
+    // Check all tiles to find the true min/max positions
+    double minX = double.infinity;
+    double maxX = double.negativeInfinity;
+    double minY = double.infinity;
+    double maxY = double.negativeInfinity;
     
-    double minX = math.min(math.min(topLeft.dx, topRight.dx), math.min(bottomLeft.dx, bottomRight.dx));
-    double maxX = math.max(math.max(topLeft.dx, topRight.dx), math.max(bottomLeft.dx, bottomRight.dx));
-    double minY = math.min(math.min(topLeft.dy, topRight.dy), math.min(bottomLeft.dy, bottomRight.dy));
-    double maxY = math.max(math.max(topLeft.dy, topRight.dy), math.max(bottomLeft.dy, bottomRight.dy));
+    for (int y = 0; y < gridSize; y++) {
+      for (int x = 0; x < gridSize; x++) {
+        final screenPos = _gridToScreen(x, y);
+        
+        // Ground tile bounds
+        minX = math.min(minX, screenPos.dx);
+        maxX = math.max(maxX, screenPos.dx + tileWidth);
+        minY = math.min(minY, screenPos.dy);
+        maxY = math.max(maxY, screenPos.dy + tileHeight);
+        
+        // Building bounds (if present) - extend upward
+        if (_isBuilding(_grid[y][x])) {
+          final buildingTop = screenPos.dy - (buildingImageHeight - tileHeight);
+          minY = math.min(minY, buildingTop);
+        }
+      }
+    }
     
-    // Account for building heights that extend above ground tiles
-    // Buildings extend upward by (buildingImageHeight - tileHeight)
-    final buildingOverhang = buildingImageHeight - tileHeight;
-    minY -= buildingOverhang;
-    
-    // Add extra padding at the top to ensure building tops are fully visible
-    // Add more padding at top since buildings extend upward
-    const double sidePadding = 50.0;
-    const double topPadding = 100.0; // Extra padding for building tops
-    const double bottomPadding = 50.0;
+    // Add generous padding to ensure nothing is clipped
+    // Extra padding at top for buildings that extend upward
+    const double sidePadding = 100.0;
+    const double topPadding = 150.0; // Very generous padding for building tops
+    const double bottomPadding = 100.0;
     
     minX -= sidePadding;
-    maxX += sidePadding + tileWidth;
-    minY -= topPadding; // Extra padding at top
-    maxY += bottomPadding + tileHeight;
+    maxX += sidePadding;
+    minY -= topPadding;
+    maxY += bottomPadding;
     
     final mapWidth = maxX - minX;
     final mapHeight = maxY - minY;
@@ -406,13 +414,14 @@ class _TileCityScreenState extends State<TileCityScreen> {
         ],
       ),
       body: InteractiveViewer(
-        boundaryMargin: const EdgeInsets.all(100),
-        minScale: 0.5,
+        boundaryMargin: const EdgeInsets.all(200),
+        minScale: 0.3,
         maxScale: 3.0,
         child: SizedBox(
           width: mapWidth,
           height: mapHeight,
           child: Stack(
+            clipBehavior: Clip.none, // Don't clip content
             children: _buildTiles(centerOffset),
           ),
         ),
@@ -469,16 +478,16 @@ class _TileCityScreenState extends State<TileCityScreen> {
       final positionedX = data['positionedX'] as double;
       final positionedY = data['positionedY'] as double;
 
-      // Ground tile (grass or road) - anchored at base
-      tiles.add(
-        Positioned(
-          left: positionedX,
-          top: positionedY,
-          width: tileWidth,
-          height: tileHeight,
-          child: _buildGroundTile(tileType, roadDir),
-        ),
-      );
+        // Ground tile (grass or road) - anchored at base
+        tiles.add(
+          Positioned(
+            left: positionedX,
+            top: positionedY,
+            width: tileWidth,
+            height: tileHeight,
+            child: _buildGroundTile(tileType, roadDir),
+          ),
+        );
 
       // Building tile (if applicable) - anchored at bottom-center, extends upward
       if (_isBuilding(tileType)) {
@@ -504,7 +513,7 @@ class _TileCityScreenState extends State<TileCityScreen> {
 
     Widget imageWidget = Image.asset(
       _getTileAssetPath(tileType, roadDir),
-      fit: BoxFit.cover,
+      fit: BoxFit.contain, // Changed from cover to contain to show full image
       alignment: Alignment.bottomCenter, // Anchor at bottom
       errorBuilder: (context, error, stackTrace) {
         return Container(
