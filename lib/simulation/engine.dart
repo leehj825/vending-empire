@@ -541,7 +541,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         final dyToWarehouse = warehouseRoadY - currentY;
         final manhattanDistToWarehouse = dxToWarehouse.abs() + dyToWarehouse.abs();
         
-        if (manhattanDistToWarehouse == 0) {
+        if (manhattanDistToWarehouse < 0.1) {
           // At warehouse road - mark as idle and ensure truck is on the road
           final roadX = truck.currentX.round().toDouble();
           final roadY = truck.currentY.round().toDouble();
