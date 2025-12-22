@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart' show StateNotifierProvider, StateProvider;
@@ -17,13 +16,12 @@ const _uuid = Uuid();
 
 /// Machine prices by zone type
 class MachinePrices {
-  static const double basePrice = 500.0;
+  static const double basePrice = 400.0; // Reduced from 500.0
   static const Map<ZoneType, double> zoneMultipliers = {
-    ZoneType.office: 1.5,
-    ZoneType.school: 1.2,
-    ZoneType.gym: 1.0,
-    ZoneType.subway: 1.3,
-    ZoneType.park: 0.8,
+    ZoneType.office: 1.75, // $700 (was $750)
+    ZoneType.school: 1.5,  // $600 (was $600)
+    ZoneType.gym: 1.25,    // $500 (was $500)
+    ZoneType.shop: 1.0,    // $400 (was $400) - shop machines
   };
 
   static double getPrice(ZoneType zoneType) {
@@ -52,13 +50,16 @@ class GameController extends StateNotifier<GlobalGameState> {
       : simulationEngine = SimulationEngine(
           initialMachines: [],
           initialTrucks: [],
-          initialCash: 5000.0,
+          initialCash: 2000.0,
           initialReputation: 100,
         ),
         super(const GlobalGameState(
+          cash: 2000.0, // Starting cash: $2000
           machines: [],
           trucks: [],
           warehouse: Warehouse(),
+          warehouseRoadX: null, // Will be set when map is generated
+          warehouseRoadY: null, // Will be set when map is generated
         )) {
     _setupSimulationListener();
   }
@@ -139,10 +140,13 @@ class GameController extends StateNotifier<GlobalGameState> {
     // 1. Create Data
     final zone = _createZoneForType(zoneType, x: x, y: y);
     
+    // Map zone type to building name for display
+    final buildingName = _getBuildingNameForZone(zoneType);
+    
     // Create machine
     final newMachine = Machine(
       id: _uuid.v4(),
-      name: '${zoneType.name.toUpperCase()} Machine ${state.machines.length + 1}',
+      name: '$buildingName Machine ${state.machines.length + 1}',
       zone: zone,
       condition: MachineCondition.excellent,
       inventory: {},
@@ -160,9 +164,93 @@ class GameController extends StateNotifier<GlobalGameState> {
       machines: updatedMachines,
     );
     state = state.addLogMessage("Bought ${newMachine.name}");
-
+    
     // Sync cash to simulation engine to prevent reversion on next tick
     simulationEngine.updateCash(newCash);
+  }
+
+  /// Buy a new vending machine with automatic initial stocking
+  void buyMachineWithStock(ZoneType zoneType, {required double x, required double y}) {
+    print('🟢 CONTROLLER ACTION: Attempting to buy machine with stock...');
+    final price = MachinePrices.getPrice(zoneType);
+    if (state.cash < price) {
+      state = state.addLogMessage('Insufficient funds');
+      return;
+    }
+
+    // 1. Create Data
+    final zone = _createZoneForType(zoneType, x: x, y: y);
+    
+    // 2. Get initial products for this zone type
+    final initialProducts = _getInitialProductsForZone(zoneType);
+    
+    // 3. Create initial inventory
+    final currentDay = simulationEngine.state.time.day;
+    final initialInventory = <Product, InventoryItem>{};
+    for (final product in initialProducts) {
+      initialInventory[product] = InventoryItem(
+        product: product,
+        quantity: 20, // Start with 20 of each product
+        dayAdded: currentDay,
+      );
+    }
+    
+    // Create machine with initial inventory
+    // Map zone type to building name for display
+    final buildingName = _getBuildingNameForZone(zoneType);
+    final newMachine = Machine(
+      id: _uuid.v4(),
+      name: '$buildingName Machine ${state.machines.length + 1}',
+      zone: zone,
+      condition: MachineCondition.excellent,
+      inventory: initialInventory,
+      currentCash: 0.0,
+    );
+
+    // Update simulation engine
+    final updatedMachines = [...state.machines, newMachine];
+    simulationEngine.updateMachines(updatedMachines);
+
+    // UPDATE STATE DIRECTLY
+    final newCash = state.cash - price;
+    state = state.copyWith(
+      cash: newCash,
+      machines: updatedMachines,
+    );
+    
+    final productNames = initialProducts.map((p) => p.name).join(', ');
+    state = state.addLogMessage("Bought ${newMachine.name} (stocked with: $productNames)");
+    
+    // Sync cash to simulation engine to prevent reversion on next tick
+    simulationEngine.updateCash(newCash);
+  }
+
+  /// Get initial products for a zone type based on progression rules
+  List<Product> _getInitialProductsForZone(ZoneType zoneType) {
+    switch (zoneType) {
+      case ZoneType.shop:
+        return [Product.soda, Product.chips];
+      case ZoneType.school:
+        return [Product.soda, Product.chips, Product.sandwich];
+      case ZoneType.gym:
+        return [Product.proteinBar];
+      case ZoneType.office:
+        return [Product.coffee, Product.techGadget];
+    }
+  }
+
+  /// Get building name for zone type (for machine naming)
+  String _getBuildingNameForZone(ZoneType zoneType) {
+    switch (zoneType) {
+      case ZoneType.shop:
+        return 'Shop';
+      case ZoneType.school:
+        return 'School';
+      case ZoneType.gym:
+        return 'Gym';
+      case ZoneType.office:
+        return 'Office';
+    }
   }
 
   /// Create a zone based on zone type
@@ -171,29 +259,14 @@ class GameController extends StateNotifier<GlobalGameState> {
     final name = '${zoneType.name.toUpperCase()} Zone';
 
     switch (zoneType) {
+      case ZoneType.shop:
+        return ZoneFactory.createShop(id: id, name: name, x: x, y: y);
       case ZoneType.office:
         return ZoneFactory.createOffice(id: id, name: name, x: x, y: y);
       case ZoneType.school:
         return ZoneFactory.createSchool(id: id, name: name, x: x, y: y);
       case ZoneType.gym:
         return ZoneFactory.createGym(id: id, name: name, x: x, y: y);
-      case ZoneType.subway:
-        return ZoneFactory.createSubway(id: id, name: name, x: x, y: y);
-      case ZoneType.park:
-        // Create a basic park zone (no factory method yet)
-        return Zone(
-          id: id,
-          type: zoneType,
-          name: name,
-          x: x,
-          y: y,
-          demandCurve: {
-            10: 1.2,  // 10 AM: Moderate
-            14: 1.5,  // 2 PM: Afternoon peak
-            18: 1.0,  // 6 PM: Evening
-          },
-          trafficMultiplier: 0.8,
-        );
     }
   }
 
@@ -288,6 +361,48 @@ class GameController extends StateNotifier<GlobalGameState> {
     simulationEngine.updateTrucks(updatedTrucks);
   }
 
+  /// Start truck on route to stock machines (reset route index and start traveling)
+  void goStock(String truckId) {
+    // Find truck in list
+    final truckIndex = state.trucks.indexWhere((t) => t.id == truckId);
+    if (truckIndex == -1) {
+      state = state.addLogMessage('Truck not found');
+      return;
+    }
+
+    final truck = state.trucks[truckIndex];
+
+    // Check if truck has items
+    if (truck.inventory.isEmpty) {
+      state = state.addLogMessage('${truck.name} has no items to stock');
+      return;
+    }
+
+    // Check if truck has a route
+    if (truck.route.isEmpty) {
+      state = state.addLogMessage('${truck.name} has no route assigned');
+      return;
+    }
+
+    // Reset route index to 0 and set status to traveling
+    final updatedTruck = truck.copyWith(
+      currentRouteIndex: 0,
+      status: TruckStatus.traveling,
+    );
+
+    final updatedTrucks = [...state.trucks];
+    updatedTrucks[truckIndex] = updatedTruck;
+
+    // Update state
+    state = state.copyWith(trucks: updatedTrucks);
+    state = state.addLogMessage(
+      '${truck.name} starting route to stock ${truck.route.length} machines',
+    );
+    
+    // Sync to simulation engine to prevent reversion on next tick
+    simulationEngine.updateTrucks(updatedTrucks);
+  }
+
   /// Load cargo onto a truck from warehouse
   void loadTruck(String truckId, Product product, int quantity) {
     // Find the truck
@@ -360,18 +475,18 @@ class GameController extends StateNotifier<GlobalGameState> {
       return;
     }
 
-    final random = math.Random();
-    // Place truck on a road (integer coordinates between 1 and 9)
-    // Roads are at integer coordinates in zone space
-    final startX = (1 + random.nextInt(9)).toDouble(); // Random integer 1-9
-    final startY = (1 + random.nextInt(9)).toDouble(); // Random integer 1-9
+    // Get warehouse road position from game state (set when map is generated)
+    final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback to 4.0 if not set
+    final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback to 4.0 if not set
 
     final truck = Truck(
       id: _uuid.v4(),
       name: 'Truck ${state.trucks.length + 1}',
       inventory: {},
-      currentX: startX,
-      currentY: startY,
+      currentX: warehouseRoadX,
+      currentY: warehouseRoadY,
+      targetX: warehouseRoadX,
+      targetY: warehouseRoadY,
     );
 
     // Update state
@@ -391,6 +506,16 @@ class GameController extends StateNotifier<GlobalGameState> {
 
   /// Get current machines list
   List<Machine> get machines => state.machines;
+
+  /// Set warehouse road position (called when map is generated)
+  void setWarehouseRoadPosition(double roadX, double roadY) {
+    state = state.copyWith(
+      warehouseRoadX: roadX,
+      warehouseRoadY: roadY,
+    );
+    // Also update simulation engine so trucks can use it
+    simulationEngine.updateWarehouseRoadPosition(roadX, roadY);
+  }
 
   /// Get current trucks list
   List<Truck> get trucks => state.trucks;

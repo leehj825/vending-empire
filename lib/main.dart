@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'ui/screens/main_screen.dart';
+import 'ui/screens/menu_screen.dart';
 
 void main() {
   runApp(
@@ -24,7 +24,7 @@ class VendingEmpireApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const MainScreen(),
+      home: const MenuScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

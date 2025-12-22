@@ -17,7 +17,7 @@ abstract class Truck with _$Truck {
     required String id,
     required String name,
     @Default(100.0) double fuel, // Percentage (0-100)
-    @Default(50) int capacity, // Max items it can carry
+    @Default(100) int capacity, // Max items it can carry
     /// Current route: List of machine IDs to visit in order
     @Default([]) List<String> route,
     /// Current position in the route (index)
@@ -29,6 +29,10 @@ abstract class Truck with _$Truck {
     /// Target position (x, y) when traveling
     @Default(0.0) double targetX,
     @Default(0.0) double targetY,
+    /// Path waypoints for smooth movement (list of (x, y) positions)
+    @Default([]) List<({double x, double y})> path,
+    /// Current index in the path
+    @Default(0) int pathIndex,
     @Default({}) Map<Product, int> inventory,
   }) = _Truck;
 
