@@ -29,24 +29,23 @@ class TileCityScreen extends StatefulWidget {
 }
 
 class _TileCityScreenState extends State<TileCityScreen> {
-  static const int gridSize = 15;
+  static const int gridSize = 10;
   
   // Isometric tile dimensions (tweakable constants)
   // Reduced spacing to make tiles closer together
   static const double tileWidth = 64.0;
   static const double tileHeight = 32.0;
   static const double tileSpacingFactor = 0.80; // Vertical spacing (up/down)
-  static const double horizontalSpacingFactor = 0.75; // Horizontal spacing (side to side) - reduced more
+  static const double horizontalSpacingFactor = 0.70; // Horizontal spacing (side to side) - reduced more
   
   // Building image height (assumed taller than ground tiles)
   // Adjusted to make buildings larger
   static const double buildingImageHeight = 65.0; // Increased from 60.0
   static const double buildingScale = 0.83; // Increased from 0.75 to make buildings larger
   
-  // Block dimensions - only 2x3 or 2x4
-  static const int blockWidth = 2;
-  static const int minBlockHeight = 3;
-  static const int maxBlockHeight = 4;
+  // Block dimensions - maximum 2x3 or 3x2
+  static const int minBlockSize = 2;
+  static const int maxBlockSize = 3;
   
   late List<List<TileType>> _grid;
   late List<List<RoadDirection?>> _roadDirections;
@@ -142,9 +141,10 @@ class _TileCityScreenState extends State<TileCityScreen> {
     return RoadDirection.intersection;
   }
 
-  /// Place building blocks (2x3 or 2x4 tiles) in areas between roads
+  /// Place building blocks (2x3 or 3x2 tiles) in areas between roads
   /// Maximum 2 of each building type globally
   /// Within each block, no duplicate building types (can mix with grass)
+  /// Buildings face toward the nearest road
   void _placeBuildingBlocks() {
     final random = math.Random();
     final buildingTypes = [
@@ -162,20 +162,24 @@ class _TileCityScreenState extends State<TileCityScreen> {
       TileType.school: 0,
     };
 
-    // Find all rectangular areas that can fit building blocks (2x3 or 2x4)
+    // Find all rectangular areas that can fit building blocks (2x3 or 3x2)
     final validBlocks = <Map<String, dynamic>>[];
     
     for (int startY = 0; startY < gridSize; startY++) {
       for (int startX = 0; startX < gridSize; startX++) {
-        // Try 2x3 and 2x4 blocks only
-        for (int blockHeight = minBlockHeight; blockHeight <= maxBlockHeight; blockHeight++) {
-          if (_canPlaceBlock(startX, startY, blockWidth, blockHeight)) {
-            validBlocks.add({
-              'x': startX,
-              'y': startY,
-              'width': blockWidth,
-              'height': blockHeight,
-            });
+        // Try different block sizes: 2x3, 3x2, 2x2, 3x3
+        for (int blockWidth = minBlockSize; blockWidth <= maxBlockSize; blockWidth++) {
+          for (int blockHeight = minBlockSize; blockHeight <= maxBlockSize; blockHeight++) {
+            // Only allow 2x3 or 3x2 (not 3x3)
+            if (blockWidth == 3 && blockHeight == 3) continue;
+            if (_canPlaceBlock(startX, startY, blockWidth, blockHeight)) {
+              validBlocks.add({
+                'x': startX,
+                'y': startY,
+                'width': blockWidth,
+                'height': blockHeight,
+              });
+            }
           }
         }
       }
@@ -237,9 +241,9 @@ class _TileCityScreenState extends State<TileCityScreen> {
         buildingCounts[buildingType] = buildingCounts[buildingType]! + 1;
         blockBuildingTypes.add(buildingType);
         
-        final orientation = random.nextBool() 
-            ? BuildingOrientation.normal 
-            : BuildingOrientation.flippedHorizontal;
+        // Determine orientation based on which edge is adjacent to a road
+        // Buildings face toward the road
+        final orientation = _getBuildingOrientationTowardRoad(bx, by);
         
         _grid[by][bx] = buildingType;
         _buildingOrientations[by][bx] = orientation;
@@ -308,6 +312,35 @@ class _TileCityScreenState extends State<TileCityScreen> {
     }
     
     return adjacentToRoad;
+  }
+
+  /// Determine building orientation to face toward the nearest road
+  /// Returns flipped if road is on the left or top, normal if on right or bottom
+  BuildingOrientation _getBuildingOrientationTowardRoad(int x, int y) {
+    // Check which edges are adjacent to roads
+    final bool hasRoadTop = y > 0 && _grid[y - 1][x] == TileType.road;
+    final bool hasRoadBottom = y < gridSize - 1 && _grid[y + 1][x] == TileType.road;
+    final bool hasRoadLeft = x > 0 && _grid[y][x - 1] == TileType.road;
+    final bool hasRoadRight = x < gridSize - 1 && _grid[y][x + 1] == TileType.road;
+    
+    // Count roads on each side to determine primary facing direction
+    // In isometric view, buildings should face the road they're closest to
+    // If road is on left or top, flip horizontally to face it
+    if (hasRoadLeft || hasRoadTop) {
+      // If there's also a road on right/bottom, prefer the one with more roads
+      if (hasRoadRight || hasRoadBottom) {
+        final leftTopCount = (hasRoadLeft ? 1 : 0) + (hasRoadTop ? 1 : 0);
+        final rightBottomCount = (hasRoadRight ? 1 : 0) + (hasRoadBottom ? 1 : 0);
+        // If right/bottom has more roads, use normal orientation
+        if (rightBottomCount > leftTopCount) {
+          return BuildingOrientation.normal;
+        }
+      }
+      return BuildingOrientation.flippedHorizontal;
+    }
+    
+    // Default: face right/bottom (normal orientation)
+    return BuildingOrientation.normal;
   }
 
   /// Convert grid coordinates to isometric screen coordinates
