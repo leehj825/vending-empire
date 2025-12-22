@@ -385,11 +385,13 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         final manhattanDistToWarehouse = dxToWarehouse.abs() + dyToWarehouse.abs();
         
         if (manhattanDistToWarehouse == 0) {
-          // At warehouse - mark as idle
+          // At warehouse road - mark as idle and ensure truck is on the road
+          final roadX = truck.currentX.round().toDouble();
+          final roadY = truck.currentY.round().toDouble();
           return truck.copyWith(
             status: TruckStatus.idle,
-            currentX: warehouseRoadX,
-            currentY: warehouseRoadY,
+            currentX: roadX,
+            currentY: roadY,
             targetX: warehouseRoadX,
             targetY: warehouseRoadY,
           );
@@ -430,7 +432,14 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       }
       
       if (!truck.hasRoute) {
-        return truck.copyWith(status: TruckStatus.idle);
+        // Idle truck - ensure it stays on road (snap to nearest road)
+        final roadX = truck.currentX.round().toDouble();
+        final roadY = truck.currentY.round().toDouble();
+        return truck.copyWith(
+          status: TruckStatus.idle,
+          currentX: roadX,
+          currentY: roadY,
+        );
       }
 
       // Get current destination
@@ -653,6 +662,10 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       // Only process trucks that are restocking
       if (truck.status != TruckStatus.restocking) continue;
       
+      // Ensure truck stays on road (snap to nearest road coordinate)
+      final roadX = truck.currentX.round().toDouble();
+      final roadY = truck.currentY.round().toDouble();
+      
       final destinationId = truck.currentDestination;
       if (destinationId == null) continue;
 
@@ -724,6 +737,9 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             inventory: updatedTruckInventory,
             status: TruckStatus.traveling,
             currentRouteIndex: truck.currentRouteIndex + 1,
+            // Keep truck on road
+            currentX: roadX,
+            currentY: roadY,
           );
         } else if (hasMoreItems && !hasMoreDestinations) {
           // Truck has items but no more destinations - this shouldn't happen, but continue route
@@ -731,6 +747,9 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             inventory: updatedTruckInventory,
             status: TruckStatus.traveling,
             currentRouteIndex: truck.currentRouteIndex + 1,
+            // Keep truck on road
+            currentX: roadX,
+            currentY: roadY,
           );
         } else {
           // Truck is empty - return to warehouse or mark as idle if route complete
@@ -740,6 +759,9 @@ class SimulationEngine extends StateNotifier<SimulationState> {
               inventory: updatedTruckInventory,
               status: TruckStatus.traveling,
               currentRouteIndex: truck.currentRouteIndex + 1,
+              // Keep truck on road
+              currentX: roadX,
+              currentY: roadY,
             );
           } else {
             // Route complete and empty - return to warehouse
@@ -752,6 +774,9 @@ class SimulationEngine extends StateNotifier<SimulationState> {
               currentRouteIndex: truck.currentRouteIndex + 1, // Mark route as complete
               targetX: warehouseRoadX,
               targetY: warehouseRoadY,
+              // Keep truck on road while transitioning
+              currentX: roadX,
+              currentY: roadY,
             );
           }
         }
@@ -763,9 +788,14 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         );
       } else {
         // No space or no items, still advance route so the truck doesn't get stuck.
+        // Keep truck on road
+        final roadX = truck.currentX.round().toDouble();
+        final roadY = truck.currentY.round().toDouble();
         updatedTrucks[i] = truck.copyWith(
           status: TruckStatus.traveling,
           currentRouteIndex: truck.currentRouteIndex + 1,
+          currentX: roadX,
+          currentY: roadY,
         );
       }
     }
