@@ -893,28 +893,28 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       var truckInventory = Map<Product, int>.from(truck.inventory);
 
       // Transfer items from truck to machine (up to machine capacity)
-      final maxMachineCapacity = 100; // Max items a machine can hold
-      final currentMachineTotal = machineInventory.values.fold<int>(
-        0,
-        (sum, item) => sum + item.quantity,
-      );
-      final availableSpace = maxMachineCapacity - currentMachineTotal;
+      // Each product type has a limit of 20 items per machine
+      const maxItemsPerProduct = 20;
 
-      if (availableSpace > 0 && truckInventory.isNotEmpty) {
+      if (truckInventory.isNotEmpty) {
         var itemsToTransfer = <Product, int>{};
-        var totalTransferred = 0;
 
         // Transfer items from truck to machine
         for (final entry in truckInventory.entries) {
-          if (totalTransferred >= availableSpace) break;
-          
           final product = entry.key;
           final truckQuantity = entry.value;
           if (truckQuantity <= 0) continue;
 
-          final transferAmount = (truckQuantity < availableSpace - totalTransferred)
+          // Check current stock of this product in machine
+          final currentProductStock = machineInventory[product]?.quantity ?? 0;
+          final availableSpaceForProduct = maxItemsPerProduct - currentProductStock;
+          
+          if (availableSpaceForProduct <= 0) continue; // This product is already at limit
+
+          // Transfer up to the limit for this product
+          final transferAmount = (truckQuantity < availableSpaceForProduct)
               ? truckQuantity
-              : availableSpace - totalTransferred;
+              : availableSpaceForProduct;
 
           // Update machine inventory
           final existingItem = machineInventory[product];
@@ -935,32 +935,21 @@ class SimulationEngine extends StateNotifier<SimulationState> {
           if (remainingTruckQuantity > 0) {
             itemsToTransfer[product] = remainingTruckQuantity;
           }
-
-          totalTransferred += transferAmount;
         }
 
         // Update truck inventory
         final updatedTruckInventory = itemsToTransfer;
         
-        // Check if there are more destinations in the route
+        // Check if truck is empty or if there are more destinations
+        final isTruckEmpty = updatedTruckInventory.isEmpty;
         final hasMoreDestinations = truck.currentRouteIndex + 1 < truck.route.length;
         
         // Get warehouse position for returning
         final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback if not set
         final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback if not set
         
-        if (hasMoreDestinations) {
-          // Still have more destinations - continue to next machine
-          updatedTrucks[i] = truck.copyWith(
-            inventory: updatedTruckInventory,
-            status: TruckStatus.traveling,
-            currentRouteIndex: truck.currentRouteIndex + 1,
-            // Keep truck on road
-            currentX: roadX,
-            currentY: roadY,
-          );
-        } else {
-          // Last destination completed - return to warehouse
+        if (isTruckEmpty || !hasMoreDestinations) {
+          // Truck is empty OR last destination completed - return to warehouse
           updatedTrucks[i] = truck.copyWith(
             inventory: updatedTruckInventory,
             status: TruckStatus.traveling,
@@ -970,6 +959,16 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             path: [], // Clear path so it recalculates to warehouse
             pathIndex: 0,
             // Keep truck on road while transitioning
+            currentX: roadX,
+            currentY: roadY,
+          );
+        } else {
+          // Still have inventory and more destinations - continue to next machine
+          updatedTrucks[i] = truck.copyWith(
+            inventory: updatedTruckInventory,
+            status: TruckStatus.traveling,
+            currentRouteIndex: truck.currentRouteIndex + 1,
+            // Keep truck on road
             currentX: roadX,
             currentY: roadY,
           );
@@ -985,20 +984,15 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         // Keep truck on road
         final roadX = truck.currentX.round().toDouble();
         final roadY = truck.currentY.round().toDouble();
+        final isTruckEmpty = truck.inventory.isEmpty;
         final hasMoreDestinations = truck.currentRouteIndex + 1 < truck.route.length;
         
-        if (hasMoreDestinations) {
-          // Still have more destinations - continue to next machine
-          updatedTrucks[i] = truck.copyWith(
-            status: TruckStatus.traveling,
-            currentRouteIndex: truck.currentRouteIndex + 1,
-            currentX: roadX,
-            currentY: roadY,
-          );
-        } else {
-          // Last destination - return to warehouse
-          final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback if not set
-          final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback if not set
+        // Get warehouse position for returning
+        final warehouseRoadX = state.warehouseRoadX ?? 4.0; // Fallback if not set
+        final warehouseRoadY = state.warehouseRoadY ?? 4.0; // Fallback if not set
+        
+        if (isTruckEmpty || !hasMoreDestinations) {
+          // Truck is empty OR last destination - return to warehouse
           updatedTrucks[i] = truck.copyWith(
             status: TruckStatus.traveling,
             currentRouteIndex: truck.currentRouteIndex + 1, // Mark route as complete
@@ -1006,6 +1000,14 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             targetY: warehouseRoadY,
             path: [], // Clear path so it recalculates to warehouse
             pathIndex: 0,
+            currentX: roadX,
+            currentY: roadY,
+          );
+        } else {
+          // Still have inventory and more destinations - continue to next machine
+          updatedTrucks[i] = truck.copyWith(
+            status: TruckStatus.traveling,
+            currentRouteIndex: truck.currentRouteIndex + 1,
             currentX: roadX,
             currentY: roadY,
           );
