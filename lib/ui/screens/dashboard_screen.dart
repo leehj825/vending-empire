@@ -18,7 +18,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Auto-start simulation when screen loads
+    // Auto-start simulation when screen loads (if not already running)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = ref.read(gameControllerProvider.notifier);
       if (!controller.isSimulationRunning) {
@@ -58,6 +58,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
+              // Stop simulation before exiting
+              ref.read(gameControllerProvider.notifier).stopSimulation();
               // Navigate back to menu screen
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(

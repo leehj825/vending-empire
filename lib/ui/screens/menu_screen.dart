@@ -93,6 +93,8 @@ class MenuScreen extends ConsumerWidget {
                           width: screenWidth * 0.7,
                           child: GestureDetector(
                             onTap: () {
+                              // Reset game to initial state
+                              ref.read(gameControllerProvider.notifier).resetGame();
                               // Start simulation before navigating
                               ref.read(gameControllerProvider.notifier).startSimulation();
                               // Navigate to main game screen

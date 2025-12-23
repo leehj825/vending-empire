@@ -10,8 +10,8 @@ import 'models/zone.dart';
 class SimulationConstants {
   static const double gasPrice = 0.05; // Cost per unit distance
   static const int hoursPerDay = 24;
-  static const int ticksPerHour = 6; // 1 tick = 10 minutes, so 6 ticks per hour
-  static const int ticksPerDay = hoursPerDay * ticksPerHour; // 144 ticks per day
+  static const int ticksPerHour = 10; // 10 ticks = 1 hour
+  static const int ticksPerDay = hoursPerDay * ticksPerHour; // 240 ticks per day
   static const int emptyMachinePenaltyHours = 4; // Hours before reputation penalty
   static const int reputationPenaltyPerEmptyHour = 5;
   static const double disposalCostPerExpiredItem = 0.50;
@@ -21,8 +21,8 @@ class SimulationConstants {
 class GameTime {
   final int day; // Current game day (starts at 1)
   final int hour; // Current hour (0-23)
-  final int minute; // Current minute (0-59, in 10-minute increments)
-  final int tick; // Current tick within the day (0-143)
+  final int minute; // Current minute (0-59, in 6-minute increments since 10 ticks = 1 hour)
+  final int tick; // Current tick within the day (0-239, since 240 ticks per day)
 
   const GameTime({
     required this.day,
@@ -36,7 +36,8 @@ class GameTime {
     final day = (totalTicks ~/ SimulationConstants.ticksPerDay) + 1;
     final tickInDay = totalTicks % SimulationConstants.ticksPerDay;
     final hour = tickInDay ~/ SimulationConstants.ticksPerHour;
-    final minute = (tickInDay % SimulationConstants.ticksPerHour) * 10;
+    // Since 10 ticks = 1 hour, each tick is 6 minutes (60 minutes / 10 ticks)
+    final minute = (tickInDay % SimulationConstants.ticksPerHour) * 6;
     
     return GameTime(
       day: day,
@@ -119,7 +120,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     int initialReputation = 100,
   }) : super(
           SimulationState(
-            time: const GameTime(day: 1, hour: 8, minute: 0, tick: 48), // 8:00 AM = 8 hours * 6 ticks/hour = 48 ticks
+            time: const GameTime(day: 1, hour: 8, minute: 0, tick: 80), // 8:00 AM = 8 hours * 10 ticks/hour = 80 ticks
             machines: initialMachines,
             trucks: initialTrucks,
             cash: initialCash,
@@ -298,9 +299,9 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   List<Machine> _processMachineSales(List<Machine> machines, GameTime time) {
     return machines.map((machine) {
       if (machine.isBroken || machine.isEmpty) {
-        // Increment hours since restock if empty
+        // Increment hours since restock if empty (1 tick = 0.1 hours since 10 ticks = 1 hour)
         return machine.copyWith(
-          hoursSinceRestock: machine.hoursSinceRestock + (10 / 60), // 10 minutes
+          hoursSinceRestock: machine.hoursSinceRestock + 0.1, // 1 tick = 0.1 hours
         );
       }
 
@@ -323,8 +324,10 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         // baseDemand = 0.10 (coffee)
         // zoneMultiplier = 2.0 (office at 8 AM)
         // trafficMultiplier = 1.2 (office traffic)
-        // SaleChance = 0.10 * 2.0 * 1.2 = 0.24 (24% chance per tick)
-        final saleChance = baseDemand * zoneMultiplier * trafficMultiplier;
+        // SaleChance per hour = 0.10 * 2.0 * 1.2 = 0.24 (24% chance per hour)
+        // Since 10 ticks = 1 hour, divide by 10 to get per-tick chance
+        final saleChancePerHour = baseDemand * zoneMultiplier * trafficMultiplier;
+        final saleChance = saleChancePerHour / 10.0; // Divide by 10 since 10 ticks = 1 hour
         
         // Clamp to reasonable range (0.0 to 1.0)
         final clampedChance = saleChance.clamp(0.0, 1.0);
@@ -346,8 +349,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         }
       }
 
-      // Update hours since restock (increment by 10 minutes = 1/6 hour)
-      hoursSinceRestock += (10 / 60);
+      // Update hours since restock (increment by 0.1 hours since 10 ticks = 1 hour)
+      hoursSinceRestock += 0.1;
 
       return machine.copyWith(
         inventory: updatedInventory,

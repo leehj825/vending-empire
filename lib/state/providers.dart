@@ -533,6 +533,41 @@ class GameController extends StateNotifier<GlobalGameState> {
   /// Get warehouse inventory
   Warehouse get warehouse => state.warehouse;
 
+  /// Reset game to initial state (for new game)
+  void resetGame() {
+    print('🟢 CONTROLLER: Resetting game to initial state');
+    
+    // Stop simulation first
+    stopSimulation();
+    
+    // Reset simulation engine
+    simulationEngine.restoreState(
+      time: const GameTime(day: 1, hour: 8, minute: 0, tick: 80),
+      machines: [],
+      trucks: [],
+      cash: 2000.0,
+      reputation: 100,
+      warehouseRoadX: null,
+      warehouseRoadY: null,
+    );
+    
+    // Reset game state
+    state = const GlobalGameState(
+      cash: 2000.0,
+      reputation: 100,
+      dayCount: 1,
+      hourOfDay: 8,
+      machines: [],
+      trucks: [],
+      warehouse: Warehouse(),
+      warehouseRoadX: null,
+      warehouseRoadY: null,
+      logMessages: [],
+    );
+    
+    state = state.addLogMessage('New game started');
+  }
+
   /// Load game state from saved data
   void loadGameState(GlobalGameState savedState) {
     print('🟢 CONTROLLER: Loading saved game state');
