@@ -1,6 +1,6 @@
 {
-    "name": "vending_empire",
-    "short_name": "vending_empire",
+    "name": "Vending Machine Tycoon",
+    "short_name": "Vending Machine Tycoon",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

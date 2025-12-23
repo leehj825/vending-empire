@@ -225,18 +225,28 @@ class GameController extends StateNotifier<GlobalGameState> {
     simulationEngine.updateCash(newCash);
   }
 
-  /// Get initial products for a zone type based on progression rules
-  List<Product> _getInitialProductsForZone(ZoneType zoneType) {
+  /// Get allowed products for a zone type
+  List<Product> getAllowedProductsForZone(ZoneType zoneType) {
     switch (zoneType) {
       case ZoneType.shop:
         return [Product.soda, Product.chips];
       case ZoneType.school:
         return [Product.soda, Product.chips, Product.sandwich];
       case ZoneType.gym:
-        return [Product.proteinBar];
+        return [Product.proteinBar, Product.soda, Product.chips];
       case ZoneType.office:
         return [Product.coffee, Product.techGadget];
     }
+  }
+
+  /// Get initial products for a zone type based on progression rules
+  List<Product> _getInitialProductsForZone(ZoneType zoneType) {
+    return getAllowedProductsForZone(zoneType);
+  }
+
+  /// Check if a product is allowed in a zone type
+  bool isProductAllowedInZone(Product product, ZoneType zoneType) {
+    return getAllowedProductsForZone(zoneType).contains(product);
   }
 
   /// Get building name for zone type (for machine naming)
@@ -522,6 +532,67 @@ class GameController extends StateNotifier<GlobalGameState> {
 
   /// Get warehouse inventory
   Warehouse get warehouse => state.warehouse;
+
+  /// Reset game to initial state (for new game)
+  void resetGame() {
+    print('🟢 CONTROLLER: Resetting game to initial state');
+    
+    // Stop simulation first
+    stopSimulation();
+    
+    // Reset simulation engine
+    simulationEngine.restoreState(
+      time: const GameTime(day: 1, hour: 8, minute: 0, tick: 80),
+      machines: [],
+      trucks: [],
+      cash: 2000.0,
+      reputation: 100,
+      warehouseRoadX: null,
+      warehouseRoadY: null,
+    );
+    
+    // Reset game state
+    state = const GlobalGameState(
+      cash: 2000.0,
+      reputation: 100,
+      dayCount: 1,
+      hourOfDay: 8,
+      machines: [],
+      trucks: [],
+      warehouse: Warehouse(),
+      warehouseRoadX: null,
+      warehouseRoadY: null,
+      logMessages: [],
+    );
+    
+    state = state.addLogMessage('New game started');
+  }
+
+  /// Load game state from saved data
+  void loadGameState(GlobalGameState savedState) {
+    print('🟢 CONTROLLER: Loading saved game state');
+    
+    // Calculate game time from day and hour
+    final tick = (savedState.dayCount - 1) * SimulationConstants.ticksPerDay +
+        (savedState.hourOfDay * SimulationConstants.ticksPerHour);
+    final gameTime = GameTime.fromTicks(tick);
+    
+    // Restore simulation engine state
+    simulationEngine.restoreState(
+      time: gameTime,
+      machines: savedState.machines,
+      trucks: savedState.trucks,
+      cash: savedState.cash,
+      reputation: savedState.reputation,
+      warehouseRoadX: savedState.warehouseRoadX,
+      warehouseRoadY: savedState.warehouseRoadY,
+    );
+    
+    // Restore game state
+    state = savedState;
+    
+    state = state.addLogMessage('Game loaded successfully');
+  }
 
   /// Retrieve cash from a machine
   void retrieveCash(String machineId) {

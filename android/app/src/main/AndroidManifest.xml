@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="vending_empire"
+        android:label="Vending Machine Tycoon"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

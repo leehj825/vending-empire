@@ -480,25 +480,74 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
               ),
             )
           else ...[
+            // Truck Cargo Info
+            if (selectedTruck.inventory.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.blue.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.inventory_2, size: 16, color: Colors.blue),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Cargo: ${selectedTruck.currentLoad}/${selectedTruck.capacity}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: selectedTruck.inventory.entries.map((entry) {
+                          return Chip(
+                            label: Text(
+                              '${entry.key.name}: ${entry.value}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            backgroundColor: Colors.blue.shade50,
+                            side: BorderSide(color: Colors.blue.shade200),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             // Route Header with Buttons
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Flexible(
-                      child: Text(
-                        'Current Route (Drag to Reorder)',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                    const Text(
+                      'Current Route (Drag to Reorder)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         ElevatedButton.icon(
                           onPressed: () => _showLoadCargoDialog(selectedTruck),
@@ -509,14 +558,12 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                             foregroundColor: Colors.white,
                           ),
                         ),
-                        const SizedBox(width: 8),
                         ElevatedButton.icon(
                           onPressed: () =>
                               _showAddStopDialog(selectedTruck, machines),
                           icon: const Icon(Icons.add, size: 18),
                           label: const Text('Add Stop'),
                         ),
-                        const SizedBox(width: 8),
                         ElevatedButton.icon(
                           onPressed: _canGoStock(selectedTruck, routeMachines)
                               ? () => _goStock(selectedTruck)

@@ -17,7 +17,7 @@ abstract class Truck with _$Truck {
     required String id,
     required String name,
     @Default(100.0) double fuel, // Percentage (0-100)
-    @Default(100) int capacity, // Max items it can carry
+    @Default(1000) int capacity, // Max items it can carry
     /// Current route: List of machine IDs to visit in order
     @Default([]) List<String> route,
     /// Current position in the route (index)

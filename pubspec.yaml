@@ -42,6 +42,7 @@ dependencies:
   fl_chart: ^1.1.1
   google_fonts: ^6.3.3
   uuid: ^4.5.2
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +71,26 @@ flutter:
   assets:
     - assets/images/tiles/
     - assets/images/views/
+    - assets/images/title.png
+    - assets/images/start_button.png
+    - assets/images/load_game_button.png
+    - assets/images/options_button.png
+    - assets/images/credits_button.png
+    - assets/images/hq_tab_press.png
+    - assets/images/hq_tab_unpress.png
+    - assets/images/city_tab_press.png
+    - assets/images/city_tab_unpress.png
+    - assets/images/fleet_tab_press.png
+    - assets/images/fleet_tab_unpress.png
+    - assets/images/market_tab_press.png
+    - assets/images/market_tab_unpress.png
+    - assets/images/play_button.png
+    - assets/images/save_button.png
+    - assets/images/exit_button.png
+    - assets/images/cash_icon.png
+    - assets/images/star_icon.png
+    - assets/images/clock_icon.png
+    - assets/images/status_icon.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -4,13 +4,14 @@ import 'package:state_notifier/state_notifier.dart';
 import 'models/product.dart';
 import 'models/machine.dart';
 import 'models/truck.dart';
+import 'models/zone.dart';
 
 /// Simulation constants
 class SimulationConstants {
   static const double gasPrice = 0.05; // Cost per unit distance
   static const int hoursPerDay = 24;
-  static const int ticksPerHour = 6; // 1 tick = 10 minutes, so 6 ticks per hour
-  static const int ticksPerDay = hoursPerDay * ticksPerHour; // 144 ticks per day
+  static const int ticksPerHour = 10; // 10 ticks = 1 hour
+  static const int ticksPerDay = hoursPerDay * ticksPerHour; // 240 ticks per day
   static const int emptyMachinePenaltyHours = 4; // Hours before reputation penalty
   static const int reputationPenaltyPerEmptyHour = 5;
   static const double disposalCostPerExpiredItem = 0.50;
@@ -20,8 +21,8 @@ class SimulationConstants {
 class GameTime {
   final int day; // Current game day (starts at 1)
   final int hour; // Current hour (0-23)
-  final int minute; // Current minute (0-59, in 10-minute increments)
-  final int tick; // Current tick within the day (0-143)
+  final int minute; // Current minute (0-59, in 6-minute increments since 10 ticks = 1 hour)
+  final int tick; // Current tick within the day (0-239, since 240 ticks per day)
 
   const GameTime({
     required this.day,
@@ -35,7 +36,8 @@ class GameTime {
     final day = (totalTicks ~/ SimulationConstants.ticksPerDay) + 1;
     final tickInDay = totalTicks % SimulationConstants.ticksPerDay;
     final hour = tickInDay ~/ SimulationConstants.ticksPerHour;
-    final minute = (tickInDay % SimulationConstants.ticksPerHour) * 10;
+    // Since 10 ticks = 1 hour, each tick is 6 minutes (60 minutes / 10 ticks)
+    final minute = (tickInDay % SimulationConstants.ticksPerHour) * 6;
     
     return GameTime(
       day: day,
@@ -118,7 +120,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     int initialReputation = 100,
   }) : super(
           SimulationState(
-            time: const GameTime(day: 1, hour: 8, minute: 0, tick: 48), // 8:00 AM = 8 hours * 6 ticks/hour = 48 ticks
+            time: const GameTime(day: 1, hour: 8, minute: 0, tick: 80), // 8:00 AM = 8 hours * 10 ticks/hour = 80 ticks
             machines: initialMachines,
             trucks: initialTrucks,
             cash: initialCash,
@@ -168,12 +170,35 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     _streamController.add(state);
   }
 
-  /// Start the simulation (ticks every 1 second)
+  /// Restore simulation state (used for loading saved games)
+  void restoreState({
+    required GameTime time,
+    required List<Machine> machines,
+    required List<Truck> trucks,
+    required double cash,
+    required int reputation,
+    double? warehouseRoadX,
+    double? warehouseRoadY,
+  }) {
+    print('🔴 ENGINE: Restoring state - Day ${time.day} ${time.hour}:00');
+    state = state.copyWith(
+      time: time,
+      machines: machines,
+      trucks: trucks,
+      cash: cash,
+      reputation: reputation,
+      warehouseRoadX: warehouseRoadX,
+      warehouseRoadY: warehouseRoadY,
+    );
+    _streamController.add(state);
+  }
+
+  /// Start the simulation (ticks 10 times per second)
   void start() {
     print('🔴 ENGINE: Start requested');
     _tickTimer?.cancel();
     _tickTimer = Timer.periodic(
-      const Duration(seconds: 1),
+      const Duration(milliseconds: 100), // 10 ticks per second
       (timer) {
         // Safe check to ensure we don't tick if disposed
         if (!mounted) {
@@ -210,6 +235,20 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     // SimulationEngine is a StateNotifier, so we must call super.dispose()
     // However, if we are manually managing it inside another notifier, we need to be careful.
     super.dispose();
+  }
+
+  /// Get allowed products for a zone type
+  List<Product> _getAllowedProductsForZone(ZoneType zoneType) {
+    switch (zoneType) {
+      case ZoneType.shop:
+        return [Product.soda, Product.chips];
+      case ZoneType.school:
+        return [Product.soda, Product.chips, Product.sandwich];
+      case ZoneType.gym:
+        return [Product.proteinBar, Product.soda, Product.chips];
+      case ZoneType.office:
+        return [Product.coffee, Product.techGadget];
+    }
   }
 
   /// Main tick function - called every 1 second (10 minutes in-game)
@@ -260,9 +299,9 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   List<Machine> _processMachineSales(List<Machine> machines, GameTime time) {
     return machines.map((machine) {
       if (machine.isBroken || machine.isEmpty) {
-        // Increment hours since restock if empty
+        // Increment hours since restock if empty (1 tick = 0.1 hours since 10 ticks = 1 hour)
         return machine.copyWith(
-          hoursSinceRestock: machine.hoursSinceRestock + (10 / 60), // 10 minutes
+          hoursSinceRestock: machine.hoursSinceRestock + 0.1, // 1 tick = 0.1 hours
         );
       }
 
@@ -285,8 +324,10 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         // baseDemand = 0.10 (coffee)
         // zoneMultiplier = 2.0 (office at 8 AM)
         // trafficMultiplier = 1.2 (office traffic)
-        // SaleChance = 0.10 * 2.0 * 1.2 = 0.24 (24% chance per tick)
-        final saleChance = baseDemand * zoneMultiplier * trafficMultiplier;
+        // SaleChance per hour = 0.10 * 2.0 * 1.2 = 0.24 (24% chance per hour)
+        // Since 10 ticks = 1 hour, divide by 10 to get per-tick chance
+        final saleChancePerHour = baseDemand * zoneMultiplier * trafficMultiplier;
+        final saleChance = saleChancePerHour / 10.0; // Divide by 10 since 10 ticks = 1 hour
         
         // Clamp to reasonable range (0.0 to 1.0)
         final clampedChance = saleChance.clamp(0.0, 1.0);
@@ -308,8 +349,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         }
       }
 
-      // Update hours since restock (increment by 10 minutes = 1/6 hour)
-      hoursSinceRestock += (10 / 60);
+      // Update hours since restock (increment by 0.1 hours since 10 ticks = 1 hour)
+      hoursSinceRestock += 0.1;
 
       return machine.copyWith(
         inventory: updatedInventory,
@@ -377,8 +418,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     // Outward roads (edges - avoid unless necessary, prefer inward roads 4.0, 7.0)
     const outwardRoads = [1.0, 10.0];
     
-    // Movement speed: 1.0 units per tick = 1 tick per road tile (5x faster)
-    const double movementSpeed = 1.0;
+    // Movement speed: 0.1 units per tick = 1 tile per second (10 ticks per second)
+    const double movementSpeed = 0.1;
     
     // Helper function to snap to nearest valid road coordinate
     double snapToNearestRoad(double coord) {
@@ -812,8 +853,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   double _processFuelCosts(List<Truck> updatedTrucks, List<Truck> oldTrucks, double currentCash) {
     double totalFuelCost = 0.0;
     
-    // Movement speed: 1.0 units per tick = 1 tick per road tile (matches truck movement speed)
-    const double movementSpeed = 1.0;
+    // Movement speed: 0.1 units per tick = 1 tile per second (matches truck movement speed)
+    const double movementSpeed = 0.1;
 
     for (final truck in updatedTrucks) {
       // Find the previous state of this truck
@@ -934,11 +975,24 @@ class SimulationEngine extends StateNotifier<SimulationState> {
           final truckQuantity = entry.value;
           if (truckQuantity <= 0) continue;
 
+          // Check if product is allowed in this machine's zone type
+          final allowedProducts = _getAllowedProductsForZone(machine.zone.type);
+          if (!allowedProducts.contains(product)) {
+            // Skip this product - not allowed in this zone type
+            // Keep it in truck inventory for other machines
+            itemsToTransfer[product] = truckQuantity;
+            continue;
+          }
+
           // Check current stock of this product in machine
           final currentProductStock = machineInventory[product]?.quantity ?? 0;
           final availableSpaceForProduct = maxItemsPerProduct - currentProductStock;
           
-          if (availableSpaceForProduct <= 0) continue; // This product is already at limit
+          if (availableSpaceForProduct <= 0) {
+            // Machine is full for this product, keep it in truck
+            itemsToTransfer[product] = truckQuantity;
+            continue;
+          }
 
           // Transfer up to the limit for this product
           final transferAmount = (truckQuantity < availableSpaceForProduct)
@@ -959,7 +1013,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             );
           }
 
-          // Update truck inventory
+          // Update truck inventory - keep remaining quantity
           final remainingTruckQuantity = truckQuantity - transferAmount;
           if (remainingTruckQuantity > 0) {
             itemsToTransfer[product] = remainingTruckQuantity;
