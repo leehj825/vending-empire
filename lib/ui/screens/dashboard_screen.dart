@@ -59,7 +59,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       value: '\$${cash.toStringAsFixed(2)}',
                       valueColor: Colors.green,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 2),
                     // Reputation Card
                     _StatusCard(
                       iconAsset: 'assets/images/star_icon.png',
@@ -67,7 +67,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       value: reputation.toString(),
                       valueColor: Colors.amber,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 2),
                     // Time Card
                     _StatusCard(
                       iconAsset: 'assets/images/clock_icon.png',
@@ -182,8 +182,8 @@ class _StatusCard extends StatelessWidget {
     // Card height scales proportionally
     final cardHeight = (cardWidth * 0.714).clamp(85.0, 128.0);
     
-    // Icon size scales with card width, but smaller - clamped between 20 and 32
-    final iconSize = (cardWidth * 0.18).clamp(20.0, 32.0);
+    // Icon size scales with card width - 2x larger, clamped between 40 and 64
+    final iconSize = (cardWidth * 0.36).clamp(40.0, 64.0);
     
     // Font size for value - scales with card width, clamped to fit within status_icon
     final valueFontSize = (cardWidth * 0.1).clamp(12.0, 18.0);
