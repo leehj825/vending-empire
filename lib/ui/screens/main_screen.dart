@@ -168,10 +168,16 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
   Widget _buildActionButtons(BuildContext context, WidgetRef ref) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Calculate button size: half of tab button size
+        // Calculate button width: half of tab button width
         // Tab buttons: (constraints.maxWidth * 0.25).clamp(90.0, 180.0)
-        // Action buttons: half of that, fixed max at 90.0
-        final buttonSize = ((constraints.maxWidth * 0.25) * 0.5).clamp(45.0, 90.0);
+        final buttonWidth = ((constraints.maxWidth * 0.25) * 0.5).clamp(45.0, 90.0);
+        
+        // Calculate button height: half of tab button height
+        // Tab buttons are in a container with vertical padding of 8, so available height is constraints.maxHeight - 16
+        // Tab button height would be approximately the available height
+        // Action button height should be half of that
+        final tabButtonHeight = constraints.maxHeight - 16; // Account for tab button's vertical padding
+        final buttonHeight = (tabButtonHeight * 0.5).clamp(20.0, 60.0);
         
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -185,15 +191,15 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
               GestureDetector(
                 onTap: () => _saveGame(context, ref),
                 child: SizedBox(
-                  width: buttonSize,
-                  height: buttonSize,
+                  width: buttonWidth,
+                  height: buttonHeight,
                   child: Image.asset(
                     'assets/images/save_button.png',
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        width: buttonSize,
-                        height: buttonSize,
+                        width: buttonWidth,
+                        height: buttonHeight,
                         decoration: BoxDecoration(
                           color: Colors.blue,
                           shape: BoxShape.circle,
@@ -201,7 +207,7 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
                         child: Icon(
                           Icons.save,
                           color: Colors.white,
-                          size: buttonSize * 0.5,
+                          size: buttonHeight * 0.5,
                         ),
                       );
                     },
@@ -213,15 +219,15 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
               GestureDetector(
                 onTap: () => _exitToMenu(context, ref),
                 child: SizedBox(
-                  width: buttonSize,
-                  height: buttonSize,
+                  width: buttonWidth,
+                  height: buttonHeight,
                   child: Image.asset(
                     'assets/images/exit_button.png',
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
-                        width: buttonSize,
-                        height: buttonSize,
+                        width: buttonWidth,
+                        height: buttonHeight,
                         decoration: BoxDecoration(
                           color: Colors.red,
                           shape: BoxShape.circle,
@@ -229,7 +235,7 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
                         child: Icon(
                           Icons.exit_to_app,
                           color: Colors.white,
-                          size: buttonSize * 0.5,
+                          size: buttonHeight * 0.5,
                         ),
                       );
                     },
