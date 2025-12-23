@@ -123,15 +123,26 @@ class _CustomBottomNavigationBar extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Image.asset(
-            isSelected ? pressAsset : unpressAsset,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              // Fallback to icon if image fails to load
-              return Icon(
-                _getIconForIndex(index),
-                color: isSelected ? Colors.green : Colors.grey,
-                size: 24,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Limit tab width to a maximum of 120 pixels or 25% of screen width, whichever is smaller
+              final maxWidth = (constraints.maxWidth * 0.25).clamp(60.0, 120.0);
+              return Center(
+                child: SizedBox(
+                  width: maxWidth,
+                  child: Image.asset(
+                    isSelected ? pressAsset : unpressAsset,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      // Fallback to icon if image fails to load
+                      return Icon(
+                        _getIconForIndex(index),
+                        color: isSelected ? Colors.green : Colors.grey,
+                        size: 24,
+                      );
+                    },
+                  ),
+                ),
               );
             },
           ),
