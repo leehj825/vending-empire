@@ -59,7 +59,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       value: '\$${cash.toStringAsFixed(2)}',
                       valueColor: Colors.green,
                     ),
-                    const SizedBox(width: 2),
+                    const SizedBox(width: 1),
                     // Reputation Card
                     _StatusCard(
                       iconAsset: 'assets/images/star_icon.png',
@@ -67,7 +67,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       value: reputation.toString(),
                       valueColor: Colors.amber,
                     ),
-                    const SizedBox(width: 2),
+                    const SizedBox(width: 1),
                     // Time Card
                     _StatusCard(
                       iconAsset: 'assets/images/clock_icon.png',
