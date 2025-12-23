@@ -7,6 +7,7 @@ import '../../simulation/models/truck.dart';
 import '../../simulation/models/product.dart';
 import '../widgets/machine_route_card.dart';
 import '../theme/zone_ui.dart';
+import '../utils/screen_utils.dart';
 import 'dart:math' as math;
 
 /// Notifier for selected truck ID
@@ -333,16 +334,44 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Text('No trucks available'),
-                                const SizedBox(height: 8),
+                                Text(
+                                  'No trucks available',
+                                  style: TextStyle(
+                                    fontSize: ScreenUtils.relativeFontSize(
+                                      context,
+                                      0.015,
+                                      min: ScreenUtils.getSmallerDimension(context) * 0.012,
+                                      max: ScreenUtils.getSmallerDimension(context) * 0.022,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: ScreenUtils.relativeSize(context, 0.01)),
                                 ElevatedButton.icon(
                                   onPressed: () {
                                     ref
                                         .read(gameControllerProvider.notifier)
                                         .buyTruck();
                                   },
-                                  icon: const Icon(Icons.add_shopping_cart, size: 16),
-                                  label: const Text('Buy Truck (\$500)'),
+                                  icon: Icon(
+                                    Icons.add_shopping_cart,
+                                    size: ScreenUtils.relativeSizeClamped(
+                                      context,
+                                      0.025,
+                                      min: ScreenUtils.getSmallerDimension(context) * 0.02,
+                                      max: ScreenUtils.getSmallerDimension(context) * 0.035,
+                                    ),
+                                  ),
+                                  label: Text(
+                                    'Buy Truck (\$500)',
+                                    style: TextStyle(
+                                      fontSize: ScreenUtils.relativeFontSize(
+                                        context,
+                                        0.012,
+                                        min: ScreenUtils.getSmallerDimension(context) * 0.01,
+                                        max: ScreenUtils.getSmallerDimension(context) * 0.018,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),

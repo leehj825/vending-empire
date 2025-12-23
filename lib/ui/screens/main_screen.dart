@@ -358,12 +358,12 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final smallerDim = ScreenUtils.getSmallerDimension(context);
-            // Limit tab width to 62% of smaller dimension, clamped (doubled from 31%)
+            // Increase tab width for better visibility on Android
             final maxWidth = ScreenUtils.relativeSizeClamped(
               context,
-              0.62,
-              min: smallerDim * 0.195,
-              max: smallerDim * 0.39,
+              0.75, // Increased from 0.62
+              min: smallerDim * 0.25, // Increased from 0.195
+              max: smallerDim * 0.45, // Increased from 0.39
             );
             return Center(
               child: SizedBox(
@@ -376,7 +376,12 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
                     return Icon(
                       _getIconForIndex(index),
                       color: isSelected ? Colors.green : Colors.grey,
-                      size: ScreenUtils.relativeSize(context, 0.078),
+                      size: ScreenUtils.relativeSizeClamped(
+                        context,
+                        0.12, // Increased from 0.078
+                        min: smallerDim * 0.08,
+                        max: smallerDim * 0.15,
+                      ),
                     );
                   },
                 ),

@@ -6,6 +6,7 @@ import '../../simulation/models/zone.dart';
 import '../../simulation/models/truck.dart' as sim;
 import '../../simulation/models/machine.dart' as sim;
 import '../theme/zone_ui.dart';
+import '../utils/screen_utils.dart';
 
 enum TileType {
   grass,
@@ -21,8 +22,8 @@ enum TileType {
 }
 
 enum RoadDirection {
-  vertical, // Connects (X, Y-1) and (X, Y+1) in isometric view
-  horizontal, // Connects (X-1, Y) and (X+1, Y) in isometric view
+  vertical,
+  horizontal,
   intersection,
 }
 
@@ -30,8 +31,6 @@ enum BuildingOrientation {
   normal,
   flippedHorizontal,
 }
-
-// Removed local Truck class - using simulation trucks from providers
 
 class TileCityScreen extends ConsumerStatefulWidget {
   const TileCityScreen({super.key});
@@ -43,28 +42,48 @@ class TileCityScreen extends ConsumerStatefulWidget {
 class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   static const int gridSize = 10;
   
-  // Isometric tile dimensions (tweakable constants)
-  // Reduced spacing to make tiles closer together
-  static const double tileWidth = 64.0;
-  static const double tileHeight = 32.0;
-  static const double tileSpacingFactor = 0.80; // Vertical spacing (up/down)
-  static const double horizontalSpacingFactor = 0.70; // Horizontal spacing (side to side) - reduced more
+  // Tile dimensions will be calculated relative to screen size
+  double _getTileWidth(BuildContext context) {
+    return ScreenUtils.relativeSizeClamped(
+      context,
+      0.15, // 15% of smaller dimension
+      min: 48.0,
+      max: 96.0,
+    );
+  }
   
-  // Building image height (assumed taller than ground tiles)
-  // Adjusted to make buildings larger
-  static const double buildingImageHeight = 65.0; // Increased from 60.0
-  static const double buildingScale = 0.81; // Increased from 0.75 to make buildings larger
+  double _getTileHeight(BuildContext context) {
+    return ScreenUtils.relativeSizeClamped(
+      context,
+      0.075, // 7.5% of smaller dimension (half of width for isometric)
+      min: 24.0,
+      max: 48.0,
+    );
+  }
   
-  // Individual building scales (adjustable separately for different image sizes)
-  static const double gasStationScale = 0.72; // Adjust for gas_station.png
-  static const double parkScale = 0.72; // Adjust for park.png
-  static const double houseScale = 0.72; // Adjust for house.png
-  static const double warehouseScale = 0.72; // Adjust for warehouse.png
+  double _getBuildingImageHeight(BuildContext context) {
+    return ScreenUtils.relativeSizeClamped(
+      context,
+      0.18, // 18% of smaller dimension
+      min: 50.0,
+      max: 100.0,
+    );
+  }
   
-  // Vertical offset for warehouse (negative to lower it, positive to raise it)
-  static const double warehouseVerticalOffset = 3.0; // Raise warehouse slightly above ground
+  static const double tileSpacingFactor = 0.80;
+  static const double horizontalSpacingFactor = 0.70;
   
-  // Block dimensions - minimum 2x2, maximum 2x3 or 3x2
+  static const double buildingScale = 0.81;
+  
+  static const double gasStationScale = 0.72;
+  static const double parkScale = 0.72;
+  static const double houseScale = 0.72;
+  static const double warehouseScale = 0.72;
+  
+  double _getWarehouseVerticalOffset(BuildContext context) {
+    return ScreenUtils.relativeSize(context, 0.007);
+  }
+  
   static const int minBlockSize = 2;
   static const int maxBlockSize = 3;
   
@@ -72,7 +91,6 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   late List<List<RoadDirection?>> _roadDirections;
   late List<List<BuildingOrientation?>> _buildingOrientations;
   
-  // Warehouse position (grid coordinates)
   int? _warehouseX;
   int? _warehouseY;
 
@@ -88,7 +106,6 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   }
 
   void _generateMap() {
-    // Initialize grid with grass
     _grid = List.generate(
       gridSize,
       (_) => List.filled(gridSize, TileType.grass),
@@ -102,55 +119,34 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       (_) => List.filled(gridSize, null),
     );
 
-    // Generate grid-based road system
     _generateRoadGrid();
-
-    // Place warehouse (only one, anywhere)
     _placeWarehouse();
-
-    // Place building blocks
     _placeBuildingBlocks();
   }
 
-  /// Generate a grid-based road system that forms rectangular blocks
-  /// Roads are spaced to create maximum 2x3 or 3x2 blocks
-  /// Roads must be at least 2 tiles apart (minimum 2 grass tiles between roads)
   void _generateRoadGrid() {
-    // Create a grid pattern with roads spaced at least 3 tiles apart
-    // This ensures at least 2 grass tiles between roads (spacing of 3 means: road, grass, grass, road)
-    // Use spacing of 3 or 4 to create blocks of 2x2, 2x3, or 3x2
     int currentY = 3;
-    
-    // Horizontal roads (running East-West in grid, diagonal in isometric)
     while (currentY < gridSize - 2) {
       for (int x = 0; x < gridSize; x++) {
         _grid[currentY][x] = TileType.road;
       }
-      // Space roads at least 3 tiles apart (ensures 2 grass tiles between)
       currentY += 3;
     }
     
     int currentX = 3;
-    
-    // Vertical roads (running North-South in grid, diagonal in isometric)
     while (currentX < gridSize - 2) {
       for (int y = 0; y < gridSize; y++) {
         _grid[y][currentX] = TileType.road;
       }
-      // Space roads at least 3 tiles apart (ensures 2 grass tiles between)
       currentX += 3;
     }
-    
-    // Update road directions
     _updateRoadDirections();
   }
 
-  /// Place warehouse (only one instance, anywhere in town)
   void _placeWarehouse() {
     final random = math.Random();
     final validSpots = <List<int>>[];
     
-    // Find all grass tiles adjacent to roads
     for (int y = 0; y < gridSize; y++) {
       for (int x = 0; x < gridSize; x++) {
         if (_grid[y][x] == TileType.grass && _isTileAdjacentToRoad(x, y)) {
@@ -164,26 +160,18 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       _warehouseX = spot[0];
       _warehouseY = spot[1];
       _grid[spot[1]][spot[0]] = TileType.warehouse;
-      
-      // Find the nearest road tile and store it in game state
       _updateWarehouseRoadPosition();
     }
   }
 
-  /// Find the nearest road tile to warehouse and update game state
-  /// This is called after the build phase to avoid modifying providers during widget lifecycle
   void _updateWarehouseRoadPosition() {
     if (_warehouseX == null || _warehouseY == null) return;
     
-    // Find the nearest road tile (check all four directions)
     double? nearestRoadX;
     double? nearestRoadY;
     double minDistance = double.infinity;
     
-    // Check all four directions for roads
-    final directions = [
-      [-1, 0], [1, 0], [0, -1], [0, 1], // Left, Right, Up, Down
-    ];
+    final directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     
     for (final dir in directions) {
       final checkX = (_warehouseX! + dir[0]).toInt();
@@ -192,12 +180,9 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       if (checkX >= 0 && checkX < gridSize && 
           checkY >= 0 && checkY < gridSize &&
           _grid[checkY][checkX] == TileType.road) {
-        // Found a road - convert grid coordinates to zone coordinates
-        // Grid: 0-9, Zone: 1.0-10.0 (roads are at integers)
         final zoneX = (checkX + 1).toDouble();
         final zoneY = (checkY + 1).toDouble();
         
-        // Calculate distance (Manhattan for simplicity)
         final distance = (checkX - _warehouseX!).abs().toDouble() + (checkY - _warehouseY!).abs().toDouble();
         
         if (distance < minDistance) {
@@ -208,17 +193,13 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       }
     }
     
-    // If we found a road, update game state after the build phase
     if (nearestRoadX != null && nearestRoadY != null) {
-      // Delay the update until after the build phase is complete
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final controller = ref.read(gameControllerProvider.notifier);
         controller.setWarehouseRoadPosition(nearestRoadX!, nearestRoadY!);
       });
     }
   }
-
-  // Removed local truck movement methods - using real trucks from simulation
 
   void _updateRoadDirections() {
     for (int y = 0; y < gridSize; y++) {
@@ -235,106 +216,51 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     final bool hasSouth = y < gridSize - 1 && _grid[y + 1][x] == TileType.road;
     final bool hasEast = x < gridSize - 1 && _grid[y][x + 1] == TileType.road;
     final bool hasWest = x > 0 && _grid[y][x - 1] == TileType.road;
-
     final bool isAtEdge = x == 0 || x == gridSize - 1 || y == 0 || y == gridSize - 1;
 
-    final int connections = (hasNorth ? 1 : 0) +
-        (hasSouth ? 1 : 0) +
-        (hasEast ? 1 : 0) +
-        (hasWest ? 1 : 0);
+    final int connections = (hasNorth ? 1 : 0) + (hasSouth ? 1 : 0) + (hasEast ? 1 : 0) + (hasWest ? 1 : 0);
 
-    // At edges, don't use intersection - continue with 2-way road
     if (isAtEdge) {
-      // Straight roads at edges
-      if (hasNorth && hasSouth) {
-        return RoadDirection.vertical;
-      }
-      if (hasEast && hasWest) {
-        return RoadDirection.horizontal;
-      }
-      // If only one direction, use that direction
-      if (hasNorth || hasSouth) {
-        return RoadDirection.vertical;
-      }
-      if (hasEast || hasWest) {
-        return RoadDirection.horizontal;
-      }
-      // Default to horizontal for edge roads
+      if (hasNorth && hasSouth) return RoadDirection.vertical;
+      if (hasEast && hasWest) return RoadDirection.horizontal;
+      if (hasNorth || hasSouth) return RoadDirection.vertical;
+      if (hasEast || hasWest) return RoadDirection.horizontal;
       return RoadDirection.horizontal;
     }
 
-    // Intersection or corner (3+ connections) - only for non-edge tiles
-    if (connections >= 3) {
-      return RoadDirection.intersection;
-    }
-
-    // Straight roads
-    if (hasNorth && hasSouth) {
-      return RoadDirection.vertical;
-    }
-    if (hasEast && hasWest) {
-      return RoadDirection.horizontal;
-    }
-
-    // Default to intersection for corners and dead ends (non-edge only)
+    if (connections >= 3) return RoadDirection.intersection;
+    if (hasNorth && hasSouth) return RoadDirection.vertical;
+    if (hasEast && hasWest) return RoadDirection.horizontal;
     return RoadDirection.intersection;
   }
 
-  /// Place building blocks (2x3 or 3x2 tiles) in areas between roads
-  /// Maximum 2 of each building type globally
-  /// Within each block, no duplicate building types (can mix with grass)
-  /// Buildings face toward the nearest road
   void _placeBuildingBlocks() {
     final random = math.Random();
     final buildingTypes = [
-      TileType.shop,
-      TileType.gym,
-      TileType.office,
-      TileType.school,
-      TileType.gasStation,
-      TileType.park,
-      TileType.house,
+      TileType.shop, TileType.gym, TileType.office, TileType.school,
+      TileType.gasStation, TileType.park, TileType.house,
     ];
 
-    // Track building type counts globally
-    // Houses and parks can have more instances (up to 5 each)
     final buildingCounts = <TileType, int>{
-      TileType.shop: 0,
-      TileType.gym: 0,
-      TileType.office: 0,
-      TileType.school: 0,
-      TileType.gasStation: 0,
-      TileType.park: 0,
-      TileType.house: 0,
+      TileType.shop: 0, TileType.gym: 0, TileType.office: 0, TileType.school: 0,
+      TileType.gasStation: 0, TileType.park: 0, TileType.house: 0,
     };
     
-    // Maximum counts for each building type
     final maxBuildingCounts = <TileType, int>{
-      TileType.shop: 2,
-      TileType.gym: 2,
-      TileType.office: 2,
-      TileType.school: 2,
-      TileType.gasStation: 2,
-      TileType.park: 4, // More parks
-      TileType.house: 4, // More houses
+      TileType.shop: 2, TileType.gym: 2, TileType.office: 2, TileType.school: 2,
+      TileType.gasStation: 2, TileType.park: 4, TileType.house: 4,
     };
 
-    // Find all rectangular areas that can fit building blocks (2x3 or 3x2)
     final validBlocks = <Map<String, dynamic>>[];
     
     for (int startY = 0; startY < gridSize; startY++) {
       for (int startX = 0; startX < gridSize; startX++) {
-        // Try different block sizes: 2x3, 3x2, 2x2, 3x3
         for (int blockWidth = minBlockSize; blockWidth <= maxBlockSize; blockWidth++) {
           for (int blockHeight = minBlockSize; blockHeight <= maxBlockSize; blockHeight++) {
-            // Only allow 2x3 or 3x2 (not 3x3)
             if (blockWidth == 3 && blockHeight == 3) continue;
             if (_canPlaceBlock(startX, startY, blockWidth, blockHeight)) {
               validBlocks.add({
-                'x': startX,
-                'y': startY,
-                'width': blockWidth,
-                'height': blockHeight,
+                'x': startX, 'y': startY, 'width': blockWidth, 'height': blockHeight,
               });
             }
           }
@@ -342,26 +268,20 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       }
     }
 
-    // Sort blocks to prioritize empty blocks (blocks with no buildings)
-    // This spreads buildings across the map instead of clustering them
     validBlocks.sort((a, b) {
-      // Check if blocks have buildings - prioritize empty blocks
       final aHasBuildings = _blockHasBuildings(a['x'] as int, a['y'] as int, a['width'] as int, a['height'] as int);
       final bHasBuildings = _blockHasBuildings(b['x'] as int, b['y'] as int, b['width'] as int, b['height'] as int);
-      if (aHasBuildings != bHasBuildings) {
-        return aHasBuildings ? 1 : -1; // Empty blocks first
-      }
-      return 0; // Keep original order if both are same
+      if (aHasBuildings != bHasBuildings) return aHasBuildings ? 1 : -1;
+      return 0;
     });
     
-    // Shuffle blocks with same priority to add some randomness
     final emptyBlocks = validBlocks.where((b) => !_blockHasBuildings(b['x'] as int, b['y'] as int, b['width'] as int, b['height'] as int)).toList();
     final blocksWithBuildings = validBlocks.where((b) => _blockHasBuildings(b['x'] as int, b['y'] as int, b['width'] as int, b['height'] as int)).toList();
     emptyBlocks.shuffle(random);
     blocksWithBuildings.shuffle(random);
     final sortedBlocks = [...emptyBlocks, ...blocksWithBuildings];
     
-    final placedTiles = <String>{}; // Track placed tiles as "x,y" strings to avoid overlaps
+    final placedTiles = <String>{};
     
     for (final block in sortedBlocks) {
       final startX = block['x'] as int;
@@ -369,22 +289,16 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       final blockWidth = block['width'] as int;
       final blockHeight = block['height'] as int;
       
-      // Check if this block overlaps with already placed buildings
       bool overlaps = false;
       for (int by = startY; by < startY + blockHeight && !overlaps; by++) {
         for (int bx = startX; bx < startX + blockWidth && !overlaps; bx++) {
-          if (placedTiles.contains('$bx,$by')) {
-            overlaps = true;
-          }
+          if (placedTiles.contains('$bx,$by')) overlaps = true;
         }
       }
       
       if (overlaps) continue;
       
-      // Track building types used in this block (to avoid duplicates within block)
       final blockBuildingTypes = <TileType>{};
-      
-      // Place buildings in this block - mix with grass, no duplicates in block
       final blockTiles = <List<int>>[];
       for (int by = startY; by < startY + blockHeight && by < gridSize; by++) {
         for (int bx = startX; bx < startX + blockWidth && bx < gridSize; bx++) {
@@ -392,30 +306,19 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         }
       }
       
-      // Sort tiles: prefer tiles that are NOT adjacent to other buildings
-      // This spreads buildings within blocks
       blockTiles.sort((a, b) {
         final aAdjacent = _isTileAdjacentToBuilding(a[0], a[1], placedTiles);
         final bAdjacent = _isTileAdjacentToBuilding(b[0], b[1], placedTiles);
-        if (aAdjacent != bAdjacent) {
-          return aAdjacent ? 1 : -1; // Non-adjacent tiles first
-        }
+        if (aAdjacent != bAdjacent) return aAdjacent ? 1 : -1;
         return 0;
       });
       
-      // Limit buildings per block to spread them out (max 1-2 per block)
       final maxBuildingsPerBlock = 2;
       final numBuildings = math.min(math.min(blockTiles.length, maxBuildingsPerBlock), buildingTypes.length);
       
-      // First, prioritize placing gas_station, park, and house if they haven't been placed yet
       final priorityTypes = [
-        TileType.gasStation,
-        TileType.park,
-        TileType.house,
-        TileType.shop,
-        TileType.gym,
-        TileType.office,
-        TileType.school,
+        TileType.gasStation, TileType.park, TileType.house,
+        TileType.shop, TileType.gym, TileType.office, TileType.school,
       ];
       
       for (int i = 0; i < numBuildings && i < blockTiles.length; i++) {
@@ -423,32 +326,24 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         final bx = tile[0];
         final by = tile[1];
         
-        // Only place buildings on tiles that are directly adjacent to a road
-        if (!_isTileAdjacentToRoad(bx, by)) {
-          continue; // Skip this tile if not adjacent to road
-        }
+        if (!_isTileAdjacentToRoad(bx, by)) continue;
         
-        // Get available building types (not used in this block, and under global limit)
-        // Prioritize types that haven't been placed yet
         final availableTypes = buildingTypes.where((type) => 
           !blockBuildingTypes.contains(type) && buildingCounts[type]! < maxBuildingCounts[type]!
         ).toList();
         
-        if (availableTypes.isEmpty) break; // No more types available
+        if (availableTypes.isEmpty) break;
         
-        // Prefer houses and parks first (they can have more instances)
         final housesAndParks = availableTypes.where((type) => 
           (type == TileType.house || type == TileType.park) && buildingCounts[type]! < maxBuildingCounts[type]!
         ).toList();
         
-        // Use houses and parks if available, otherwise use other priority types
         final priorityAvailable = housesAndParks.isNotEmpty 
             ? housesAndParks
             : availableTypes.where((type) => 
                 priorityTypes.contains(type) && buildingCounts[type]! < maxBuildingCounts[type]!
               ).toList();
         
-        // Use priority types if available, otherwise use any available type
         final buildingType = priorityAvailable.isNotEmpty 
             ? priorityAvailable[random.nextInt(priorityAvailable.length)]
             : availableTypes[random.nextInt(availableTypes.length)];
@@ -456,7 +351,6 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         buildingCounts[buildingType] = buildingCounts[buildingType]! + 1;
         blockBuildingTypes.add(buildingType);
         
-        // Always use normal orientation (no flipping)
         _grid[by][bx] = buildingType;
         _buildingOrientations[by][bx] = BuildingOrientation.normal;
         placedTiles.add('$bx,$by');
@@ -464,71 +358,42 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     }
   }
 
-  /// Check if a block can be placed at the given position
   bool _canPlaceBlock(int startX, int startY, int width, int height) {
-    // Check bounds
-    if (startX + width > gridSize || startY + height > gridSize) {
-      return false;
-    }
+    if (startX + width > gridSize || startY + height > gridSize) return false;
     
-    // Check that all tiles in the block are grass (not road or already a building)
     for (int y = startY; y < startY + height; y++) {
       for (int x = startX; x < startX + width; x++) {
-        if (_grid[y][x] != TileType.grass) {
-          return false;
-        }
+        if (_grid[y][x] != TileType.grass) return false;
       }
     }
     
-    // Check that at least one edge of the block is adjacent to a road
     bool adjacentToRoad = false;
     
-    // Check top edge
     if (startY > 0) {
       for (int x = startX; x < startX + width; x++) {
-        if (_grid[startY - 1][x] == TileType.road) {
-          adjacentToRoad = true;
-          break;
-        }
+        if (_grid[startY - 1][x] == TileType.road) { adjacentToRoad = true; break; }
       }
     }
-    
-    // Check bottom edge
     if (!adjacentToRoad && startY + height < gridSize) {
       for (int x = startX; x < startX + width; x++) {
-        if (_grid[startY + height][x] == TileType.road) {
-          adjacentToRoad = true;
-          break;
-        }
+        if (_grid[startY + height][x] == TileType.road) { adjacentToRoad = true; break; }
       }
     }
-    
-    // Check left edge
     if (!adjacentToRoad && startX > 0) {
       for (int y = startY; y < startY + height; y++) {
-        if (_grid[y][startX - 1] == TileType.road) {
-          adjacentToRoad = true;
-          break;
-        }
+        if (_grid[y][startX - 1] == TileType.road) { adjacentToRoad = true; break; }
       }
     }
-    
-    // Check right edge
     if (!adjacentToRoad && startX + width < gridSize) {
       for (int y = startY; y < startY + height; y++) {
-        if (_grid[y][startX + width] == TileType.road) {
-          adjacentToRoad = true;
-          break;
-        }
+        if (_grid[y][startX + width] == TileType.road) { adjacentToRoad = true; break; }
       }
     }
     
     return adjacentToRoad;
   }
 
-  /// Check if a specific tile is adjacent to a road
   bool _isTileAdjacentToRoad(int x, int y) {
-    // Check all four directions
     if (x > 0 && _grid[y][x - 1] == TileType.road) return true;
     if (x < gridSize - 1 && _grid[y][x + 1] == TileType.road) return true;
     if (y > 0 && _grid[y - 1][x] == TileType.road) return true;
@@ -536,21 +401,16 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     return false;
   }
 
-  /// Check if a block has any buildings in it
   bool _blockHasBuildings(int startX, int startY, int width, int height) {
     for (int y = startY; y < startY + height && y < gridSize; y++) {
       for (int x = startX; x < startX + width && x < gridSize; x++) {
-        if (_isBuilding(_grid[y][x])) {
-          return true;
-        }
+        if (_isBuilding(_grid[y][x])) return true;
       }
     }
     return false;
   }
 
-  /// Check if a tile is adjacent to an existing building
   bool _isTileAdjacentToBuilding(int x, int y, Set<String> placedTiles) {
-    // Check all four directions
     if (x > 0 && placedTiles.contains('${x - 1},$y')) return true;
     if (x < gridSize - 1 && placedTiles.contains('${x + 1},$y')) return true;
     if (y > 0 && placedTiles.contains('$x,${y - 1}')) return true;
@@ -558,21 +418,17 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     return false;
   }
 
-  /// Convert grid coordinates to isometric screen coordinates
-  /// Uses base tile as anchor point for alignment
-  /// Separate spacing factors for horizontal and vertical to control side-to-side spacing independently
-  Offset _gridToScreen(int gridX, int gridY) {
-    // Isometric projection formula with separate spacing factors
-    // The base of the tile (bottom) is at this position
-    // screenX controls horizontal (side-to-side) spacing
-    // screenY controls vertical (up-down) spacing
+  Offset _gridToScreen(BuildContext context, int gridX, int gridY) {
+    final tileWidth = _getTileWidth(context);
+    final tileHeight = _getTileHeight(context);
     final screenX = (gridX - gridY) * (tileWidth / 2) * horizontalSpacingFactor;
     final screenY = (gridX + gridY) * (tileHeight / 2) * tileSpacingFactor;
     return Offset(screenX, screenY);
   }
 
-  /// Convert grid coordinates (double) to isometric screen coordinates for smooth truck movement
-  Offset _gridToScreenDouble(double gridX, double gridY) {
+  Offset _gridToScreenDouble(BuildContext context, double gridX, double gridY) {
+    final tileWidth = _getTileWidth(context);
+    final tileHeight = _getTileHeight(context);
     final screenX = (gridX - gridY) * (tileWidth / 2) * horizontalSpacingFactor;
     final screenY = (gridX + gridY) * (tileHeight / 2) * tileSpacingFactor;
     return Offset(screenX, screenY);
@@ -580,64 +436,47 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
 
   String _getTileAssetPath(TileType tileType, RoadDirection? roadDir) {
     switch (tileType) {
-      case TileType.grass:
-        return 'assets/images/tiles/grass.png';
+      case TileType.grass: return 'assets/images/tiles/grass.png';
       case TileType.road:
-        if (roadDir == RoadDirection.intersection) {
-          return 'assets/images/tiles/road_4way.png';
-        } else {
-          return 'assets/images/tiles/road_2way.png';
-        }
-      case TileType.shop:
-        return 'assets/images/tiles/shop.png';
-      case TileType.gym:
-        return 'assets/images/tiles/gym.png';
-      case TileType.office:
-        return 'assets/images/tiles/office.png';
-      case TileType.school:
-        return 'assets/images/tiles/school.png';
-      case TileType.gasStation:
-        return 'assets/images/tiles/gas_station.png';
-      case TileType.park:
-        return 'assets/images/tiles/park.png';
-      case TileType.house:
-        return 'assets/images/tiles/house.png';
-      case TileType.warehouse:
-        return 'assets/images/tiles/warehouse.png';
+        return roadDir == RoadDirection.intersection 
+          ? 'assets/images/tiles/road_4way.png' 
+          : 'assets/images/tiles/road_2way.png';
+      case TileType.shop: return 'assets/images/tiles/shop.png';
+      case TileType.gym: return 'assets/images/tiles/gym.png';
+      case TileType.office: return 'assets/images/tiles/office.png';
+      case TileType.school: return 'assets/images/tiles/school.png';
+      case TileType.gasStation: return 'assets/images/tiles/gas_station.png';
+      case TileType.park: return 'assets/images/tiles/park.png';
+      case TileType.house: return 'assets/images/tiles/house.png';
+      case TileType.warehouse: return 'assets/images/tiles/warehouse.png';
     }
   }
 
   bool _isBuilding(TileType tileType) {
-    return tileType == TileType.shop ||
-        tileType == TileType.gym ||
-        tileType == TileType.office ||
-        tileType == TileType.school ||
-        tileType == TileType.gasStation ||
-        tileType == TileType.park ||
-        tileType == TileType.house ||
-        tileType == TileType.warehouse;
+    return tileType == TileType.shop || tileType == TileType.gym ||
+        tileType == TileType.office || tileType == TileType.school ||
+        tileType == TileType.gasStation || tileType == TileType.park ||
+        tileType == TileType.house || tileType == TileType.warehouse;
   }
 
-  /// Get the scale factor for a specific building type
   double _getBuildingScale(TileType tileType) {
     switch (tileType) {
-      case TileType.gasStation:
-        return gasStationScale;
-      case TileType.park:
-        return parkScale;
-      case TileType.house:
-        return houseScale;
-      case TileType.warehouse:
-        return warehouseScale;
-      default:
-        return buildingScale; // Default scale for other buildings
+      case TileType.gasStation: return gasStationScale;
+      case TileType.park: return parkScale;
+      case TileType.house: return houseScale;
+      case TileType.warehouse: return warehouseScale;
+      default: return buildingScale;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Calculate map bounds - need to find the actual bounds including all tile content
-    // Check all tiles to find the true min/max positions
+    // Get tile dimensions for this context
+    final tileWidth = _getTileWidth(context);
+    final tileHeight = _getTileHeight(context);
+    final buildingImageHeight = _getBuildingImageHeight(context);
+    
+    // 1. Calculate the map's bounding box
     double minX = double.infinity;
     double maxX = double.negativeInfinity;
     double minY = double.infinity;
@@ -645,15 +484,12 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     
     for (int y = 0; y < gridSize; y++) {
       for (int x = 0; x < gridSize; x++) {
-        final screenPos = _gridToScreen(x, y);
-        
-        // Ground tile bounds
+        final screenPos = _gridToScreen(context, x, y);
         minX = math.min(minX, screenPos.dx);
         maxX = math.max(maxX, screenPos.dx + tileWidth);
         minY = math.min(minY, screenPos.dy);
         maxY = math.max(maxY, screenPos.dy + tileHeight);
         
-        // Building bounds (if present) - extend upward
         if (_isBuilding(_grid[y][x])) {
           final buildingTop = screenPos.dy - (buildingImageHeight - tileHeight);
           minY = math.min(minY, buildingTop);
@@ -661,11 +497,10 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       }
     }
     
-    // Add generous padding to ensure nothing is clipped
-    // Extra padding at top for buildings that extend upward
+    // Add generous padding for the map canvas to ensure no clipping during pans/scales
     const double sidePadding = 100.0;
-    const double topPadding = 150.0; // Very generous padding for building tops
-    const double bottomPadding = 100.0;
+    const double topPadding = 150.0;
+    const double bottomPadding = 30.0; // Minimal internal padding
     
     minX -= sidePadding;
     maxX += sidePadding;
@@ -675,53 +510,64 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     final mapWidth = maxX - minX;
     final mapHeight = maxY - minY;
     
-    // Get available viewport size (accounting for AppBar)
-    final viewportWidth = MediaQuery.of(context).size.width;
-    final viewportHeight = MediaQuery.of(context).size.height;
-    final appBarHeight = AppBar().preferredSize.height + MediaQuery.of(context).padding.top;
-    final availableHeight = viewportHeight - appBarHeight;
-    
-    // Center offset to position map in viewport
-    final centerOffset = Offset(
-      (viewportWidth - mapWidth) / 2 - minX,
-      (availableHeight - mapHeight) / 2 - minY,
-    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportWidth = constraints.maxWidth;
+        final viewportHeight = constraints.maxHeight;
+        
+        // 2. Determine the container size for InteractiveViewer
+        // Force the container to be AT LEAST the size of the viewport.
+        // This allows us to position the map at the bottom of the viewport.
+        final containerWidth = math.max(viewportWidth, mapWidth);
+        final containerHeight = math.max(viewportHeight, mapHeight);
 
-    return Scaffold(
-      // AppBar removed - MainScreen already provides one
-      body: Stack(
-        children: [
-          InteractiveViewer(
-            boundaryMargin: const EdgeInsets.all(200),
-            minScale: 0.3,
-            maxScale: 3.0,
-            child: SizedBox(
-              width: mapWidth,
-              height: mapHeight,
-              child: Stack(
-                clipBehavior: Clip.none, // Don't clip content
-                children: _buildTiles(context, centerOffset),
+        // 3. Calculate Offsets to position tiles
+        // Horizontal: Center in the container
+        final offsetX = (containerWidth - mapWidth) / 2 - minX;
+        
+        // Vertical: Bottom Align in the container
+        // We want the bottom visual edge (maxY) to be 'targetBottomGap' from container bottom.
+        const double targetBottomGap = 20.0; 
+        // Logic: containerHeight - targetBottomGap = New Visual Bottom Position
+        // Visual Bottom Position = (maxY + dy)
+        // dy = containerHeight - targetBottomGap - maxY
+        final offsetY = containerHeight - targetBottomGap - maxY;
+        
+        final centerOffset = Offset(offsetX, offsetY);
+
+        return Stack(
+          children: [
+            InteractiveViewer(
+              boundaryMargin: const EdgeInsets.all(200),
+              minScale: 0.3,
+              maxScale: 3.0,
+              constrained: true, // Constraints ensure child fills viewport if smaller
+              child: SizedBox(
+                width: containerWidth,
+                height: containerHeight,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: _buildTiles(context, centerOffset, tileWidth, tileHeight, buildingImageHeight),
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 
-  /// Build all tiles in correct render order
-  /// Render from farthest (top) to closest (bottom) using painter's algorithm
-  /// Sort by depth: (x+y) ascending, then y ascending, then x ascending
-  List<Widget> _buildTiles(BuildContext context, Offset centerOffset) {
+  List<Widget> _buildTiles(BuildContext context, Offset centerOffset, double tileWidth, double tileHeight, double buildingImageHeight) {
     final tileData = <Map<String, dynamic>>[];
 
-    // Collect all tile data with their positions
+    final warehouseVerticalOffset = _getWarehouseVerticalOffset(context);
+    
     for (int y = 0; y < gridSize; y++) {
       for (int x = 0; x < gridSize; x++) {
         final tileType = _grid[y][x];
         final roadDir = _roadDirections[y][x];
         final buildingOrientation = _buildingOrientations[y][x];
-        final screenPos = _gridToScreen(x, y);
+        final screenPos = _gridToScreen(context, x, y);
         final positionedX = screenPos.dx + centerOffset.dx;
         final positionedY = screenPos.dy + centerOffset.dy;
 
@@ -737,8 +583,6 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       }
     }
 
-    // Sort by depth: farthest (lowest x+y) to closest (highest x+y)
-    // Then by y, then by x for consistent ordering
     tileData.sort((a, b) {
       final depthA = (a['x'] as int) + (a['y'] as int);
       final depthB = (b['x'] as int) + (b['y'] as int);
@@ -749,7 +593,6 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       return (a['x'] as int).compareTo(b['x'] as int);
     });
 
-    // Build tiles in sorted order (farthest to closest)
     final tiles = <Widget>[];
     for (final data in tileData) {
       final tileType = data['tileType'] as TileType;
@@ -758,21 +601,11 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       final positionedX = data['positionedX'] as double;
       final positionedY = data['positionedY'] as double;
 
-        // --- UPDATED WAREHOUSE LOGIC START ---
         if (tileType == TileType.warehouse) {
-          // Use building-style dimensions so the tall image fits
           final warehouseScaleFactor = warehouseScale;
-          
-          // 1. Calculate scaled dimensions (using buildingImageHeight, not tileHeight)
           final scaledHeight = buildingImageHeight * warehouseScaleFactor;
           final scaledWidth = tileWidth * warehouseScaleFactor;
-          
-          // 2. Center horizontally
           final centerOffsetX = (tileWidth - scaledWidth) / 2;
-          
-          // 3. Calculate Top Position
-          // Anchored at bottom (positionedY) but raised by the height difference
-          // and the specific warehouseVerticalOffset
           final top = positionedY - (scaledHeight - tileHeight) - warehouseVerticalOffset;
           
           tiles.add(
@@ -781,14 +614,11 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
               top: top,
               width: scaledWidth,
               height: scaledHeight,
-              // Reuse _buildGroundTile as it sets up the image correctly
               child: _buildGroundTile(tileType, roadDir),
             ),
           );
-        // --- UPDATED WAREHOUSE LOGIC END ---
         
         } else if (!_isBuilding(tileType)) {
-          // Regular ground tiles (grass, road)
           tiles.add(
             Positioned(
               left: positionedX,
@@ -799,7 +629,6 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
             ),
           );
         } else {
-          // For other buildings, show grass as the ground tile underneath
           tiles.add(
             Positioned(
               left: positionedX,
@@ -811,18 +640,13 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           );
         }
 
-      // Building tile (if applicable) - anchored at bottom-center, extends upward
-      // Scaled down to fit better within tile bounds
-      // Each building type can have its own scale factor
-      // Skip warehouse here since it's rendered as a ground tile above
       if (_isBuilding(tileType) && tileType != TileType.warehouse) {
         final buildingScaleFactor = _getBuildingScale(tileType);
         final scaledBuildingHeight = buildingImageHeight * buildingScaleFactor;
         final buildingTop = positionedY - (scaledBuildingHeight - tileHeight);
         final scaledWidth = tileWidth * buildingScaleFactor;
-        final centerOffsetX = (tileWidth - scaledWidth) / 2; // Center the scaled building
+        final centerOffsetX = (tileWidth - scaledWidth) / 2;
         
-        // Apply vertical offset for warehouse to raise it to match other buildings
         final verticalOffset = tileType == TileType.warehouse ? warehouseVerticalOffset : 0.0;
         
         tiles.add(
@@ -838,11 +662,10 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           ),
         );
 
-        // Add "+" purchase button indicator above building if machine can be purchased
         if (_shouldShowPurchaseButton(data['x'] as int, data['y'] as int, tileType)) {
           final buttonSize = 24.0;
-          final buttonTop = buildingTop - verticalOffset - buttonSize + 8.0; // Lowered: 8px above building (was -4px)
-          final buttonLeft = positionedX + (tileWidth / 2) - (buttonSize / 2); // Centered above building
+          final buttonTop = buildingTop - verticalOffset - buttonSize + 8.0;
+          final buttonLeft = positionedX + (tileWidth / 2) - (buttonSize / 2);
           
           tiles.add(
             Positioned(
@@ -878,56 +701,37 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       }
     }
 
-    // Add real machines from simulation on top of tiles
     final gameMachines = ref.watch(machinesProvider);
     for (final machine in gameMachines) {
-      tiles.add(_buildGameMachine(context, machine, centerOffset));
+      tiles.add(_buildGameMachine(context, machine, centerOffset, tileWidth, tileHeight));
     }
 
-    // Add real trucks from simulation on top of tiles (above machines)
     final gameTrucks = ref.watch(trucksProvider);
     for (final truck in gameTrucks) {
-      tiles.add(_buildGameTruck(truck, centerOffset));
+      tiles.add(_buildGameTruck(context, truck, centerOffset, tileWidth, tileHeight));
     }
 
     return tiles;
   }
 
-  /// Build positioned game machine widget
-  Widget _buildGameMachine(BuildContext context, sim.Machine machine, Offset centerOffset) {
-    // Convert zone coordinates to grid coordinates
+  Widget _buildGameMachine(BuildContext context, sim.Machine machine, Offset centerOffset, double tileWidth, double tileHeight) {
     final gridPos = _zoneToGrid(machine.zone.x, machine.zone.y);
-    
-    // Get screen coordinates from grid position
-    final pos = _gridToScreenDouble(gridPos.dx, gridPos.dy);
+    final pos = _gridToScreenDouble(context, gridPos.dx, gridPos.dy);
     final positionedX = pos.dx + centerOffset.dx;
     final positionedY = pos.dy + centerOffset.dy;
     
-    // Machine indicator size
     final double machineSize = tileWidth * 0.3;
-    
-    // Center on tile
     final left = positionedX + (tileWidth - machineSize) / 2;
     final top = positionedY + (tileHeight / 2) - machineSize;
 
-    // Determine machine color based on type
     Color machineColor;
     switch (machine.zone.type) {
-      case ZoneType.shop:
-        machineColor = Colors.blue;
-        break;
-      case ZoneType.school:
-        machineColor = Colors.purple;
-        break;
-      case ZoneType.gym:
-        machineColor = Colors.red;
-        break;
-      case ZoneType.office:
-        machineColor = Colors.orange;
-        break;
+      case ZoneType.shop: machineColor = Colors.blue; break;
+      case ZoneType.school: machineColor = Colors.purple; break;
+      case ZoneType.gym: machineColor = Colors.red; break;
+      case ZoneType.office: machineColor = Colors.orange; break;
     }
 
-    // Capture machine ID in local variable to avoid closure issues
     final machineId = machine.id;
 
     return Positioned(
@@ -937,11 +741,10 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       height: machineSize,
       child: GestureDetector(
         onTap: () {
-          // Look up the machine fresh from the provider to ensure we have the latest state
           final machines = ref.read(machinesProvider);
           final currentMachine = machines.firstWhere(
             (m) => m.id == machineId,
-            orElse: () => machine, // Fallback to the passed machine if not found
+            orElse: () => machine,
           );
           _showMachineView(context, currentMachine);
         },
@@ -963,29 +766,22 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     );
   }
 
-  /// Get view image path for zone type
   String _getViewImagePath(ZoneType zoneType) {
     switch (zoneType) {
-      case ZoneType.shop:
-        return 'assets/images/views/shop_view.png';
-      case ZoneType.school:
-        return 'assets/images/views/school_view.png';
-      case ZoneType.gym:
-        return 'assets/images/views/gym_view.png';
-      case ZoneType.office:
-        return 'assets/images/views/office_view.png';
+      case ZoneType.shop: return 'assets/images/views/shop_view.png';
+      case ZoneType.school: return 'assets/images/views/school_view.png';
+      case ZoneType.gym: return 'assets/images/views/gym_view.png';
+      case ZoneType.office: return 'assets/images/views/office_view.png';
     }
   }
 
-  /// Show machine view popup with status and retrieve cash
   void _showMachineView(BuildContext context, sim.Machine machine) {
-    // Capture machine ID and image path immediately
     final machineId = machine.id;
     final imagePath = _getViewImagePath(machine.zone.type);
     
     showDialog(
       context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.7),
+      barrierColor: Colors.black.withOpacity(0.7),
       builder: (context) => _MachineViewDialog(
         machineId: machineId,
         imagePath: imagePath,
@@ -993,87 +789,56 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     );
   }
 
-  /// Convert zone coordinates (1.0-10.0) to grid coordinates (0-9)
-  /// Zone coordinates: machines at .5 positions (1.5, 2.5, etc.), roads at integers
-  /// Grid coordinates: 0-9 for tile positions
   Offset _zoneToGrid(double zoneX, double zoneY) {
-    // Zone coordinates start at 1.0, grid starts at 0
-    // Zone 1.0-2.0 maps to grid 0, Zone 2.0-3.0 maps to grid 1, etc.
     final gridX = (zoneX - 1.0).clamp(0.0, (gridSize - 1).toDouble());
     final gridY = (zoneY - 1.0).clamp(0.0, (gridSize - 1).toDouble());
     return Offset(gridX, gridY);
   }
 
-  /// Build positioned game truck widget
-  Widget _buildGameTruck(sim.Truck truck, Offset centerOffset) {
-    // Convert zone coordinates to grid coordinates
+  Widget _buildGameTruck(BuildContext context, sim.Truck truck, Offset centerOffset, double tileWidth, double tileHeight) {
     final gridPos = _zoneToGrid(truck.currentX, truck.currentY);
-    
-    // Get screen coordinates from grid position
-    final pos = _gridToScreenDouble(gridPos.dx, gridPos.dy);
+    final pos = _gridToScreenDouble(context, gridPos.dx, gridPos.dy);
     final positionedX = pos.dx + centerOffset.dx;
     final positionedY = pos.dy + centerOffset.dy;
     
-    // Size & Centering Logic
     final double truckSize = tileWidth * 0.4; 
-    
-    // Center logic:
-    // X: Tile Left + (TileWidth - TruckWidth) / 2
-    // Y: Tile Top + (TileHeight / 2) - TruckHeight (sit on middle of diamond)
     final left = positionedX + (tileWidth - truckSize) / 2;
     final top = positionedY + (tileHeight / 2) - truckSize;
 
-    // Determine truck direction based on movement
-    // truck_front faces left down (no flip) - used for South
-    // truck_front flipped faces right down - used for East
-    // truck_back faces left up (no flip) - used for West
-    // truck_back flipped faces right up - used for North
     String asset = 'assets/images/tiles/truck_front.png';
     bool flip = false;
     
-    // Calculate direction - prefer using path waypoints if available for more accurate direction
     double dx = 0.0;
     double dy = 0.0;
     
     if (truck.path.isNotEmpty && truck.pathIndex < truck.path.length) {
-      // Use next waypoint in path for direction
       final nextWaypoint = truck.path[truck.pathIndex];
       dx = nextWaypoint.x - truck.currentX;
       dy = nextWaypoint.y - truck.currentY;
     } else {
-      // Fall back to target direction
       dx = truck.targetX - truck.currentX;
       dy = truck.targetY - truck.currentY;
     }
     
-    // Only update direction if truck is actually moving
     if (dx.abs() > 0.01 || dy.abs() > 0.01) {
-      // Determine primary direction (horizontal vs vertical)
       if (dx.abs() > dy.abs()) {
-        // Moving primarily horizontally
         if (dx > 0) {
-          // Moving right (East) - use truck_front flipped (right down)
           asset = 'assets/images/tiles/truck_front.png';
           flip = true;
         } else {
-          // Moving left (West) - use truck_back (left up)
           asset = 'assets/images/tiles/truck_back.png';
           flip = false;
         }
       } else {
-        // Moving primarily vertically
         if (dy > 0) {
-          // Moving down (South) - use truck_front (left down)
           asset = 'assets/images/tiles/truck_front.png';
           flip = false;
         } else {
-          // Moving up (North) - use truck_back flipped (right up)
           asset = 'assets/images/tiles/truck_back.png';
           flip = true;
         }
       }
     }
-    // If not moving (dx and dy are both near 0), keep last direction
 
     Widget img = Image.asset(
       asset,
@@ -1114,21 +879,13 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     );
   }
 
-  /// Handle building tap to purchase machine
   void _handleBuildingTap(int gridX, int gridY, TileType tileType) {
-    // Convert grid coordinates to zone coordinates
-    // Grid: 0-9, Zone: 1.0-10.0 (machines at .5 positions)
     final zoneX = (gridX + 1).toDouble() + 0.5;
     final zoneY = (gridY + 1).toDouble() + 0.5;
 
-    // Map TileType to ZoneType
     final zoneType = _tileTypeToZoneType(tileType);
-    if (zoneType == null) {
-      // Building type doesn't support machines
-      return;
-    }
+    if (zoneType == null) return;
 
-    // Check if this building type can be purchased (progression check)
     if (!_canPurchaseMachine(zoneType)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1139,7 +896,6 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       return;
     }
 
-    // Check if there's already a machine at this location
     final controller = ref.read(gameControllerProvider.notifier);
     final machines = ref.read(machinesProvider);
     final hasExistingMachine = machines.any(
@@ -1156,28 +912,18 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       return;
     }
 
-    // Purchase machine with auto-stocking
     controller.buyMachineWithStock(zoneType, x: zoneX, y: zoneY);
   }
 
-  /// Check if a building should show the "+" purchase indicator
   bool _shouldShowPurchaseButton(int gridX, int gridY, TileType tileType) {
-    // Convert grid coordinates to zone coordinates
     final zoneX = (gridX + 1).toDouble() + 0.5;
     final zoneY = (gridY + 1).toDouble() + 0.5;
 
-    // Check if building type supports machines
     final zoneType = _tileTypeToZoneType(tileType);
-    if (zoneType == null) {
-      return false;
-    }
+    if (zoneType == null) return false;
 
-    // Check if machine can be purchased (progression check)
-    if (!_canPurchaseMachine(zoneType)) {
-      return false;
-    }
+    if (!_canPurchaseMachine(zoneType)) return false;
 
-    // Check if there's already a machine at this location
     final machines = ref.watch(machinesProvider);
     final hasExistingMachine = machines.any(
       (m) => (m.zone.x - zoneX).abs() < 0.1 && (m.zone.y - zoneY).abs() < 0.1,
@@ -1186,24 +932,16 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     return !hasExistingMachine;
   }
 
-  /// Map TileType to ZoneType
   ZoneType? _tileTypeToZoneType(TileType tileType) {
     switch (tileType) {
-      case TileType.shop:
-        return ZoneType.shop;
-      case TileType.school:
-        return ZoneType.school;
-      case TileType.gym:
-        return ZoneType.gym;
-      case TileType.office:
-        return ZoneType.office;
-      default:
-        return null; // Other building types don't support machines
+      case TileType.shop: return ZoneType.shop;
+      case TileType.school: return ZoneType.school;
+      case TileType.gym: return ZoneType.gym;
+      case TileType.office: return ZoneType.office;
+      default: return null;
     }
   }
 
-  /// Check if machine type can be purchased based on progression
-  /// Progression: Shop (2) -> School (2) -> Gym (2) -> Office (2)
   bool _canPurchaseMachine(ZoneType zoneType) {
     final machines = ref.read(machinesProvider);
     final shopMachines = machines.where((m) => m.zone.type == ZoneType.shop).length;
@@ -1212,18 +950,13 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     final officeMachines = machines.where((m) => m.zone.type == ZoneType.office).length;
 
     switch (zoneType) {
-      case ZoneType.shop:
-        return shopMachines < 2;
-      case ZoneType.school:
-        return shopMachines >= 2 && schoolMachines < 2;
-      case ZoneType.gym:
-        return schoolMachines >= 2 && gymMachines < 2;
-      case ZoneType.office:
-        return gymMachines >= 2 && officeMachines < 2;
+      case ZoneType.shop: return shopMachines < 2;
+      case ZoneType.school: return shopMachines >= 2 && schoolMachines < 2;
+      case ZoneType.gym: return schoolMachines >= 2 && gymMachines < 2;
+      case ZoneType.office: return gymMachines >= 2 && officeMachines < 2;
     }
   }
 
-  /// Get progression message for locked machine types
   String _getProgressionMessage(ZoneType zoneType) {
     final machines = ref.read(machinesProvider);
     final shopMachines = machines.where((m) => m.zone.type == ZoneType.shop).length;
@@ -1314,56 +1047,35 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
 
   Color _getFallbackColor(TileType tileType) {
     switch (tileType) {
-      case TileType.grass:
-        return Colors.green.shade300;
-      case TileType.road:
-        return Colors.grey.shade600;
-      case TileType.shop:
-        return Colors.blue.shade300;
-      case TileType.gym:
-        return Colors.red.shade300;
-      case TileType.office:
-        return Colors.orange.shade300;
-      case TileType.school:
-        return Colors.purple.shade300;
-      case TileType.gasStation:
-        return Colors.yellow.shade300;
-      case TileType.park:
-        return Colors.green.shade400;
-      case TileType.house:
-        return Colors.brown.shade300;
-      case TileType.warehouse:
-        return Colors.grey.shade400;
+      case TileType.grass: return Colors.green.shade300;
+      case TileType.road: return Colors.grey.shade600;
+      case TileType.shop: return Colors.blue.shade300;
+      case TileType.gym: return Colors.red.shade300;
+      case TileType.office: return Colors.orange.shade300;
+      case TileType.school: return Colors.purple.shade300;
+      case TileType.gasStation: return Colors.yellow.shade300;
+      case TileType.park: return Colors.green.shade400;
+      case TileType.house: return Colors.brown.shade300;
+      case TileType.warehouse: return Colors.grey.shade400;
     }
   }
 
   String _getTileLabel(TileType tileType) {
     switch (tileType) {
-      case TileType.grass:
-        return 'G';
-      case TileType.road:
-        return 'R';
-      case TileType.shop:
-        return 'S';
-      case TileType.gym:
-        return 'G';
-      case TileType.office:
-        return 'O';
-      case TileType.school:
-        return 'Sc';
-      case TileType.gasStation:
-        return 'GS';
-      case TileType.park:
-        return 'P';
-      case TileType.house:
-        return 'H';
-      case TileType.warehouse:
-        return 'W';
+      case TileType.grass: return 'G';
+      case TileType.road: return 'R';
+      case TileType.shop: return 'S';
+      case TileType.gym: return 'G';
+      case TileType.office: return 'O';
+      case TileType.school: return 'Sc';
+      case TileType.gasStation: return 'GS';
+      case TileType.park: return 'P';
+      case TileType.house: return 'H';
+      case TileType.warehouse: return 'W';
     }
   }
 }
 
-/// Machine view dialog widget
 class _MachineViewDialog extends ConsumerWidget {
   final String machineId;
   final String imagePath;
@@ -1375,17 +1087,14 @@ class _MachineViewDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch machines to get latest state
     final machines = ref.watch(machinesProvider);
     
-    // Find the machine by ID using firstWhere with proper error handling
     sim.Machine? machine;
     try {
       machine = machines.firstWhere(
         (m) => m.id == machineId,
       );
     } catch (e) {
-      // Machine not found - show error dialog
       return Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.all(20),
@@ -1436,10 +1145,8 @@ class _MachineViewDialog extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header with close button
             Stack(
               children: [
-                // Machine view image
                 ClipRRect(
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(16),
@@ -1465,7 +1172,6 @@ class _MachineViewDialog extends ConsumerWidget {
                     },
                   ),
                 ),
-                // Close button
                 Positioned(
                   top: 8,
                   right: 8,
@@ -1473,14 +1179,13 @@ class _MachineViewDialog extends ConsumerWidget {
                     icon: const Icon(Icons.close, color: Colors.white, size: 28),
                     onPressed: () => Navigator.of(context).pop(),
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.black.withValues(alpha: 0.5),
+                      backgroundColor: Colors.black.withOpacity(0.5),
                       padding: const EdgeInsets.all(8),
                     ),
                   ),
                 ),
               ],
             ),
-            // Machine status section
             Flexible(
               child: SingleChildScrollView(
                 child: Padding(
@@ -1496,20 +1201,17 @@ class _MachineViewDialog extends ConsumerWidget {
   }
 }
 
-/// Machine status section widget for machine view dialog
 class _MachineStatusSection extends ConsumerWidget {
   final sim.Machine machine;
 
   const _MachineStatusSection({required this.machine});
 
-  /// Calculate stock level percentage (0.0 to 1.0)
   double _getStockLevel(sim.Machine machine) {
     const maxCapacity = 50.0;
     final currentStock = machine.totalInventory.toDouble();
     return (currentStock / maxCapacity).clamp(0.0, 1.0);
   }
 
-  /// Get color for stock level indicator
   Color _getStockColor(sim.Machine machine) {
     final level = _getStockLevel(machine);
     if (level > 0.5) return Colors.green;
@@ -1527,14 +1229,13 @@ class _MachineStatusSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Machine name and icon
         Row(
           children: [
             Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: zoneColor.withValues(alpha: 0.2),
+                color: zoneColor.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -1556,7 +1257,6 @@ class _MachineStatusSection extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 16),
-        // Stock level
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1577,11 +1277,10 @@ class _MachineStatusSection extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 16),
-        // Cash display
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.green.withValues(alpha: 0.1),
+            color: Colors.green.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1613,7 +1312,6 @@ class _MachineStatusSection extends ConsumerWidget {
         const SizedBox(height: 16),
         const Divider(),
         const SizedBox(height: 16),
-        // Stock details
         const Text(
           'Stock Details:',
           style: TextStyle(
@@ -1663,7 +1361,6 @@ class _MachineStatusSection extends ConsumerWidget {
             ),
           )),
         const SizedBox(height: 16),
-        // Retrieve cash button
         if (machine.currentCash > 0)
           SizedBox(
             width: double.infinity,

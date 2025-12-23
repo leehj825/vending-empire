@@ -90,9 +90,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       style: TextStyle(
                         fontSize: ScreenUtils.relativeFontSize(
                           context,
-                          0.008,
-                          min: ScreenUtils.getSmallerDimension(context) * 0.008,
-                          max: ScreenUtils.getSmallerDimension(context) * 0.012,
+                          0.015, // Increased from 0.008
+                          min: ScreenUtils.getSmallerDimension(context) * 0.012,
+                          max: ScreenUtils.getSmallerDimension(context) * 0.022,
                         ),
                         color: Colors.grey[600],
                       ),
@@ -103,9 +103,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       style: TextStyle(
                         fontSize: ScreenUtils.relativeFontSize(
                           context,
-                          0.006,
-                          min: ScreenUtils.getSmallerDimension(context) * 0.006,
-                          max: ScreenUtils.getSmallerDimension(context) * 0.009,
+                          0.012, // Increased from 0.006
+                          min: ScreenUtils.getSmallerDimension(context) * 0.009,
+                          max: ScreenUtils.getSmallerDimension(context) * 0.016,
                         ),
                         color: Colors.grey[500],
                       ),
