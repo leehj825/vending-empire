@@ -71,6 +71,7 @@ class _CustomBottomNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: kBottomNavigationBarHeight,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -82,6 +83,7 @@ class _CustomBottomNavigationBar extends StatelessWidget {
         ],
       ),
       child: SafeArea(
+        top: false,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
