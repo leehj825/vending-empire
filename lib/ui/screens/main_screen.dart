@@ -26,7 +26,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   /// App bar titles for each tab
   final List<String> _appBarTitles = const [
-    'Vending Empire',
+    'Vending Machine Tycoon',
     'City View',
     'Fleet Manager',
     'Wholesale Market',

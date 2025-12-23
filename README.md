@@ -1,6 +1,6 @@
-# vending_empire
+# Vending Machine Tycoon
 
-A new Flutter project.
+A Flutter game where you build and manage your vending machine empire.
 
 ## Getting Started
 

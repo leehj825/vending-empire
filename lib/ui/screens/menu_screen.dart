@@ -68,7 +68,7 @@ class MenuScreen extends ConsumerWidget {
                 children: [
                   // Game Title
                   Text(
-                    'Vending Empire',
+                    'Vending Machine Tycoon',
                     style: Theme.of(context).textTheme.displayLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,

@@ -5,18 +5,18 @@ import 'ui/screens/menu_screen.dart';
 void main() {
   runApp(
     const ProviderScope(
-      child: VendingEmpireApp(),
+      child: VendingMachineTycoonApp(),
     ),
   );
 }
 
-class VendingEmpireApp extends StatelessWidget {
-  const VendingEmpireApp({super.key});
+class VendingMachineTycoonApp extends StatelessWidget {
+  const VendingMachineTycoonApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Vending Empire',
+      title: 'Vending Machine Tycoon',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.green,

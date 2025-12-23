@@ -15,11 +15,11 @@ void main() {
     // Build our app and trigger a frame.
     await tester.pumpWidget(
       const ProviderScope(
-        child: VendingEmpireApp(),
+        child: VendingMachineTycoonApp(),
       ),
     );
 
     // Verify that the app title is present
-    expect(find.text('Vending Empire'), findsOneWidget);
+    expect(find.text('Vending Machine Tycoon'), findsOneWidget);
   });
 }
