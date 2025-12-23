@@ -4,6 +4,7 @@ import '../../state/selectors.dart';
 import '../../state/providers.dart';
 import '../../state/save_load_service.dart';
 import '../widgets/machine_status_card.dart';
+import 'menu_screen.dart';
 
 /// Main dashboard screen displaying simulation state and machine status
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -39,6 +40,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
       );
     }
+  }
+
+  void _exitToMenu() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit to Menu'),
+        content: const Text('Are you sure you want to exit to the main menu? Your progress will be saved.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate back to menu screen
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (context) => const MenuScreen(),
+                ),
+                (route) => false,
+              );
+            },
+            child: const Text('Exit'),
+          ),
+        ],
+      ),
+    );
   }
 
 
@@ -202,6 +232,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Icon(
               _isSimulationRunning ? Icons.pause : Icons.play_arrow,
             ),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: _exitToMenu,
+            tooltip: 'Exit to Menu',
+            heroTag: 'exit',
+            backgroundColor: Colors.red,
+            child: const Icon(Icons.exit_to_app),
           ),
         ],
       ),
