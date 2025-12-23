@@ -87,6 +87,10 @@ flutter:
     - assets/images/play_button.png
     - assets/images/save_button.png
     - assets/images/exit_button.png
+    - assets/images/cash_icon.png
+    - assets/images/star_icon.png
+    - assets/images/clock_icon.png
+    - assets/images/status_icon.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -32,8 +32,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     final cash = ref.watch(cashProvider);
     final reputation = ref.watch(reputationProvider);
+    final dayCount = ref.watch(dayCountProvider);
     final alertCount = ref.watch(alertCountProvider);
     final machines = ref.watch(machinesProvider);
+    
+    // Format time as "Day X"
+    final timeString = 'Day $dayCount';
 
     return Scaffold(
       // AppBar removed - managed by MainScreen
@@ -52,8 +56,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     SizedBox(
                       width: 140,
                       child: _StatusCard(
-                        icon: Icons.attach_money,
-                        iconColor: Colors.green,
+                        iconAsset: 'assets/images/cash_icon.png',
                         label: 'Cash',
                         value: '\$${cash.toStringAsFixed(2)}',
                         valueColor: Colors.green,
@@ -64,11 +67,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     SizedBox(
                       width: 140,
                       child: _StatusCard(
-                        icon: Icons.star,
-                        iconColor: Colors.amber,
+                        iconAsset: 'assets/images/star_icon.png',
                         label: 'Reputation',
                         value: reputation.toString(),
                         valueColor: Colors.amber,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Time Card
+                    SizedBox(
+                      width: 140,
+                      child: _StatusCard(
+                        iconAsset: 'assets/images/clock_icon.png',
+                        label: 'Time',
+                        value: timeString,
+                        valueColor: Colors.blue,
                       ),
                     ),
                   ],
@@ -156,15 +169,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
 /// Reusable status card widget for the top status bar
 class _StatusCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
+  final String iconAsset;
   final String label;
   final String value;
   final Color valueColor;
 
   const _StatusCard({
-    required this.icon,
-    required this.iconColor,
+    required this.iconAsset,
     required this.label,
     required this.value,
     required this.valueColor,
@@ -172,30 +183,71 @@ class _StatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
+    return Stack(
+      children: [
+        // Background icon
+        Image.asset(
+          'assets/images/status_icon.png',
+          width: 140,
+          height: 80,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: 140,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(8),
+              ),
+            );
+          },
+        ),
+        // Content overlay
+        Positioned.fill(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  size: 20,
-                  color: iconColor,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      iconAsset,
+                      width: 20,
+                      height: 20,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const SizedBox(
+                          width: 20,
+                          height: 20,
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(height: 8),
                 Flexible(
                   child: Text(
-                    label,
+                    value,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: valueColor,
                     ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
@@ -203,22 +255,9 @@ class _StatusCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Flexible(
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: valueColor,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
