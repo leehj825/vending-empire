@@ -5,6 +5,7 @@ import '../../state/providers.dart';
 import '../../simulation/models/zone.dart';
 import '../../simulation/models/truck.dart' as sim;
 import '../../simulation/models/machine.dart' as sim;
+import '../theme/zone_ui.dart';
 
 enum TileType {
   grass,
@@ -932,7 +933,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       width: machineSize,
       height: machineSize,
       child: GestureDetector(
-        onTap: () => _showMachineView(context, machine.zone.type),
+        onTap: () => _showMachineView(context, machine),
         child: Container(
           decoration: BoxDecoration(
             color: machineColor,
@@ -965,53 +966,18 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     }
   }
 
-  /// Show machine view popup
-  void _showMachineView(BuildContext context, ZoneType zoneType) {
-    final imagePath = _getViewImagePath(zoneType);
+  /// Show machine view popup with status and retrieve cash
+  void _showMachineView(BuildContext context, sim.Machine machine) {
+    // Capture machine ID and image path immediately
+    final machineId = machine.id;
+    final imagePath = _getViewImagePath(machine.zone.type);
     
     showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.7),
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(20),
-        child: Stack(
-          children: [
-            // Image
-            Center(
-              child: Image.asset(
-                imagePath,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 300,
-                    height: 300,
-                    color: Colors.grey[800],
-                    child: const Center(
-                      child: Text(
-                        'View image not found',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            // Close button (X mark)
-            Positioned(
-              top: 0,
-              right: 0,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 32),
-                onPressed: () => Navigator.of(context).pop(),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.black.withValues(alpha: 0.5),
-                  padding: const EdgeInsets.all(8),
-                ),
-              ),
-            ),
-          ],
-        ),
+      builder: (context) => _MachineViewDialog(
+        machineId: machineId,
+        imagePath: imagePath,
       ),
     );
   }
@@ -1137,121 +1103,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     );
   }
 
-  Widget _buildGroundTile(TileType tileType, RoadDirection? roadDir) {
-    final isRoad = tileType == TileType.road;
-    final needsFlip = isRoad && roadDir == RoadDirection.vertical;
-
-    Widget imageWidget = Image.asset(
-      _getTileAssetPath(tileType, roadDir),
-      fit: BoxFit.contain, // Changed from cover to contain to show full image
-      alignment: Alignment.bottomCenter, // Anchor at bottom
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          color: _getFallbackColor(tileType),
-          alignment: Alignment.bottomCenter,
-          child: Text(
-            _getTileLabel(tileType),
-            style: const TextStyle(fontSize: 8),
-          ),
-        );
-      },
-    );
-
-    // Flip road sprites instead of rotating
-    if (needsFlip) {
-      return Transform(
-        alignment: Alignment.bottomCenter, // Flip around bottom center
-        transform: Matrix4.identity()..scale(-1.0, 1.0), // Flip horizontally
-        child: imageWidget,
-      );
-    }
-
-    return imageWidget;
-  }
-
-  Widget _buildBuildingTile(TileType tileType, BuildingOrientation? orientation) {
-    Widget imageWidget = Image.asset(
-      _getTileAssetPath(tileType, null),
-      fit: BoxFit.contain,
-      alignment: Alignment.bottomCenter, // Anchor at bottom-center
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          color: _getFallbackColor(tileType),
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 4.0),
-            child: Text(
-              _getTileLabel(tileType),
-              style: const TextStyle(fontSize: 10),
-            ),
-          ),
-        );
-      },
-    );
-
-    // Apply horizontal flip based on orientation
-    if (orientation == BuildingOrientation.flippedHorizontal) {
-      return Transform(
-        alignment: Alignment.bottomCenter, // Flip around bottom center
-        transform: Matrix4.identity()..scale(-1.0, 1.0), // Flip horizontally
-        child: imageWidget,
-      );
-    }
-
-    return imageWidget;
-  }
-
-  Color _getFallbackColor(TileType tileType) {
-    switch (tileType) {
-      case TileType.grass:
-        return Colors.green.shade300;
-      case TileType.road:
-        return Colors.grey.shade600;
-      case TileType.shop:
-        return Colors.blue.shade300;
-      case TileType.gym:
-        return Colors.red.shade300;
-      case TileType.office:
-        return Colors.orange.shade300;
-      case TileType.school:
-        return Colors.purple.shade300;
-      case TileType.gasStation:
-        return Colors.yellow.shade300;
-      case TileType.park:
-        return Colors.green.shade400;
-      case TileType.house:
-        return Colors.brown.shade300;
-      case TileType.warehouse:
-        return Colors.grey.shade400;
-    }
-  }
-
-  String _getTileLabel(TileType tileType) {
-    switch (tileType) {
-      case TileType.grass:
-        return 'G';
-      case TileType.road:
-        return 'R';
-      case TileType.shop:
-        return 'S';
-      case TileType.gym:
-        return 'G';
-      case TileType.office:
-        return 'O';
-      case TileType.school:
-        return 'Sc';
-      case TileType.gasStation:
-        return 'GS';
-      case TileType.park:
-        return 'P';
-      case TileType.house:
-        return 'H';
-      case TileType.warehouse:
-        return 'W';
-    }
-  }
-
-  /// Handle building tap - purchase machine at this location
+  /// Handle building tap to purchase machine
   void _handleBuildingTap(int gridX, int gridY, TileType tileType) {
     // Convert grid coordinates to zone coordinates
     // Grid: 0-9, Zone: 1.0-10.0 (machines at .5 positions)
@@ -1385,5 +1237,463 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         if (officeMachines >= 2) return 'Office limit reached (have $officeMachines/2). Maximum machines reached.';
         return 'Can purchase office machines ($officeMachines/2)';
     }
+  }
+
+  Widget _buildGroundTile(TileType tileType, RoadDirection? roadDir) {
+    final isRoad = tileType == TileType.road;
+    final needsFlip = isRoad && roadDir == RoadDirection.vertical;
+
+    Widget imageWidget = Image.asset(
+      _getTileAssetPath(tileType, roadDir),
+      fit: BoxFit.contain,
+      alignment: Alignment.bottomCenter,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: _getFallbackColor(tileType),
+          alignment: Alignment.bottomCenter,
+          child: Text(
+            _getTileLabel(tileType),
+            style: const TextStyle(fontSize: 8),
+          ),
+        );
+      },
+    );
+
+    if (needsFlip) {
+      return Transform(
+        alignment: Alignment.bottomCenter,
+        transform: Matrix4.identity()..scale(-1.0, 1.0),
+        child: imageWidget,
+      );
+    }
+
+    return imageWidget;
+  }
+
+  Widget _buildBuildingTile(TileType tileType, BuildingOrientation? orientation) {
+    Widget imageWidget = Image.asset(
+      _getTileAssetPath(tileType, null),
+      fit: BoxFit.contain,
+      alignment: Alignment.bottomCenter,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: _getFallbackColor(tileType),
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 4.0),
+            child: Text(
+              _getTileLabel(tileType),
+              style: const TextStyle(fontSize: 10),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (orientation == BuildingOrientation.flippedHorizontal) {
+      return Transform(
+        alignment: Alignment.bottomCenter,
+        transform: Matrix4.identity()..scale(-1.0, 1.0),
+        child: imageWidget,
+      );
+    }
+
+    return imageWidget;
+  }
+
+  Color _getFallbackColor(TileType tileType) {
+    switch (tileType) {
+      case TileType.grass:
+        return Colors.green.shade300;
+      case TileType.road:
+        return Colors.grey.shade600;
+      case TileType.shop:
+        return Colors.blue.shade300;
+      case TileType.gym:
+        return Colors.red.shade300;
+      case TileType.office:
+        return Colors.orange.shade300;
+      case TileType.school:
+        return Colors.purple.shade300;
+      case TileType.gasStation:
+        return Colors.yellow.shade300;
+      case TileType.park:
+        return Colors.green.shade400;
+      case TileType.house:
+        return Colors.brown.shade300;
+      case TileType.warehouse:
+        return Colors.grey.shade400;
+    }
+  }
+
+  String _getTileLabel(TileType tileType) {
+    switch (tileType) {
+      case TileType.grass:
+        return 'G';
+      case TileType.road:
+        return 'R';
+      case TileType.shop:
+        return 'S';
+      case TileType.gym:
+        return 'G';
+      case TileType.office:
+        return 'O';
+      case TileType.school:
+        return 'Sc';
+      case TileType.gasStation:
+        return 'GS';
+      case TileType.park:
+        return 'P';
+      case TileType.house:
+        return 'H';
+      case TileType.warehouse:
+        return 'W';
+    }
+  }
+}
+
+/// Machine view dialog widget
+class _MachineViewDialog extends ConsumerWidget {
+  final String machineId;
+  final String imagePath;
+
+  const _MachineViewDialog({
+    required this.machineId,
+    required this.imagePath,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch machines to get latest state
+    final machines = ref.watch(machinesProvider);
+    
+    // Find the machine by ID - check all machines
+    sim.Machine? machine;
+    for (final m in machines) {
+      if (m.id == machineId) {
+        machine = m;
+        break;
+      }
+    }
+    
+    // If machine not found, show error
+    if (machine == null) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Machine not found: $machineId'),
+              const SizedBox(height: 8),
+              Text('Total machines: ${machines.length}'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(20),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header with close button
+            Stack(
+              children: [
+                // Machine view image
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                  child: Image.asset(
+                    imagePath,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: 200,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: double.infinity,
+                        height: 200,
+                        color: Colors.grey[800],
+                        child: const Center(
+                          child: Text(
+                            'View image not found',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                // Close button
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withValues(alpha: 0.5),
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Machine status section
+            Flexible(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _MachineStatusSection(machine: machine),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Machine status section widget for machine view dialog
+class _MachineStatusSection extends ConsumerWidget {
+  final sim.Machine machine;
+
+  const _MachineStatusSection({required this.machine});
+
+  /// Calculate stock level percentage (0.0 to 1.0)
+  double _getStockLevel(sim.Machine machine) {
+    const maxCapacity = 50.0;
+    final currentStock = machine.totalInventory.toDouble();
+    return (currentStock / maxCapacity).clamp(0.0, 1.0);
+  }
+
+  /// Get color for stock level indicator
+  Color _getStockColor(sim.Machine machine) {
+    final level = _getStockLevel(machine);
+    if (level > 0.5) return Colors.green;
+    if (level > 0.2) return Colors.orange;
+    return Colors.red;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stockLevel = _getStockLevel(machine);
+    final stockColor = _getStockColor(machine);
+    final zoneIcon = machine.zone.type.icon;
+    final zoneColor = machine.zone.type.color;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Machine name and icon
+        Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: zoneColor.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                zoneIcon,
+                color: zoneColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                machine.name,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        // Stock level
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Stock: ${machine.totalInventory} items',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: stockLevel,
+              backgroundColor: Colors.grey[300],
+              valueColor: AlwaysStoppedAnimation<Color>(stockColor),
+              minHeight: 8,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        // Cash display
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.green.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Cash',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  Text(
+                    '\$${machine.currentCash.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Divider(),
+        const SizedBox(height: 16),
+        // Stock details
+        const Text(
+          'Stock Details:',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (machine.inventory.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Text(
+              'Empty',
+              style: TextStyle(
+                fontStyle: FontStyle.italic,
+                color: Colors.grey[600],
+              ),
+            ),
+          )
+        else
+          ...machine.inventory.values.map((item) => Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    item.product.name,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${item.quantity}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )),
+        const SizedBox(height: 16),
+        // Retrieve cash button
+        if (machine.currentCash > 0)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                ref.read(gameControllerProvider.notifier).retrieveCash(machine.id);
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Retrieved \$${machine.currentCash.toStringAsFixed(2)} from ${machine.name}',
+                    ),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.account_balance_wallet, size: 20),
+              label: Text(
+                'Retrieve \$${machine.currentCash.toStringAsFixed(2)}',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          )
+        else
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Text(
+                'No cash to retrieve',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
