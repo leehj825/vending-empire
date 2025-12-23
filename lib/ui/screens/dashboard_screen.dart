@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/selectors.dart';
 import '../../state/providers.dart';
+import '../../state/save_load_service.dart';
 import '../widgets/machine_status_card.dart';
 
 /// Main dashboard screen displaying simulation state and machine status
@@ -21,6 +22,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     setState(() {
       _isSimulationRunning = !_isSimulationRunning;
     });
+  }
+
+  Future<void> _saveGame() async {
+    final gameState = ref.read(gameControllerProvider);
+    final success = await SaveLoadService.saveGame(gameState);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success 
+            ? 'Game saved successfully!' 
+            : 'Failed to save game'),
+          backgroundColor: success ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
 
@@ -166,12 +184,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _toggleSimulation,
-        tooltip: _isSimulationRunning ? 'Pause Simulation' : 'Start Simulation',
-        child: Icon(
-          _isSimulationRunning ? Icons.pause : Icons.play_arrow,
-        ),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            onPressed: _saveGame,
+            tooltip: 'Save Game',
+            heroTag: 'save',
+            backgroundColor: Colors.blue,
+            child: const Icon(Icons.save),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: _toggleSimulation,
+            tooltip: _isSimulationRunning ? 'Pause Simulation' : 'Start Simulation',
+            heroTag: 'simulation',
+            child: Icon(
+              _isSimulationRunning ? Icons.pause : Icons.play_arrow,
+            ),
+          ),
+        ],
       ),
     );
   }

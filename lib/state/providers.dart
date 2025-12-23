@@ -523,6 +523,32 @@ class GameController extends StateNotifier<GlobalGameState> {
   /// Get warehouse inventory
   Warehouse get warehouse => state.warehouse;
 
+  /// Load game state from saved data
+  void loadGameState(GlobalGameState savedState) {
+    print('🟢 CONTROLLER: Loading saved game state');
+    
+    // Calculate game time from day and hour
+    final tick = (savedState.dayCount - 1) * SimulationConstants.ticksPerDay +
+        (savedState.hourOfDay * SimulationConstants.ticksPerHour);
+    final gameTime = GameTime.fromTicks(tick);
+    
+    // Restore simulation engine state
+    simulationEngine.restoreState(
+      time: gameTime,
+      machines: savedState.machines,
+      trucks: savedState.trucks,
+      cash: savedState.cash,
+      reputation: savedState.reputation,
+      warehouseRoadX: savedState.warehouseRoadX,
+      warehouseRoadY: savedState.warehouseRoadY,
+    );
+    
+    // Restore game state
+    state = savedState;
+    
+    state = state.addLogMessage('Game loaded successfully');
+  }
+
   /// Retrieve cash from a machine
   void retrieveCash(String machineId) {
     // Find the machine

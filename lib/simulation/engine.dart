@@ -168,6 +168,29 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     _streamController.add(state);
   }
 
+  /// Restore simulation state (used for loading saved games)
+  void restoreState({
+    required GameTime time,
+    required List<Machine> machines,
+    required List<Truck> trucks,
+    required double cash,
+    required int reputation,
+    double? warehouseRoadX,
+    double? warehouseRoadY,
+  }) {
+    print('🔴 ENGINE: Restoring state - Day ${time.day} ${time.hour}:00');
+    state = state.copyWith(
+      time: time,
+      machines: machines,
+      trucks: trucks,
+      cash: cash,
+      reputation: reputation,
+      warehouseRoadX: warehouseRoadX,
+      warehouseRoadY: warehouseRoadY,
+    );
+    _streamController.add(state);
+  }
+
   /// Start the simulation (ticks every 1 second)
   void start() {
     print('🔴 ENGINE: Start requested');
