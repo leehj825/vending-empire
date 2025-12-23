@@ -927,13 +927,24 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         break;
     }
 
+    // Capture machine ID in local variable to avoid closure issues
+    final machineId = machine.id;
+
     return Positioned(
       left: left,
       top: top,
       width: machineSize,
       height: machineSize,
       child: GestureDetector(
-        onTap: () => _showMachineView(context, machine),
+        onTap: () {
+          // Look up the machine fresh from the provider to ensure we have the latest state
+          final machines = ref.read(machinesProvider);
+          final currentMachine = machines.firstWhere(
+            (m) => m.id == machineId,
+            orElse: () => machine, // Fallback to the passed machine if not found
+          );
+          _showMachineView(context, currentMachine);
+        },
         child: Container(
           decoration: BoxDecoration(
             color: machineColor,
@@ -1367,17 +1378,14 @@ class _MachineViewDialog extends ConsumerWidget {
     // Watch machines to get latest state
     final machines = ref.watch(machinesProvider);
     
-    // Find the machine by ID - check all machines
+    // Find the machine by ID using firstWhere with proper error handling
     sim.Machine? machine;
-    for (final m in machines) {
-      if (m.id == machineId) {
-        machine = m;
-        break;
-      }
-    }
-    
-    // If machine not found, show error
-    if (machine == null) {
+    try {
+      machine = machines.firstWhere(
+        (m) => m.id == machineId,
+      );
+    } catch (e) {
+      // Machine not found - show error dialog
       return Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.all(20),
@@ -1390,9 +1398,21 @@ class _MachineViewDialog extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Machine not found: $machineId'),
+              const Text(
+                'Machine not found',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text('Looking for ID: $machineId'),
               const SizedBox(height: 8),
               Text('Total machines: ${machines.length}'),
+              if (machines.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Available IDs: ${machines.map((m) => m.id).join(', ')}',
+                  style: const TextStyle(fontSize: 10),
+                ),
+              ],
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
