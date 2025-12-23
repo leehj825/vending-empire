@@ -310,7 +310,6 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
           // Top Section: Truck Selector
           SliverToBoxAdapter(
             child: Container(
-              constraints: const BoxConstraints(minHeight: 150),
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -44,7 +44,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         elevation: 0,
         toolbarHeight: 0,
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(ScreenUtils.relativeSize(context, 0.108)),
+          preferredSize: Size.fromHeight(ScreenUtils.relativeSize(context, 0.085)),
           child: _StatusBar(),
         ),
       ),
