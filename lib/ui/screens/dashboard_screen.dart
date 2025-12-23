@@ -59,7 +59,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       value: '\$${cash.toStringAsFixed(2)}',
                       valueColor: Colors.green,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 6),
                     // Reputation Card
                     _StatusCard(
                       iconAsset: 'assets/images/star_icon.png',
@@ -67,7 +67,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       value: reputation.toString(),
                       valueColor: Colors.amber,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 6),
                     // Time Card
                     _StatusCard(
                       iconAsset: 'assets/images/clock_icon.png',
@@ -182,15 +182,15 @@ class _StatusCard extends StatelessWidget {
     // Card height scales proportionally
     final cardHeight = (cardWidth * 0.714).clamp(85.0, 128.0);
     
-    // Icon size scales with card width, clamped between 24 and 40
-    final iconSize = (cardWidth * 0.23).clamp(24.0, 40.0);
+    // Icon size scales with card width, but smaller - clamped between 20 and 32
+    final iconSize = (cardWidth * 0.18).clamp(20.0, 32.0);
     
-    // Font sizes scale with card width
-    final labelFontSize = (cardWidth * 0.086).clamp(10.0, 14.0);
-    final valueFontSize = (cardWidth * 0.129).clamp(14.0, 24.0);
+    // Font sizes scale with card width, but smaller relative to card
+    final labelFontSize = (cardWidth * 0.071).clamp(8.0, 12.0);
+    final valueFontSize = (cardWidth * 0.1).clamp(12.0, 18.0);
     
     // Padding scales with card size
-    final padding = (cardWidth * 0.086).clamp(10.0, 14.0);
+    final padding = (cardWidth * 0.071).clamp(8.0, 12.0);
     
     return SizedBox(
       width: cardWidth,
@@ -214,31 +214,37 @@ class _StatusCard extends StatelessWidget {
               );
             },
           ),
-          // Content overlay
+          // Content overlay - icons positioned inside the status_icon
           Positioned.fill(
-            child: Padding(
-              padding: EdgeInsets.all(padding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Image.asset(
-                        iconAsset,
+            child: Stack(
+              children: [
+                // Icon positioned to overlap/be inside the status_icon (top-left)
+                Positioned(
+                  left: -padding * 0.3,
+                  top: -padding * 0.3,
+                  child: Image.asset(
+                    iconAsset,
+                    width: iconSize,
+                    height: iconSize,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return SizedBox(
                         width: iconSize,
                         height: iconSize,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return SizedBox(
-                            width: iconSize,
-                            height: iconSize,
-                          );
-                        },
-                      ),
-                      SizedBox(width: padding * 0.67),
-                      Flexible(
+                      );
+                    },
+                  ),
+                ),
+                // Text content
+                Padding(
+                  padding: EdgeInsets.all(padding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Label row - offset to account for icon
+                      Padding(
+                        padding: EdgeInsets.only(left: iconSize * 0.6, top: padding * 0.2),
                         child: Text(
                           label,
                           style: TextStyle(
@@ -250,23 +256,23 @@ class _StatusCard extends StatelessWidget {
                           maxLines: 1,
                         ),
                       ),
+                      SizedBox(height: padding * 0.5),
+                      Flexible(
+                        child: Text(
+                          value,
+                          style: TextStyle(
+                            fontSize: valueFontSize,
+                            fontWeight: FontWeight.bold,
+                            color: valueColor,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
                     ],
                   ),
-                  SizedBox(height: padding * 0.67),
-                  Flexible(
-                    child: Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: valueFontSize,
-                        fontWeight: FontWeight.bold,
-                        color: valueColor,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
