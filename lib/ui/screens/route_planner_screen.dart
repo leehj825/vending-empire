@@ -339,13 +339,14 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                   style: TextStyle(
                                     fontSize: ScreenUtils.relativeFontSize(
                                       context,
-                                      0.015,
-                                      min: ScreenUtils.getSmallerDimension(context) * 0.012,
-                                      max: ScreenUtils.getSmallerDimension(context) * 0.022,
+                                      0.028, // Increased from 0.015
+                                      min: ScreenUtils.getSmallerDimension(context) * 0.022,
+                                      max: ScreenUtils.getSmallerDimension(context) * 0.04,
                                     ),
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                SizedBox(height: ScreenUtils.relativeSize(context, 0.01)),
+                                SizedBox(height: ScreenUtils.relativeSize(context, 0.02)),
                                 ElevatedButton.icon(
                                   onPressed: () {
                                     ref
@@ -356,9 +357,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                     Icons.add_shopping_cart,
                                     size: ScreenUtils.relativeSizeClamped(
                                       context,
-                                      0.025,
-                                      min: ScreenUtils.getSmallerDimension(context) * 0.02,
-                                      max: ScreenUtils.getSmallerDimension(context) * 0.035,
+                                      0.045, // Increased from 0.025
+                                      min: ScreenUtils.getSmallerDimension(context) * 0.035,
+                                      max: ScreenUtils.getSmallerDimension(context) * 0.06,
                                     ),
                                   ),
                                   label: Text(
@@ -366,10 +367,17 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                     style: TextStyle(
                                       fontSize: ScreenUtils.relativeFontSize(
                                         context,
-                                        0.012,
-                                        min: ScreenUtils.getSmallerDimension(context) * 0.01,
-                                        max: ScreenUtils.getSmallerDimension(context) * 0.018,
+                                        0.022, // Increased from 0.012
+                                        min: ScreenUtils.getSmallerDimension(context) * 0.018,
+                                        max: ScreenUtils.getSmallerDimension(context) * 0.032,
                                       ),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: ScreenUtils.relativeSize(context, 0.04),
+                                      vertical: ScreenUtils.relativeSize(context, 0.02),
                                     ),
                                   ),
                                 ),

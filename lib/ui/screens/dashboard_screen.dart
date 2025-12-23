@@ -81,31 +81,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   children: [
                     Icon(
                       Icons.inventory_2_outlined,
-                      size: ScreenUtils.relativeSize(context, 0.027),
+                      size: ScreenUtils.relativeSizeClamped(
+                        context,
+                        0.05, // Increased from 0.027
+                        min: ScreenUtils.getSmallerDimension(context) * 0.04,
+                        max: ScreenUtils.getSmallerDimension(context) * 0.08,
+                      ),
                       color: Colors.grey[400],
                     ),
-                    SizedBox(height: ScreenUtils.relativeSize(context, 0.007)),
+                    SizedBox(height: ScreenUtils.relativeSize(context, 0.015)),
                     Text(
                       'No machines yet',
                       style: TextStyle(
                         fontSize: ScreenUtils.relativeFontSize(
                           context,
-                          0.015, // Increased from 0.008
-                          min: ScreenUtils.getSmallerDimension(context) * 0.012,
-                          max: ScreenUtils.getSmallerDimension(context) * 0.022,
+                          0.028, // Increased from 0.015
+                          min: ScreenUtils.getSmallerDimension(context) * 0.022,
+                          max: ScreenUtils.getSmallerDimension(context) * 0.04,
                         ),
                         color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    SizedBox(height: ScreenUtils.relativeSize(context, 0.0034)),
+                    SizedBox(height: ScreenUtils.relativeSize(context, 0.01)),
                     Text(
                       'Go to the Map to purchase machines',
                       style: TextStyle(
                         fontSize: ScreenUtils.relativeFontSize(
                           context,
-                          0.012, // Increased from 0.006
-                          min: ScreenUtils.getSmallerDimension(context) * 0.009,
-                          max: ScreenUtils.getSmallerDimension(context) * 0.016,
+                          0.020, // Increased from 0.012
+                          min: ScreenUtils.getSmallerDimension(context) * 0.016,
+                          max: ScreenUtils.getSmallerDimension(context) * 0.028,
                         ),
                         color: Colors.grey[500],
                       ),
