@@ -60,7 +60,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     List<String> machineIds,
     List<Machine> machines,
   ) {
-    if (machineIds.isEmpty) return 0.0;
+    if (machineIds.isEmpty || machines.isEmpty) return 0.0;
 
     double totalDistance = 0.0;
     double lastX = 0.0; // Warehouse at (0, 0)
@@ -68,9 +68,10 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
 
     // Distance from warehouse to first stop
     if (machineIds.isNotEmpty) {
+      final firstMachineId = machineIds.first;
       final firstMachine = machines.firstWhere(
-        (m) => m.id == machineIds.first,
-        orElse: () => machines.first,
+        (m) => m.id == firstMachineId,
+        orElse: () => throw StateError('Machine $firstMachineId not found'),
       );
       totalDistance += _calculateDistance(
         lastX,
@@ -84,9 +85,10 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
 
     // Distance between stops
     for (int i = 1; i < machineIds.length; i++) {
+      final machineId = machineIds[i];
       final machine = machines.firstWhere(
-        (m) => m.id == machineIds[i],
-        orElse: () => machines.first,
+        (m) => m.id == machineId,
+        orElse: () => throw StateError('Machine $machineId not found'),
       );
       totalDistance += _calculateDistance(
         lastX,
@@ -183,7 +185,10 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   void _addStopToRoute(String truckId, String machineId) {
     final controller = ref.read(gameControllerProvider.notifier);
     final trucks = ref.read(trucksProvider);
-    final truck = trucks.firstWhere((t) => t.id == truckId);
+    final truck = trucks.firstWhere(
+      (t) => t.id == truckId,
+      orElse: () => throw StateError('Truck with id $truckId not found'),
+    );
     final newRoute = [...truck.route, machineId];
     controller.updateRoute(truckId, newRoute);
   }
@@ -191,7 +196,10 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   void _removeStopFromRoute(String truckId, String machineId) {
     final controller = ref.read(gameControllerProvider.notifier);
     final trucks = ref.read(trucksProvider);
-    final truck = trucks.firstWhere((t) => t.id == truckId);
+    final truck = trucks.firstWhere(
+      (t) => t.id == truckId,
+      orElse: () => throw StateError('Truck with id $truckId not found'),
+    );
     final newRoute = truck.route.where((id) => id != machineId).toList();
     controller.updateRoute(truckId, newRoute);
   }
@@ -203,7 +211,10 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
 
     final controller = ref.read(gameControllerProvider.notifier);
     final trucks = ref.read(trucksProvider);
-    final truck = trucks.firstWhere((t) => t.id == truckId);
+    final truck = trucks.firstWhere(
+      (t) => t.id == truckId,
+      orElse: () => throw StateError('Truck with id $truckId not found'),
+    );
     final newRoute = List<String>.from(truck.route);
     final item = newRoute.removeAt(oldIndex);
     newRoute.insert(newIndex, item);
@@ -278,20 +289,25 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     final selectedTruckNotifier = ref.watch(selectedTruckIdProvider);
     final selectedTruckId = selectedTruckNotifier.selectedId;
 
-    final selectedTruck = selectedTruckId != null
+    final selectedTruck = selectedTruckId != null && trucks.isNotEmpty
         ? trucks.firstWhere(
             (t) => t.id == selectedTruckId,
-            orElse: () => trucks.isNotEmpty ? trucks.first : trucks.first,
+            orElse: () => trucks.first, // Fallback to first truck if ID not found
           )
         : null;
 
     // Get machines for the selected truck's route
-    final routeMachines = selectedTruck != null
+    final routeMachines = selectedTruck != null && machines.isNotEmpty
         ? selectedTruck.route
-            .map((id) => machines.firstWhere(
-                  (m) => m.id == id,
-                  orElse: () => machines.first,
-                ))
+            .map((id) {
+              try {
+                return machines.firstWhere((m) => m.id == id);
+              } catch (e) {
+                // If machine not found, skip it (shouldn't happen in normal operation)
+                return null;
+              }
+            })
+            .whereType<Machine>()
             .toList()
         : <Machine>[];
 
