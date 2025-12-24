@@ -93,15 +93,20 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   
   int? _warehouseX;
   int? _warehouseY;
+  
+  late TransformationController _transformationController;
 
   @override
   void initState() {
     super.initState();
     _generateMap();
+    // Initialize with a zoomed-in view (scale 1.5)
+    _transformationController = TransformationController();
   }
 
   @override
   void dispose() {
+    _transformationController.dispose();
     super.dispose();
   }
 
@@ -535,9 +540,31 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         
         final centerOffset = Offset(offsetX, offsetY);
 
+        // Calculate initial scale to zoom in (1.5x zoom for better visibility)
+        final initialScale = 1.5;
+        
+        // Calculate center of the map in container coordinates
+        final mapCenterX = offsetX + (minX + maxX) / 2;
+        final mapCenterY = offsetY + (minY + maxY) / 2;
+        
+        // Calculate initial translation to center the viewport on the map center
+        // After scaling, we need to adjust translation to keep the center point in view
+        final initialTranslationX = viewportWidth / 2 - mapCenterX * initialScale;
+        final initialTranslationY = viewportHeight / 2 - mapCenterY * initialScale;
+        
+        // Set initial transformation if not already set (only on first build)
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_transformationController.value.isIdentity()) {
+            _transformationController.value = Matrix4.identity()
+              ..translate(initialTranslationX, initialTranslationY)
+              ..scale(initialScale);
+          }
+        });
+        
         return Stack(
           children: [
             InteractiveViewer(
+              transformationController: _transformationController,
               boundaryMargin: const EdgeInsets.all(200),
               minScale: 0.3,
               maxScale: 3.0,
