@@ -57,9 +57,7 @@ class MenuScreen extends ConsumerWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final smallerDim = ScreenUtils.getSmallerDimension(context);
-            final screenWidth = constraints.maxWidth;
             final screenHeight = constraints.maxHeight;
-            final isPortrait = screenHeight > screenWidth;
             
             return SingleChildScrollView(
               child: ConstrainedBox(
@@ -90,9 +88,7 @@ class MenuScreen extends ConsumerWidget {
                         ),
                         
                         SizedBox(
-                          height: isPortrait 
-                            ? ScreenUtils.relativeSize(context, 0.021)
-                            : ScreenUtils.relativeSize(context, 0.034),
+                          height: screenHeight * 0.1, // 10% of screen height
                         ),
                         
                         // Start Game Button - width relative to smaller dimension
@@ -141,9 +137,7 @@ class MenuScreen extends ConsumerWidget {
                         ),
                         
                         SizedBox(
-                          height: isPortrait
-                            ? ScreenUtils.relativeSize(context, 0.034)
-                            : ScreenUtils.relativeSize(context, 0.051),
+                          height: screenHeight * 0.1, // 10% of screen height
                         ),
                         
                         // Bottom Buttons Row - width relative to smaller dimension
