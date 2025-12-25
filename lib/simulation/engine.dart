@@ -559,89 +559,113 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     const double movementSpeed = 0.1;
     
     // A* pathfinding to find shortest path through road network
+    // Simplified and refactored to ensure paths are always generated correctly
     List<({double x, double y})> findPath(
       double startX, double startY,
       double endX, double endY,
     ) {
-      // Don't snap start position immediately - treat it as a potential point on a road line
-      final start = (x: startX, y: startY);
-      // Snap end position (destinations are always on valid roads or intersections)
-      final end = (x: _snapToNearestRoad(endX), y: _snapToNearestRoad(endY));
+      // Snap both start and end to nearest road intersections for pathfinding
+      final startRoadX = _snapToNearestRoad(startX);
+      final startRoadY = _snapToNearestRoad(startY);
+      final endRoadX = _snapToNearestRoad(endX);
+      final endRoadY = _snapToNearestRoad(endY);
       
-      // If close to destination, return simple path
-      if ((start.x - end.x).abs() < SimulationConstants.roadSnapThreshold && 
-          (start.y - end.y).abs() < SimulationConstants.roadSnapThreshold) {
+      final start = (x: startRoadX, y: startRoadY);
+      final end = (x: endRoadX, y: endRoadY);
+      
+      // If already at destination, return simple path
+      if (startRoadX == endRoadX && startRoadY == endRoadY) {
         return [end];
       }
       
-      // Get cached base graph and create a shallow copy for this pathfinding call
+      // Get base graph (road intersections)
       final baseGraph = _getBaseGraph();
-      final graph = Map<({double x, double y}), List<({double x, double y})>>.from(
-        baseGraph.map((key, value) => MapEntry(key, List<({double x, double y})>.from(value))),
-      );
       
-      // Helper to check if a coordinate is on an outward road
-      bool isOutwardRoad(double coord) => _outwardRoads.contains(coord);
+      // Ensure start and end are in the graph
+      if (!baseGraph.containsKey(start)) {
+        baseGraph[start] = [];
+      }
+      if (!baseGraph.containsKey(end)) {
+        baseGraph[end] = [];
+      }
       
-      // Allow connections to end node even if it's on an outward road
-      if (graph.containsKey(end)) {
-        // End is already in base graph, but we may need to add connections
-        // Check if we need to allow connections from outward roads to end
-        for (final node in graph.keys) {
-          if (isOutwardRoad(node.x) || isOutwardRoad(node.y)) {
-            // Allow connection to end if not already present
-            if (!graph[node]!.any((n) => n.x == end.x && n.y == end.y)) {
-              graph[node]!.add(end);
+      // Connect start node to all intersections on the same road lines
+      for (final roadX in _validRoads) {
+        if (roadX == startRoadX) {
+          // Same vertical road - connect to all intersections on this vertical line
+          for (final roadY in _validRoads) {
+            final neighbor = (x: roadX, y: roadY);
+            if (baseGraph.containsKey(neighbor) && neighbor != start) {
+              if (!baseGraph[start]!.any((n) => n.x == neighbor.x && n.y == neighbor.y)) {
+                baseGraph[start]!.add(neighbor);
+              }
+              if (!baseGraph[neighbor]!.any((n) => n.x == start.x && n.y == start.y)) {
+                baseGraph[neighbor]!.add(start);
+              }
             }
           }
         }
       }
-
-      // 2. Add Start Node to Graph
-      // Find neighbors for start node based on its position
-      graph[start] = [];
-      
-      // Snap start to nearest road lines to find valid neighbors
-      final snappedStartX = _snapToNearestRoad(startX);
-      final snappedStartY = _snapToNearestRoad(startY);
-      
-      // Check if start is close to a horizontal road (y is fixed)
-      if ((startY - snappedStartY).abs() < SimulationConstants.roadSnapThreshold) {
-        // We are on horizontal road y=snappedStartY. Connect to road nodes on this line.
-        for (final roadX in _validRoads) {
-           final neighbor = (x: roadX, y: snappedStartY);
-           if (graph.containsKey(neighbor)) {
-             graph[start]!.add(neighbor);
-             // Also add reverse connection for A* to work
-             graph[neighbor]!.add(start); 
-           }
+      for (final roadY in _validRoads) {
+        if (roadY == startRoadY) {
+          // Same horizontal road - connect to all intersections on this horizontal line
+          for (final roadX in _validRoads) {
+            final neighbor = (x: roadX, y: roadY);
+            if (baseGraph.containsKey(neighbor) && neighbor != start) {
+              if (!baseGraph[start]!.any((n) => n.x == neighbor.x && n.y == neighbor.y)) {
+                baseGraph[start]!.add(neighbor);
+              }
+              if (!baseGraph[neighbor]!.any((n) => n.x == start.x && n.y == start.y)) {
+                baseGraph[neighbor]!.add(start);
+              }
+            }
+          }
         }
       }
       
-      // Check if start is close to a vertical road (x is fixed)
-      if ((startX - snappedStartX).abs() < SimulationConstants.roadSnapThreshold) {
-        // We are on vertical road x=snappedStartX. Connect to road nodes on this line.
-         for (final roadY in _validRoads) {
-           final neighbor = (x: snappedStartX, y: roadY);
-           if (graph.containsKey(neighbor)) {
-             graph[start]!.add(neighbor);
-             graph[neighbor]!.add(start);
-           }
+      // Connect end node similarly
+      for (final roadX in _validRoads) {
+        if (roadX == endRoadX) {
+          for (final roadY in _validRoads) {
+            final neighbor = (x: roadX, y: roadY);
+            if (baseGraph.containsKey(neighbor) && neighbor != end) {
+              if (!baseGraph[end]!.any((n) => n.x == neighbor.x && n.y == neighbor.y)) {
+                baseGraph[end]!.add(neighbor);
+              }
+              if (!baseGraph[neighbor]!.any((n) => n.x == end.x && n.y == end.y)) {
+                baseGraph[neighbor]!.add(end);
+              }
+            }
+          }
+        }
+      }
+      for (final roadY in _validRoads) {
+        if (roadY == endRoadY) {
+          for (final roadX in _validRoads) {
+            final neighbor = (x: roadX, y: roadY);
+            if (baseGraph.containsKey(neighbor) && neighbor != end) {
+              if (!baseGraph[end]!.any((n) => n.x == neighbor.x && n.y == neighbor.y)) {
+                baseGraph[end]!.add(neighbor);
+              }
+              if (!baseGraph[neighbor]!.any((n) => n.x == end.x && n.y == end.y)) {
+                baseGraph[neighbor]!.add(end);
+              }
+            }
+          }
         }
       }
       
-      // 3. Add End Node to Graph (if not already an intersection)
-      if (!graph.containsKey(end)) {
-        graph[end] = [];
-        // End is usually a road intersection or snapped to one by caller
-        // Given snapToNearestRoad used for end, it IS an intersection or close enough.
-      }
-      
-      // A* algorithm
+      // A* pathfinding algorithm
       final openSet = <({double x, double y})>{start};
       final cameFrom = <({double x, double y}), ({double x, double y})>{};
       final gScore = <({double x, double y}), double>{start: 0.0};
-      final fScore = <({double x, double y}), double>{start: (end.x - start.x).abs() + (end.y - start.y).abs()};
+      final hStart = (end.x - start.x).abs() + (end.y - start.y).abs();
+      final fScore = <({double x, double y}), double>{start: hStart};
+      
+      // Helper to check node equality
+      bool nodesEqual(({double x, double y}) a, ({double x, double y}) b) {
+        return a.x == b.x && a.y == b.y;
+      }
       
       while (openSet.isNotEmpty) {
         // Find node with lowest fScore
@@ -657,54 +681,116 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         
         if (current == null) break;
         
-        if ((current.x - end.x).abs() < SimulationConstants.roadSnapThreshold && 
-            (current.y - end.y).abs() < SimulationConstants.roadSnapThreshold) {
-          // Reconstruct path
-          final path = <({double x, double y})>[end];
-          var node = current; // Use current as it matches end
-          while (cameFrom.containsKey(node)) {
-            node = cameFrom[node]!;
-            if (node == start) break; // Don't include start in path
+        // Check if we reached the goal
+        if (nodesEqual(current, end)) {
+          // Reconstruct path from end to start
+          final path = <({double x, double y})>[];
+          var node = current;
+          
+          while (true) {
             path.insert(0, node);
+            final nextNode = cameFrom[node];
+            if (nextNode == null || nodesEqual(nextNode, start)) {
+              // Reached start or no more nodes
+              if (nextNode != null && !nodesEqual(nextNode, start)) {
+                path.insert(0, nextNode);
+              }
+              break;
+            }
+            node = nextNode;
+            // Safety check to avoid infinite loops
+            if (path.length > 100) break;
           }
-           // Ensure end is in path
-          if (path.isEmpty || path.last != end) path.add(end);
-          return path;
+          
+          // Ensure end is in path
+          if (path.isEmpty || !nodesEqual(path.last, end)) {
+            path.add(end);
+          }
+          
+          return path.isNotEmpty ? path : [end];
         }
         
         openSet.remove(current);
-        final neighbors = graph[current] ?? [];
+        final neighbors = baseGraph[current] ?? [];
         
         for (final neighbor in neighbors) {
-          // Manhattan distance as edge cost
-          double edgeCost = (neighbor.x - current.x).abs() + (neighbor.y - current.y).abs();
+          // Calculate edge cost (Manhattan distance)
+          final dx = (neighbor.x - current.x).abs();
+          final dy = (neighbor.y - current.y).abs();
+          double edgeCost = dx + dy;
           
-          // Add penalty for using outward roads (encourages using inward roads)
-          // Don't penalize moving FROM start or TO end
-          if (current != start && neighbor != end) {
-             if (isOutwardRoad(neighbor.x) || isOutwardRoad(neighbor.y)) {
-               edgeCost += SimulationConstants.wrongWayPenalty; 
-             }
+          // Add penalty for outward roads (but not for start/end)
+          if (!nodesEqual(current, start) && !nodesEqual(neighbor, end)) {
+            if (_outwardRoads.contains(neighbor.x) || _outwardRoads.contains(neighbor.y)) {
+              edgeCost += SimulationConstants.wrongWayPenalty;
+            }
           }
           
           final tentativeG = (gScore[current] ?? double.infinity) + edgeCost;
+          final currentG = gScore[neighbor] ?? double.infinity;
           
-          if (tentativeG < (gScore[neighbor] ?? double.infinity)) {
+          if (tentativeG < currentG) {
             cameFrom[neighbor] = current;
             gScore[neighbor] = tentativeG;
-            // Heuristic: Manhattan distance to goal
-            fScore[neighbor] = tentativeG + 
-                (SimulationConstants.pathfindingHeuristicWeight * 
-                 ((end.x - neighbor.x).abs() + (end.y - neighbor.y).abs()));
-            if (!openSet.contains(neighbor)) {
+            final h = (end.x - neighbor.x).abs() + (end.y - neighbor.y).abs();
+            fScore[neighbor] = tentativeG + (SimulationConstants.pathfindingHeuristicWeight * h);
+            
+            if (!openSet.any((n) => nodesEqual(n, neighbor))) {
               openSet.add(neighbor);
             }
           }
         }
       }
       
-      // Fallback
+      // If no path found, return direct path to end
       return [end];
+    }
+    
+    // Helper function to expand path with intermediate waypoints along road segments
+    // This ensures smooth movement between intersections
+    List<({double x, double y})> _expandPathWithWaypoints(List<({double x, double y})> path) {
+      if (path.length < 2) return path;
+      
+      final expanded = <({double x, double y})>[path[0]];
+      
+      for (int i = 1; i < path.length; i++) {
+        final prev = path[i - 1];
+        final curr = path[i];
+        
+        // If moving horizontally (same y)
+        if ((prev.y - curr.y).abs() < 0.01) {
+          final startX = prev.x;
+          final endX = curr.x;
+          final y = prev.y;
+          final step = endX > startX ? 1.0 : -1.0;
+          
+          // Add intermediate points every 1 unit along the road
+          var x = startX + step;
+          while ((endX > startX && x < endX) || (endX < startX && x > endX)) {
+            expanded.add((x: x, y: y));
+            x += step;
+          }
+        }
+        // If moving vertically (same x)
+        else if ((prev.x - curr.x).abs() < 0.01) {
+          final startY = prev.y;
+          final endY = curr.y;
+          final x = prev.x;
+          final step = endY > startY ? 1.0 : -1.0;
+          
+          // Add intermediate points every 1 unit along the road
+          var y = startY + step;
+          while ((endY > startY && y < endY) || (endY < startY && y > startY)) {
+            expanded.add((x: x, y: y));
+            y += step;
+          }
+        }
+        
+        // Always add the destination waypoint
+        expanded.add(curr);
+      }
+      
+      return expanded;
     }
     
     return trucks.map((truck) {
@@ -758,11 +844,11 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         if (path.isEmpty || 
             (path.isNotEmpty && (path.last.x != warehouseRoadX || path.last.y != warehouseRoadY)) ||
             pathIndex >= path.length) {
+          // Generate path through intersections
           path = findPath(currentX, currentY, warehouseRoadX, warehouseRoadY);
           pathIndex = 0;
-          // Debug: ensure path is not empty
+          // Ensure path is not empty
           if (path.isEmpty) {
-            // Fallback: direct path
             path = [(x: warehouseRoadX, y: warehouseRoadY)];
           }
         }
@@ -903,11 +989,11 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       if (path.isEmpty || 
           (path.isNotEmpty && (path.last.x != destRoadX || path.last.y != destRoadY)) ||
           pathIndex >= path.length) {
+        // Generate path through intersections
         path = findPath(currentX, currentY, destRoadX, destRoadY);
         pathIndex = 0;
-        // Debug: ensure path is not empty
+        // Ensure path is not empty
         if (path.isEmpty) {
-          // Fallback: direct path
           path = [(x: destRoadX, y: destRoadY)];
         }
       }
