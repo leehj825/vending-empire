@@ -666,6 +666,8 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
               minScale: 0.3,
               maxScale: 3.0,
               constrained: true, // Constraints ensure child fills viewport if smaller
+              panEnabled: true,
+              scaleEnabled: true,
               child: SizedBox(
                 width: containerWidth,
                 height: containerHeight,
@@ -833,9 +835,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
               top: buttonTop,
               width: buttonSize,
               height: buttonSize,
-              child: IgnorePointer(
-                ignoring: false,
-                child: Listener(
+              child: Listener(
                 onPointerDown: (event) {
                   final buttonKey = 'button_${data['x']}_${data['y']}';
                   _buttonPointerDownPositions[buttonKey] = event.position;
@@ -848,8 +848,9 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
                     final distance = (event.position - downPosition).distance;
                     _buttonPointerDownPositions.remove(buttonKey);
                     
-                    // Only treat as tap if movement was small (< 10 pixels)
-                    if (distance < 10.0) {
+                    // Only treat as tap if movement was very small (< 8 pixels)
+                    // This ensures we catch taps before InteractiveViewer starts panning
+                    if (distance < 8.0) {
                       if (!isButtonEnabled) {
                         // Show why button is disabled
                         if (context.mounted) {
@@ -952,7 +953,6 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
                     ),
                   ),
                 ),
-              ),
               ),
             ),
           );
