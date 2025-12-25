@@ -993,25 +993,52 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         var simY = currentY;
         var newStatus = currentStatus == TruckStatus.idle ? TruckStatus.traveling : currentStatus;
 
+        // Ensure we have a valid path index
+        if (currentPathIndex >= path.length && path.isNotEmpty) {
+          currentPathIndex = path.length - 1;
+        }
+        
         // Process movement (support multiple waypoints per tick)
-        while (currentPathIndex < path.length) {
-          final targetWaypoint = path[currentPathIndex];
-          final dx = targetWaypoint.x - simX;
-          final dy = targetWaypoint.y - simY;
+        bool moved = false;
+        if (path.isNotEmpty && currentPathIndex < path.length) {
+          while (currentPathIndex < path.length) {
+            final targetWaypoint = path[currentPathIndex];
+            final dx = targetWaypoint.x - simX;
+            final dy = targetWaypoint.y - simY;
+            final distance = math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < SimulationConstants.roadSnapThreshold) {
+              // Reached waypoint, snap and move to next
+              simX = targetWaypoint.x;
+              simY = targetWaypoint.y;
+              currentPathIndex++;
+              moved = true;
+            } else {
+              // Move towards waypoint
+              final moveDistance = movementSpeed.clamp(0.0, distance);
+              if (moveDistance > 0 && distance > 0) {
+                final ratio = moveDistance / distance;
+                simX += dx * ratio;
+                simY += dy * ratio;
+                moved = true;
+              }
+              break; // Moved max distance for this tick
+            }
+          }
+        }
+        
+        // Fallback: always try to move towards warehouse if we haven't moved yet
+        if (!moved) {
+          final dx = warehouseRoadX - simX;
+          final dy = warehouseRoadY - simY;
           final distance = math.sqrt(dx * dx + dy * dy);
-          
-        if (distance < SimulationConstants.roadSnapThreshold) {
-          // Reached waypoint, snap and move to next
-          simX = targetWaypoint.x;
-          simY = targetWaypoint.y;
-          currentPathIndex++;
-        } else {
-            // Move towards waypoint
+          if (distance > SimulationConstants.roadSnapThreshold) {
             final moveDistance = movementSpeed.clamp(0.0, distance);
-            final ratio = moveDistance / distance;
-            simX += dx * ratio;
-            simY += dy * ratio;
-            break; // Moved max distance for this tick
+            if (moveDistance > 0 && distance > 0) {
+              final ratio = moveDistance / distance;
+              simX += dx * ratio;
+              simY += dy * ratio;
+            }
           }
         }
         
@@ -1148,25 +1175,52 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       var simX = currentX;
       var simY = currentY;
       
+      // Ensure we have a valid path index
+      if (currentPathIndex >= path.length && path.isNotEmpty) {
+        currentPathIndex = path.length - 1;
+      }
+      
       // Process movement
-      while (currentPathIndex < path.length) {
-        final targetWaypoint = path[currentPathIndex];
-        final dx = targetWaypoint.x - simX;
-        final dy = targetWaypoint.y - simY;
+      bool moved = false;
+      if (path.isNotEmpty && currentPathIndex < path.length) {
+        while (currentPathIndex < path.length) {
+          final targetWaypoint = path[currentPathIndex];
+          final dx = targetWaypoint.x - simX;
+          final dy = targetWaypoint.y - simY;
+          final distance = math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < SimulationConstants.roadSnapThreshold) {
+            // Reached waypoint
+            simX = targetWaypoint.x;
+            simY = targetWaypoint.y;
+            currentPathIndex++;
+            moved = true;
+          } else {
+            // Move
+            final moveDistance = movementSpeed.clamp(0.0, distance);
+            if (moveDistance > 0 && distance > 0) {
+              final ratio = moveDistance / distance;
+              simX += dx * ratio;
+              simY += dy * ratio;
+              moved = true;
+            }
+            break;
+          }
+        }
+      }
+      
+      // Fallback: always try to move towards destination if we haven't moved yet
+      if (!moved) {
+        final dx = destRoadX - simX;
+        final dy = destRoadY - simY;
         final distance = math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < SimulationConstants.roadSnapThreshold) {
-          // Reached waypoint
-          simX = targetWaypoint.x;
-          simY = targetWaypoint.y;
-          currentPathIndex++;
-        } else {
-          // Move
+        if (distance > SimulationConstants.roadSnapThreshold) {
           final moveDistance = movementSpeed.clamp(0.0, distance);
-          final ratio = moveDistance / distance;
-          simX += dx * ratio;
-          simY += dy * ratio;
-          break;
+          if (moveDistance > 0 && distance > 0) {
+            final ratio = moveDistance / distance;
+            simX += dx * ratio;
+            simY += dy * ratio;
+          }
         }
       }
       
