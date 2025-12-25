@@ -658,7 +658,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           children: [
             InteractiveViewer(
               transformationController: _transformationController,
-              boundaryMargin: const EdgeInsets.all(200),
+              boundaryMargin: EdgeInsets.all(ScreenUtils.relativeSize(context, 0.2)),
               minScale: 0.3,
               maxScale: 3.0,
               // *** CRITICAL FIX: ***
@@ -874,7 +874,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           decoration: BoxDecoration(
             color: machineColor,
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
+            border: Border.all(color: Colors.white, width: ScreenUtils.relativeSize(context, 0.002)),
           ),
           child: Center(
             child: Icon(
@@ -903,7 +903,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.7),
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       builder: (context) => _MachineViewDialog(
         machineId: machineId,
         imagePath: imagePath,
@@ -1153,7 +1153,14 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           alignment: Alignment.bottomCenter,
           child: Text(
             _getTileLabel(tileType),
-            style: const TextStyle(fontSize: 8),
+            style: TextStyle(
+            fontSize: ScreenUtils.relativeFontSize(
+              context,
+              AppConfig.fontSizeFactorTiny,
+              min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+              max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+            ),
+          ),
           ),
         );
       },
@@ -1180,10 +1187,17 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           color: _getFallbackColor(tileType),
           alignment: Alignment.bottomCenter,
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 4.0),
+            padding: EdgeInsets.only(bottom: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall)),
             child: Text(
               _getTileLabel(tileType),
-              style: const TextStyle(fontSize: 10),
+              style: TextStyle(
+              fontSize: ScreenUtils.relativeFontSize(
+                context,
+                AppConfig.fontSizeFactorTiny,
+                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+              ),
+            ),
             ),
           ),
         );
@@ -1413,7 +1427,7 @@ class _MachineViewDialog extends ConsumerWidget {
                         ),
                         onPressed: () => Navigator.of(context).pop(),
                         style: IconButton.styleFrom(
-                          backgroundColor: Colors.black.withOpacity(0.5),
+                          backgroundColor: Colors.black.withValues(alpha: 0.5),
                           padding: EdgeInsets.all(padding * 0.3),
                         ),
                       ),
@@ -1478,7 +1492,7 @@ class _MachineStatusSection extends ConsumerWidget {
               width: (dialogWidth * 0.15).clamp(36.0, 90.0),
               height: (dialogWidth * 0.15).clamp(36.0, 90.0),
               decoration: BoxDecoration(
-                color: zoneColor.withOpacity(0.2),
+                color: zoneColor.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -1523,7 +1537,7 @@ class _MachineStatusSection extends ConsumerWidget {
         Container(
           padding: EdgeInsets.all((dialogWidth * 0.04).clamp(12.0, 24.0)),
           decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(
               (dialogWidth * 0.02).clamp(6.0, 12.0),
             ),
@@ -1739,7 +1753,7 @@ class _PurchaseButtonState extends State<_PurchaseButton> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     blurRadius: ScreenUtils.relativeSize(context, 0.008),
                     offset: Offset(0, ScreenUtils.relativeSize(context, 0.004)),
                   ),

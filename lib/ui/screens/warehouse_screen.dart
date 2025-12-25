@@ -29,7 +29,7 @@ class WarehouseScreen extends ConsumerWidget {
           // Top Section: Warehouse Status
           SliverToBoxAdapter(
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
               color: Theme.of(context).colorScheme.surface,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,7 +65,7 @@ class WarehouseScreen extends ConsumerWidget {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
                             LinearProgressIndicator(
                               value: capacityPercent,
                               backgroundColor: Colors.grey[300],
@@ -83,7 +83,7 @@ class WarehouseScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
                   // Current stock grid
                   if (warehouse.inventory.isNotEmpty) ...[
                     Text(
@@ -98,7 +98,7 @@ class WarehouseScreen extends ConsumerWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -106,6 +106,14 @@ class WarehouseScreen extends ConsumerWidget {
                         return Chip(
                           label: Text(
                             '${entry.key.name}: ${entry.value}',
+                            style: TextStyle(
+                              fontSize: ScreenUtils.relativeFontSize(
+                                context,
+                                AppConfig.fontSizeFactorSmall,
+                                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                              ),
+                            ),
                           ),
                           backgroundColor:
                               Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -114,7 +122,7 @@ class WarehouseScreen extends ConsumerWidget {
                     ),
                   ] else
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
                       decoration: BoxDecoration(
                         color: Colors.grey[200],
                         borderRadius: BorderRadius.circular(8),
@@ -155,7 +163,7 @@ class WarehouseScreen extends ConsumerWidget {
           // Market Header
           SliverToBoxAdapter(
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -196,9 +204,17 @@ class WarehouseScreen extends ConsumerWidget {
                     tooltip: 'Prices update automatically',
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           content: Text(
                             'Prices update automatically',
+                            style: TextStyle(
+                              fontSize: ScreenUtils.relativeFontSize(
+                                context,
+                                AppConfig.fontSizeFactorNormal,
+                                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                              ),
+                            ),
                           ),
                         ),
                       );
