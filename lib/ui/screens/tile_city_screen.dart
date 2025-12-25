@@ -1154,7 +1154,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   void _handleTruckTap(sim.Truck truck) {
     try {
       // Update selected truck state
-      ref.read(selectedTruckIdProvider.notifier).selectTruck(truck.id);
+      ref.read(selectedTruckIdProvider).selectTruck(truck.id);
       
       // Show snackbar
       if (context.mounted) {
