@@ -76,6 +76,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   static const double horizontalSpacingFactor = AppConfig.horizontalSpacingFactor;
   
   static const double buildingScale = AppConfig.buildingScale;
+  static const double schoolScale = AppConfig.schoolScale;
   
   static const double gasStationScale = AppConfig.gasStationScale;
   static const double parkScale = AppConfig.parkScale;
@@ -552,6 +553,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
 
   double _getBuildingScale(TileType tileType) {
     switch (tileType) {
+      case TileType.school: return schoolScale;
       case TileType.gasStation: return gasStationScale;
       case TileType.park: return parkScale;
       case TileType.house: return houseScale;

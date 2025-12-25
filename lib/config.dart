@@ -131,6 +131,7 @@ class AppConfig {
   
   /// Building scales
   static const double buildingScale = 0.81;
+  static const double schoolScale = 0.77; // School tile scale (same as other small buildings)
   static const double gasStationScale = 0.72;
   static const double parkScale = 0.72;
   static const double houseScale = 0.72;
