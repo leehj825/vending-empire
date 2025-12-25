@@ -425,23 +425,31 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       var updatedCash = currentState.cash;
       updatedCash = _processFuelCosts(updatedTrucks, currentState.trucks, updatedCash);
 
-      // Update State
-      final newState = currentState.copyWith(
-        time: nextTime,
-        machines: updatedMachines,
-        trucks: updatedTrucks,
-        cash: updatedCash,
-        reputation: updatedReputation,
-      );
-      state = newState;
-      
-      // Notify listeners of state change via stream
-      _streamController.add(newState);
+      // Update State - ensure all data is valid before updating
+      try {
+        final newState = currentState.copyWith(
+          time: nextTime,
+          machines: updatedMachines,
+          trucks: updatedTrucks,
+          cash: updatedCash,
+          reputation: updatedReputation,
+        );
+        state = newState;
+        
+        // Notify listeners of state change via stream
+        if (!_streamController.isClosed) {
+          _streamController.add(newState);
+        }
+      } catch (stateError, stateStack) {
+        print('❌ ERROR updating state: $stateError');
+        print('Stack trace: $stateStack');
+        // Don't update state if there's an error, but continue ticking
+      }
     } catch (e, stackTrace) {
       // Log error but don't stop the simulation
       print('❌ ERROR in simulation tick: $e');
       print('Stack trace: $stackTrace');
-      // Continue simulation even if there's an error
+      // Continue simulation even if there's an error - don't let exceptions stop the timer
     }
   }
 
@@ -564,8 +572,9 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     List<Truck> trucks,
     List<Machine> machines,
   ) {
-    // Movement speed: 0.1 units per tick = 1 tile per second (10 ticks per second)
-    const double movementSpeed = 0.1;
+    try {
+      // Movement speed: 0.1 units per tick = 1 tile per second (10 ticks per second)
+      const double movementSpeed = 0.1;
     
     // Simplified pathfinding - generates paths along roads only
     // Returns a list of waypoints where trucks can move step by step
@@ -867,22 +876,29 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             (path.isNotEmpty && (path.last.x != warehouseRoadX || path.last.y != warehouseRoadY)) ||
             pathIndex >= path.length) {
           // Generate path through intersections
-          path = findPath(currentX, currentY, warehouseRoadX, warehouseRoadY);
-          pathIndex = 0;
-          // Ensure path is not empty and has at least the destination
-          if (path.isEmpty) {
-            path = [(x: warehouseRoadX, y: warehouseRoadY)];
-          }
-          // If truck is already at first waypoint, skip to next
-          if (path.isNotEmpty) {
-            final firstWaypoint = path[0];
-            final distToFirst = math.sqrt(
-              (firstWaypoint.x - currentX) * (firstWaypoint.x - currentX) + 
-              (firstWaypoint.y - currentY) * (firstWaypoint.y - currentY)
-            );
-            if (distToFirst < SimulationConstants.roadSnapThreshold && path.length > 1) {
-              pathIndex = 1;
+          try {
+            path = findPath(currentX, currentY, warehouseRoadX, warehouseRoadY);
+            pathIndex = 0;
+            // Ensure path is not empty and has at least the destination
+            if (path.isEmpty) {
+              path = [(x: warehouseRoadX, y: warehouseRoadY)];
             }
+            // If truck is already at first waypoint, skip to next
+            if (path.isNotEmpty) {
+              final firstWaypoint = path[0];
+              final distToFirst = math.sqrt(
+                (firstWaypoint.x - currentX) * (firstWaypoint.x - currentX) + 
+                (firstWaypoint.y - currentY) * (firstWaypoint.y - currentY)
+              );
+              if (distToFirst < SimulationConstants.roadSnapThreshold && path.length > 1) {
+                pathIndex = 1;
+              }
+            }
+          } catch (e) {
+            // Pathfinding failed - use direct path
+            print('⚠️ Pathfinding failed for truck ${truck.id} to warehouse: $e');
+            path = [(x: warehouseRoadX, y: warehouseRoadY)];
+            pathIndex = 0;
           }
         }
         
@@ -990,9 +1006,18 @@ class SimulationEngine extends StateNotifier<SimulationState> {
 
       // Find destination machine
       final destinationIndex = machines.indexWhere((m) => m.id == destinationId);
-      if (destinationIndex == -1) {
-        // Machine not found - return truck as-is (will be handled in restocking)
-        return truck;
+      if (destinationIndex == -1 || machines.isEmpty) {
+        // Machine not found - transition to idle or return to warehouse
+        final warehouseRoadX = state.warehouseRoadX ?? 4.0;
+        final warehouseRoadY = state.warehouseRoadY ?? 4.0;
+        return truck.copyWith(
+          status: TruckStatus.traveling,
+          currentRouteIndex: truck.route.length, // Mark route as complete
+          targetX: warehouseRoadX,
+          targetY: warehouseRoadY,
+          path: [],
+          pathIndex: 0,
+        );
       }
       final destination = machines[destinationIndex];
 
@@ -1069,22 +1094,29 @@ class SimulationEngine extends StateNotifier<SimulationState> {
           (path.isNotEmpty && (path.last.x != destRoadX || path.last.y != destRoadY)) ||
           pathIndex >= path.length) {
         // Generate path through intersections
-        path = findPath(currentX, currentY, destRoadX, destRoadY);
-        pathIndex = 0;
-        // Ensure path is not empty and has at least the destination
-        if (path.isEmpty) {
-          path = [(x: destRoadX, y: destRoadY)];
-        }
-        // If truck is already at first waypoint, skip to next
-        if (path.isNotEmpty) {
-          final firstWaypoint = path[0];
-          final distToFirst = math.sqrt(
-            (firstWaypoint.x - currentX) * (firstWaypoint.x - currentX) + 
-            (firstWaypoint.y - currentY) * (firstWaypoint.y - currentY)
-          );
-          if (distToFirst < SimulationConstants.roadSnapThreshold && path.length > 1) {
-            pathIndex = 1;
+        try {
+          path = findPath(currentX, currentY, destRoadX, destRoadY);
+          pathIndex = 0;
+          // Ensure path is not empty and has at least the destination
+          if (path.isEmpty) {
+            path = [(x: destRoadX, y: destRoadY)];
           }
+          // If truck is already at first waypoint, skip to next
+          if (path.isNotEmpty) {
+            final firstWaypoint = path[0];
+            final distToFirst = math.sqrt(
+              (firstWaypoint.x - currentX) * (firstWaypoint.x - currentX) + 
+              (firstWaypoint.y - currentY) * (firstWaypoint.y - currentY)
+            );
+            if (distToFirst < SimulationConstants.roadSnapThreshold && path.length > 1) {
+              pathIndex = 1;
+            }
+          }
+        } catch (e) {
+          // Pathfinding failed - use direct path
+          print('⚠️ Pathfinding failed for truck ${truck.id}: $e');
+          path = [(x: destRoadX, y: destRoadY)];
+          pathIndex = 0;
         }
       }
       
@@ -1178,6 +1210,13 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         pathIndex: currentPathIndex,
       );
     }).toList();
+    } catch (e, stackTrace) {
+      // Log error but return trucks as-is to prevent simulation from stopping
+      print('❌ ERROR in _processTruckMovement: $e');
+      print('Stack trace: $stackTrace');
+      // Return trucks unchanged to prevent state corruption
+      return trucks;
+    }
   }
 
   /// Process fuel costs for trucks
