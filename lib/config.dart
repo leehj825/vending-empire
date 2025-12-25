@@ -113,7 +113,7 @@ class AppConfig {
   /// Top status bar boxes (cash, reputation, time)
   static const double statusCardWidthFactor = 0.75; // Width as factor of smaller dimension (0.25 * 3.0)
   static const double statusCardWidthMinFactor = 0.25; // Minimum width as factor of smaller dimension
-  static const double statusCardWidthMaxFactor = 0.33; // Maximum width as factor of smaller dimension
+  static const double statusCardWidthMaxFactor = 0.30; // Maximum width as factor of smaller dimension
   static const double statusCardHeightRatio = 1.0; // Height ratio relative to card width
   
   /// Status card icon settings
