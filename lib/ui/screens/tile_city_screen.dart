@@ -97,12 +97,12 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   
   late TransformationController _transformationController;
   
-  // Track last tap time to prevent duplicate calls
-  DateTime? _lastTapTime;
-  String? _lastTappedButton;
-  
-  // Track pointer down positions for buttons to detect taps vs drags
-  final Map<String, Offset> _buttonPointerDownPositions = {};
+  // Track button interactions to prevent duplicate taps and handle gestures properly
+  final Map<String, DateTime> _buttonLastTapTime = {};
+  final Map<String, Offset?> _buttonPointerDown = {};
+  final Set<String> _buttonDragDetected = {}; // Track buttons where drag was detected
+  static const Duration _tapDebounceDuration = Duration(milliseconds: 400);
+  static const double _maxTapDistance = 15.0; // Maximum distance for a tap (not a drag)
 
   @override
   void initState() {
@@ -802,6 +802,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           );
           final buttonTop = buildingTop - verticalOffset - buttonSize + ScreenUtils.relativeSize(context, 0.015);
           final buttonLeft = positionedX + (tileWidth / 2) - (buttonSize / 2);
+          final buttonKey = '${data['x']}_${data['y']}';
           
           // Add button to buttons list (will be added last to ensure they're on top)
           buttons.add(
@@ -811,97 +812,68 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
               width: buttonSize,
               height: buttonSize,
               child: Listener(
-                onPointerDown: (event) {
-                  // Track pointer down position for this button
-                  final buttonKey = '${data['x']}_${data['y']}';
-                  _buttonPointerDownPositions[buttonKey] = event.position;
-                },
-                onPointerUp: (event) {
-                  // Handle tap on pointer up - check if it was a quick tap (not a drag)
-                  final buttonKey = '${data['x']}_${data['y']}';
-                  final now = DateTime.now();
-                  
-                  // Check if pointer moved significantly (indicating a drag/pan)
-                  final downPosition = _buttonPointerDownPositions[buttonKey];
-                  if (downPosition != null) {
-                    final distance = (event.position - downPosition).distance;
-                    _buttonPointerDownPositions.remove(buttonKey);
-                    
-                    if (distance > 10.0) {
-                      // User was dragging, ignore this
-                      return;
-                    }
-                  }
-                  
-                  // Prevent duplicate calls within 300ms for the same button
-                  if (_lastTappedButton != buttonKey || 
-                      _lastTapTime == null || 
-                      now.difference(_lastTapTime!) > const Duration(milliseconds: 300)) {
-                    _lastTapTime = now;
-                    _lastTappedButton = buttonKey;
-                    _handleBuildingTap(data['x'] as int, data['y'] as int, tileType);
-                  }
-                },
-                onPointerCancel: (event) {
-                  // Clean up if pointer is cancelled
-                  final buttonKey = '${data['x']}_${data['y']}';
-                  _buttonPointerDownPositions.remove(buttonKey);
-                },
+                // Use Listener to detect pointer movements and distinguish taps from drags
+                // This blocks gestures from reaching InteractiveViewer
                 behavior: HitTestBehavior.opaque,
-                child: GestureDetector(
-                  onTap: () {
-                    // Fallback handler
-                    final buttonKey = '${data['x']}_${data['y']}';
-                    final now = DateTime.now();
-                    
-                    if (_lastTappedButton != buttonKey || 
-                        _lastTapTime == null || 
-                        now.difference(_lastTapTime!) > const Duration(milliseconds: 300)) {
-                      _lastTapTime = now;
-                      _lastTappedButton = buttonKey;
-                      _handleBuildingTap(data['x'] as int, data['y'] as int, tileType);
+                onPointerDown: (event) {
+                  // Store the initial pointer position to detect drags
+                  _buttonPointerDown[buttonKey] = event.localPosition;
+                  _buttonDragDetected.remove(buttonKey); // Reset drag detection
+                },
+                onPointerMove: (event) {
+                  // If pointer moved significantly, mark it as a drag (not a tap)
+                  final initialPos = _buttonPointerDown[buttonKey];
+                  if (initialPos != null) {
+                    final distance = (event.localPosition - initialPos).distance;
+                    if (distance > _maxTapDistance) {
+                      // This is a drag, not a tap - mark it
+                      _buttonDragDetected.add(buttonKey);
                     }
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        final buttonKey = '${data['x']}_${data['y']}';
-                        final now = DateTime.now();
-                        
-                        if (_lastTappedButton != buttonKey || 
-                            _lastTapTime == null || 
-                            now.difference(_lastTapTime!) > const Duration(milliseconds: 300)) {
-                          _lastTapTime = now;
-                          _lastTappedButton = buttonKey;
-                          _handleBuildingTap(data['x'] as int, data['y'] as int, tileType);
-                        }
-                      },
-                      customBorder: const CircleBorder(),
-                      splashColor: Colors.green.shade300,
-                      highlightColor: Colors.green.shade200,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: ScreenUtils.relativeSize(context, 0.004),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: ScreenUtils.relativeSize(context, 0.008),
-                              offset: Offset(0, ScreenUtils.relativeSize(context, 0.004)),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.add,
+                  }
+                },
+                onPointerUp: (_) {
+                  // Clean up pointer tracking
+                  _buttonPointerDown.remove(buttonKey);
+                },
+                onPointerCancel: (_) {
+                  // Clean up on cancel
+                  _buttonPointerDown.remove(buttonKey);
+                  _buttonDragDetected.remove(buttonKey);
+                },
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      // Only process tap if no drag was detected
+                      if (!_buttonDragDetected.contains(buttonKey)) {
+                        _handleButtonTap(buttonKey, data['x'] as int, data['y'] as int, tileType);
+                      }
+                      // Clean up drag detection after tap
+                      _buttonDragDetected.remove(buttonKey);
+                    },
+                    customBorder: const CircleBorder(),
+                    splashColor: Colors.green.shade300,
+                    highlightColor: Colors.green.shade200,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                        border: Border.all(
                           color: Colors.white,
-                          size: buttonSize * 0.75, // 75% of button size
+                          width: ScreenUtils.relativeSize(context, 0.004),
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: ScreenUtils.relativeSize(context, 0.008),
+                            offset: Offset(0, ScreenUtils.relativeSize(context, 0.004)),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: buttonSize * 0.75, // 75% of button size
                       ),
                     ),
                   ),
@@ -1102,6 +1074,23 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       height: truckSize,
       child: img,
     );
+  }
+
+  /// Handle button tap with proper debouncing
+  void _handleButtonTap(String buttonKey, int gridX, int gridY, TileType tileType) {
+    final now = DateTime.now();
+    final lastTap = _buttonLastTapTime[buttonKey];
+    
+    // Debounce: prevent duplicate taps within the debounce duration
+    if (lastTap != null && now.difference(lastTap) < _tapDebounceDuration) {
+      return;
+    }
+    
+    // Update last tap time
+    _buttonLastTapTime[buttonKey] = now;
+    
+    // Process the tap
+    _handleBuildingTap(gridX, gridY, tileType);
   }
 
   void _handleBuildingTap(int gridX, int gridY, TileType tileType) {
