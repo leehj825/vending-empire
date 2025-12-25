@@ -1,25 +1,27 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:state_notifier/state_notifier.dart';
+import '../config.dart';
 import 'models/product.dart';
 import 'models/machine.dart';
 import 'models/truck.dart';
 import 'models/zone.dart';
 
 /// Simulation constants
+/// Note: Most constants have been moved to AppConfig. This class is kept for backward compatibility.
 class SimulationConstants {
-  static const double gasPrice = 0.05; // Cost per unit distance
-  static const int hoursPerDay = 24;
-  static const int ticksPerHour = 10; // 10 ticks = 1 hour
-  static const int ticksPerDay = hoursPerDay * ticksPerHour; // 240 ticks per day
-  static const int emptyMachinePenaltyHours = 4; // Hours before reputation penalty
-  static const int reputationPenaltyPerEmptyHour = 5;
-  static const double disposalCostPerExpiredItem = 0.50;
+  static const double gasPrice = AppConfig.gasPrice;
+  static const int hoursPerDay = AppConfig.hoursPerDay;
+  static const int ticksPerHour = AppConfig.ticksPerHour;
+  static const int ticksPerDay = AppConfig.ticksPerDay;
+  static const int emptyMachinePenaltyHours = AppConfig.emptyMachinePenaltyHours;
+  static const int reputationPenaltyPerEmptyHour = AppConfig.reputationPenaltyPerEmptyHour;
+  static const double disposalCostPerExpiredItem = AppConfig.disposalCostPerExpiredItem;
   
   // Pathfinding constants
-  static const double roadSnapThreshold = 0.1;
-  static const double pathfindingHeuristicWeight = 1.0;
-  static const double wrongWayPenalty = 10.0;
+  static const double roadSnapThreshold = AppConfig.roadSnapThreshold;
+  static const double pathfindingHeuristicWeight = AppConfig.pathfindingHeuristicWeight;
+  static const double wrongWayPenalty = AppConfig.wrongWayPenalty;
 }
 
 /// Game time state
@@ -209,7 +211,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     print('🔴 ENGINE: Start requested');
     _tickTimer?.cancel();
     _tickTimer = Timer.periodic(
-      const Duration(milliseconds: 100), // 10 ticks per second
+      AppConfig.animationDurationFast, // 10 ticks per second
       (timer) {
         // Safe check to ensure we don't tick if disposed
         if (!mounted) {
@@ -490,7 +492,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     List<Machine> machines,
   ) {
     // Movement speed: 0.1 units per tick = 1 tile per second (10 ticks per second)
-    const double movementSpeed = 0.1;
+    const double movementSpeed = AppConfig.movementSpeed;
     
     // A* pathfinding to find shortest path through road network
     List<({double x, double y})> findPath(
@@ -841,7 +843,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     double totalFuelCost = 0.0;
     
     // Movement speed: 0.1 units per tick = 1 tile per second (matches truck movement speed)
-    const double movementSpeed = 0.1;
+    const double movementSpeed = AppConfig.movementSpeed;
 
     for (final truck in updatedTrucks) {
       // Find the previous state of this truck

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../config.dart';
 
 class GameButton extends StatefulWidget {
   final String label;
@@ -10,7 +11,7 @@ class GameButton extends StatefulWidget {
     super.key,
     required this.label,
     this.onPressed,
-    this.color = const Color(0xFF4CAF50), // Default game green
+    this.color = AppConfig.gameGreen, // Default game green
     this.icon,
   });
 
@@ -32,7 +33,7 @@ class _GameButtonState extends State<GameButton> {
       onTapCancel: isEnabled ? () => setState(() => _isPressed = false) : null,
       onTap: widget.onPressed,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
+        duration: AppConfig.animationDurationFast,
         margin: EdgeInsets.only(top: _isPressed ? 4 : 0), // Push down effect
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         decoration: BoxDecoration(
@@ -60,10 +61,10 @@ class _GameButtonState extends State<GameButton> {
             ],
             Text(
               widget.label.toUpperCase(),
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: AppConfig.fontSizeFixedMedium,
                 letterSpacing: 1.0,
               ),
             ),

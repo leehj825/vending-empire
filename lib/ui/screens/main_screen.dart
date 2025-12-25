@@ -7,6 +7,7 @@ import 'tile_city_screen.dart';
 import '../../state/providers.dart';
 import '../../state/save_load_service.dart';
 import '../../state/selectors.dart';
+import '../../config.dart';
 import 'menu_screen.dart';
 import '../utils/screen_utils.dart';
 
@@ -111,12 +112,12 @@ class _StatusBar extends ConsumerWidget {
       max: smallerDim * 0.092,
     );
     
-    // Font size for value - scales with card width (doubled)
-    final valueFontSize = ScreenUtils.relativeSizeClamped(
+    // Font size for value - use standardized size
+    final valueFontSize = ScreenUtils.relativeFontSize(
       context,
-      (cardWidth / smallerDim * 0.25),
-      min: smallerDim * 0.02,
-      max: smallerDim * 0.025,
+      AppConfig.fontSizeFactorSmall,
+      min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+      max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
     );
     
     // Padding scales with card size (doubled)
@@ -352,7 +353,7 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
       onTap: () => onTap(index),
       behavior: HitTestBehavior.opaque,
       child: Container(
-        height: 60, // Fixed comfortable height
+        height: AppConfig.buttonHeight + 12, // Fixed comfortable height
         color: Colors.transparent, // Ensures the empty space is tappable
         child: Center(
           child: Image.asset(
@@ -384,11 +385,11 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
         final screenWidth = MediaQuery.of(context).size.width;
         final smallerDim = ScreenUtils.getSmallerDimension(context);
         
-        // Calculate button height: comfortable touch height (min 48dp recommended)
+        // Calculate button height: comfortable touch height
         final buttonHeight = ScreenUtils.relativeSizeClamped(
           context,
           0.08, // Responsive height
-          min: 48.0, // Minimum 48dp for comfortable touch target
+          min: AppConfig.buttonHeight, // Minimum for comfortable touch target
           max: smallerDim * 0.12,
         );
         
@@ -432,7 +433,7 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
                 ),
               ),
             ),
-            SizedBox(width: 8), // Spacing between buttons
+            SizedBox(width: AppConfig.paddingSmall), // Spacing between buttons
             // Exit Button
             GestureDetector(
               onTap: () => _exitToMenu(context, ref),
@@ -478,7 +479,7 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
             ? 'Game saved successfully!' 
             : 'Failed to save game'),
           backgroundColor: success ? Colors.green : Colors.red,
-          duration: Duration(seconds: 2),
+          duration: AppConfig.snackbarDurationShort,
         ),
       );
     }

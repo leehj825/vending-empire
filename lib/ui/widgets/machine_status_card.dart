@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../simulation/models/machine.dart';
 import '../../state/providers.dart';
+import '../../config.dart';
 import '../theme/zone_ui.dart';
 import 'game_button.dart';
 
@@ -22,9 +23,8 @@ class _MachineStatusCardState extends ConsumerState<MachineStatusCard> {
   bool _isExpanded = false;
 
   /// Calculate stock level percentage (0.0 to 1.0)
-  /// Assuming max capacity of 50 items for visualization
   double _getStockLevel(Machine machine) {
-    const maxCapacity = 50.0;
+    const maxCapacity = AppConfig.machineMaxCapacity;
     final currentStock = machine.totalInventory.toDouble();
     return (currentStock / maxCapacity).clamp(0.0, 1.0);
   }
@@ -46,13 +46,16 @@ class _MachineStatusCardState extends ConsumerState<MachineStatusCard> {
     final zoneColor = machine.zone.type.color;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: EdgeInsets.symmetric(
+        horizontal: AppConfig.paddingMedium,
+        vertical: AppConfig.paddingSmall,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppConfig.borderRadiusLarge),
         border: Border.all(
           color: zoneColor.withOpacity(0.5), // Colored border based on zone
-          width: 2,
+          width: AppConfig.cardBorderWidth,
         ),
         boxShadow: [
           BoxShadow(
@@ -63,14 +66,14 @@ class _MachineStatusCardState extends ConsumerState<MachineStatusCard> {
         ],
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16), // ripple matches shape
+        borderRadius: BorderRadius.circular(AppConfig.borderRadiusLarge), // ripple matches shape
         onTap: () {
           setState(() {
             _isExpanded = !_isExpanded;
           });
         },
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(AppConfig.paddingMedium),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -100,12 +103,12 @@ class _MachineStatusCardState extends ConsumerState<MachineStatusCard> {
                       children: [
                         Text(
                           machine.name,
-                          style: const TextStyle(
-                            fontSize: 16,
+                          style: TextStyle(
+                            fontSize: AppConfig.fontSizeFixedMedium,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: AppConfig.paddingSmall),
                         // Stock Level Progress Bar
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,7 +116,7 @@ class _MachineStatusCardState extends ConsumerState<MachineStatusCard> {
                             Text(
                               'Stock: ${machine.totalInventory} items',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: AppConfig.fontSizeFixedSmall,
                                 color: Colors.grey[600],
                               ),
                             ),
@@ -147,14 +150,14 @@ class _MachineStatusCardState extends ConsumerState<MachineStatusCard> {
                             Text(
                               'Cash',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: AppConfig.fontSizeFixedTiny,
                                 color: Colors.grey[600],
                               ),
                             ),
                             Text(
                               '\$${machine.currentCash.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 16,
+                              style: TextStyle(
+                                fontSize: AppConfig.fontSizeFixedMedium,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green,
                               ),
@@ -253,7 +256,7 @@ class _MachineStatusCardState extends ConsumerState<MachineStatusCard> {
                         'No cash to retrieve',
                         style: TextStyle(
                           color: Colors.grey[600],
-                          fontSize: 14,
+                          fontSize: AppConfig.fontSizeFixedSmall,
                         ),
                       ),
                     ),

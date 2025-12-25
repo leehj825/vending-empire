@@ -5,6 +5,7 @@ import '../../state/providers.dart';
 import '../../simulation/models/machine.dart';
 import '../../simulation/models/truck.dart';
 import '../../simulation/models/product.dart';
+import '../../config.dart';
 import '../widgets/machine_route_card.dart';
 import '../widgets/game_button.dart';
 import '../theme/zone_ui.dart';
@@ -111,9 +112,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   String _getEfficiencyRating(double distance, int machineCount) {
     if (machineCount == 0) return 'N/A';
     final ratio = distance / machineCount;
-    if (ratio < 50) return 'Great';
-    if (ratio < 100) return 'Good';
-    if (ratio < 200) return 'Fair';
+    if (ratio < AppConfig.routeEfficiencyGreat) return 'Great';
+    if (ratio < AppConfig.routeEfficiencyGood) return 'Good';
+    if (ratio < AppConfig.routeEfficiencyFair) return 'Fair';
     return 'Poor';
   }
 
@@ -239,7 +240,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
           // Perform the load operation
           controller.loadTruck(truck.id, product, quantity);
           // Show snackbar using parent context after dialog closes
-          Future.delayed(const Duration(milliseconds: 150), () {
+          Future.delayed(AppConfig.debounceDelay, () {
             if (parentContext.mounted) {
               ScaffoldMessenger.of(parentContext).showSnackBar(
                 SnackBar(
@@ -262,7 +263,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     if (routeMachines.isEmpty) return false;
     
     // Check if any machine in the route has room for any product the truck is carrying
-    const maxItemsPerProduct = 20;
+    const maxItemsPerProduct = AppConfig.machineMaxItemsPerProduct;
     for (final machine in routeMachines) {
       for (final entry in truck.inventory.entries) {
         final product = entry.key;
@@ -325,7 +326,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     final totalDistance = selectedTruck != null
         ? _calculateRouteDistance(selectedTruck.route, machines)
         : 0.0;
-    final fuelCost = totalDistance * 0.50;
+    final fuelCost = totalDistance * AppConfig.fuelCostPerUnit;
     final efficiencyRating = selectedTruck != null
         ? _getEfficiencyRating(totalDistance, selectedTruck.route.length)
         : 'N/A';
@@ -342,12 +343,15 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppConfig.paddingMedium,
+                      vertical: AppConfig.paddingSmall,
+                    ),
                     child: Text(
                       'Select Truck',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: AppConfig.fontSizeFixedMedium,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -365,9 +369,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                   style: TextStyle(
                                     fontSize: ScreenUtils.relativeFontSize(
                                       context,
-                                      0.045, // Increased from 0.035
-                                      min: ScreenUtils.getSmallerDimension(context) * 0.035,
-                                      max: ScreenUtils.getSmallerDimension(context) * 0.065,
+                                      AppConfig.fontSizeFactorLarge,
+                                      min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                      max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                                     ),
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -380,7 +384,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                         .buyTruck();
                                   },
                                   icon: Icons.add_shopping_cart,
-                                  label: 'Buy Truck (\$500)',
+                                  label: 'Buy Truck (\$${AppConfig.truckPrice.toInt()})',
                                   color: Colors.green,
                                 ),
                               ],
@@ -460,7 +464,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                             color: isSelected
                                                 ? Colors.green
                                                 : Colors.black87,
-                                            fontSize: 14,
+                                            fontSize: AppConfig.fontSizeFixedSmall,
                                           ),
                                           textAlign: TextAlign.center,
                                           maxLines: 1,
@@ -482,7 +486,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                           Flexible(
                                             child: Text(
                                               '${truck.fuel.toStringAsFixed(0)}%',
-                                              style: const TextStyle(fontSize: 12),
+                                              style: TextStyle(fontSize: AppConfig.fontSizeFixedSmall),
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
@@ -507,7 +511,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                           child: Text(
                                             _getStatusText(truck.status).toUpperCase(),
                                             style: TextStyle(
-                                              fontSize: 10,
+                                              fontSize: AppConfig.fontSizeFixedTiny,
                                               color: _getStatusColor(truck.status),
                                               fontWeight: FontWeight.bold,
                                               letterSpacing: 0.5,
@@ -571,8 +575,8 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                           const SizedBox(width: 8),
                           Text(
                             'Cargo: ${selectedTruck.currentLoad}/${selectedTruck.capacity}',
-                            style: const TextStyle(
-                              fontSize: 14,
+                            style: TextStyle(
+                              fontSize: AppConfig.fontSizeFixedSmall,
                               fontWeight: FontWeight.bold,
                               color: Colors.blue,
                             ),
@@ -597,7 +601,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                             child: Text(
                               '${entry.key.name}: ${entry.value}',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: AppConfig.fontSizeFixedSmall,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.blue[900],
                               ),
@@ -616,10 +620,10 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Current Route (Drag to Reorder)',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: AppConfig.fontSizeFixedMedium,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -672,7 +676,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                       Text(
                         'No stops in route',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: AppConfig.fontSizeFixedLarge,
                           color: Colors.grey[600],
                         ),
                       ),
@@ -743,10 +747,10 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'Route Efficiency',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: AppConfig.fontSizeFixedLarge,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -1029,7 +1033,7 @@ class _StatItem extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: AppConfig.fontSizeFixedMedium,
               fontWeight: FontWeight.bold,
               color: valueColor ?? Colors.black87,
             ),
@@ -1038,7 +1042,7 @@ class _StatItem extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: AppConfig.fontSizeFixedSmall,
               color: Colors.grey[600],
             ),
             textAlign: TextAlign.center,
@@ -1059,7 +1063,7 @@ class _SmallGameButton extends StatefulWidget {
   const _SmallGameButton({
     required this.label,
     this.onPressed,
-    this.color = const Color(0xFF4CAF50),
+    this.color = AppConfig.gameGreen,
     this.icon,
   });
 
@@ -1080,7 +1084,7 @@ class _SmallGameButtonState extends State<_SmallGameButton> {
       onTapCancel: isEnabled ? () => setState(() => _isPressed = false) : null,
       onTap: widget.onPressed,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
+        duration: AppConfig.animationDurationFast,
         margin: EdgeInsets.only(top: _isPressed ? 3 : 0),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
@@ -1108,10 +1112,10 @@ class _SmallGameButtonState extends State<_SmallGameButton> {
             Flexible(
               child: Text(
                 widget.label.toUpperCase(),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: AppConfig.fontSizeFixedSmall,
                   letterSpacing: 0.5,
                 ),
                 textAlign: TextAlign.center,

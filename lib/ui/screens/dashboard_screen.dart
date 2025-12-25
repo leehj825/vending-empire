@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/selectors.dart';
 import '../../state/providers.dart';
+import '../../config.dart';
 import '../widgets/machine_status_card.dart';
 import '../utils/screen_utils.dart';
 
@@ -65,9 +66,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         color: Colors.white,
                         fontSize: ScreenUtils.relativeFontSize(
                           context,
-                          0.045, // Increased from 0.007 to match dashboard text
-                          min: ScreenUtils.getSmallerDimension(context) * 0.035,
-                          max: ScreenUtils.getSmallerDimension(context) * 0.065,
+                          AppConfig.fontSizeFactorLarge,
+                          min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                          max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                         ),
                         fontWeight: FontWeight.bold,
                       ),
@@ -100,9 +101,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       style: TextStyle(
                         fontSize: ScreenUtils.relativeFontSize(
                           context,
-                          0.045, // Increased from 0.035
-                          min: ScreenUtils.getSmallerDimension(context) * 0.035,
-                          max: ScreenUtils.getSmallerDimension(context) * 0.065,
+                          AppConfig.fontSizeFactorLarge,
+                          min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                          max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                         ),
                         fontWeight: FontWeight.bold,
                         color: Colors.grey[600],
@@ -114,9 +115,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       style: TextStyle(
                         fontSize: ScreenUtils.relativeFontSize(
                           context,
-                          0.032, // Increased from 0.025
-                          min: ScreenUtils.getSmallerDimension(context) * 0.025,
-                          max: ScreenUtils.getSmallerDimension(context) * 0.045,
+                          AppConfig.fontSizeFactorNormal,
+                          min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                          max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                         ),
                         color: Colors.grey[600],
                       ),
