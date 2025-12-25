@@ -68,14 +68,14 @@ double _calculateStatusBarHeight(BuildContext context) {
   // Calculate card dimensions (same logic as in _StatusBar)
   final cardWidth = ScreenUtils.relativeSizeClamped(
     context,
-    (0.25 * 3.0),
-    min: smallerDim * 0.25,
-    max: smallerDim * 0.312,
+    AppConfig.statusCardWidthFactor,
+    min: smallerDim * AppConfig.statusCardWidthMinFactor,
+    max: smallerDim * AppConfig.statusCardWidthMaxFactor,
   );
-  final cardHeight = (cardWidth * 0.714);
+  final cardHeight = (cardWidth * AppConfig.statusCardHeightRatio);
   
   // Container padding
-  final containerPadding = ScreenUtils.relativeSize(context, 0.0034);
+  final containerPadding = ScreenUtils.relativeSize(context, AppConfig.statusBarContainerPaddingFactor);
   
   // Total height needed: card height + vertical padding on both sides
   return cardHeight + (containerPadding * 2);
@@ -94,41 +94,40 @@ class _StatusBar extends ConsumerWidget {
     
     final smallerDim = ScreenUtils.getSmallerDimension(context);
     
-    // Size similar to tab buttons: 25% of smaller dimension, clamped
-    // Make width 3x larger (doubled from 1.5x)
+    // Calculate card width using config constants
     final cardWidth = ScreenUtils.relativeSizeClamped(
       context,
-      (0.25 * 3.0),
-      min: smallerDim * 0.25,
-      max: smallerDim * 0.312,
+      AppConfig.statusCardWidthFactor,
+      min: smallerDim * AppConfig.statusCardWidthMinFactor,
+      max: smallerDim * AppConfig.statusCardWidthMaxFactor,
     );
-    final cardHeight = (cardWidth * 0.714);
+    final cardHeight = (cardWidth * AppConfig.statusCardHeightRatio);
     
-    // Icon size scales with card width - 2x larger, clamped (doubled)
+    // Calculate icon size using config constants
     final iconSize = ScreenUtils.relativeSizeClamped(
       context,
-      (cardWidth / smallerDim * 0.9),
-      min: smallerDim * 0.07,
-      max: smallerDim * 0.092,
+      (cardWidth / smallerDim * AppConfig.statusCardIconSizeFactor),
+      min: smallerDim * AppConfig.statusCardIconSizeMinFactor,
+      max: smallerDim * AppConfig.statusCardIconSizeMaxFactor,
     );
     
-    // Font size for value - use standardized size
+    // Font size for value - use status card specific size
     final valueFontSize = ScreenUtils.relativeFontSize(
       context,
-      AppConfig.fontSizeFactorSmall,
+      AppConfig.statusCardTextSizeFactor,
       min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
       max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
     );
     
-    // Padding scales with card size (doubled)
+    // Calculate padding using config constants
     final padding = ScreenUtils.relativeSizeClamped(
       context,
-      (cardWidth / smallerDim * 0.178),
-      min: smallerDim * 0.012,
-      max: smallerDim * 0.018,
+      (cardWidth / smallerDim * AppConfig.statusCardPaddingFactor),
+      min: smallerDim * AppConfig.statusCardPaddingMinFactor,
+      max: smallerDim * AppConfig.statusCardPaddingMaxFactor,
     );
     
-    final containerPadding = ScreenUtils.relativeSize(context, 0.0034);
+    final containerPadding = ScreenUtils.relativeSize(context, AppConfig.statusBarContainerPaddingFactor);
     
     return Container(
       padding: EdgeInsets.symmetric(
@@ -228,7 +227,7 @@ class _StatusCard extends StatelessWidget {
                 // Icon positioned at center upper part
                 Positioned(
                   left: (cardWidth - iconSize) / 2,
-                  top: padding,
+                  top: padding * AppConfig.statusCardIconTopPositionFactor,
                   child: Image.asset(
                     iconAsset,
                     width: iconSize,
@@ -246,7 +245,7 @@ class _StatusCard extends StatelessWidget {
                 Positioned(
                   left: 0,
                   right: 0,
-                  bottom: padding,
+                  bottom: padding * AppConfig.statusCardTextBottomPositionFactor,
                   child: Center(
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
@@ -283,7 +282,7 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final barHeight = ScreenUtils.relativeSize(context, 0.16);
+    final barHeight = ScreenUtils.relativeSize(context, AppConfig.bottomNavBarHeightFactor);
     
     return Container(
       height: barHeight,
@@ -349,11 +348,21 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
     required String unpressAsset,
   }) {
     final isSelected = currentIndex == index;
+    final smallerDim = ScreenUtils.getSmallerDimension(context);
+    
+    // Calculate responsive tab button height (similar to save/exit buttons)
+    final tabButtonHeight = ScreenUtils.relativeSizeClamped(
+      context,
+      AppConfig.tabButtonHeightFactor,
+      min: smallerDim * AppConfig.tabButtonHeightMinFactor,
+      max: smallerDim * AppConfig.tabButtonHeightMaxFactor,
+    );
+    
     return GestureDetector(
       onTap: () => onTap(index),
       behavior: HitTestBehavior.opaque,
       child: Container(
-        height: AppConfig.buttonHeight + 12, // Fixed comfortable height
+        height: tabButtonHeight, // Responsive height
         color: Colors.transparent, // Ensures the empty space is tappable
         child: Center(
           child: Image.asset(
@@ -361,15 +370,14 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
             fit: BoxFit.contain, // Prevents distortion - image grows as big as possible without distorting
             errorBuilder: (context, error, stackTrace) {
               // Fallback to icon if image fails to load
-              final smallerDim = ScreenUtils.getSmallerDimension(context);
               return Icon(
                 _getIconForIndex(index),
                 color: isSelected ? Colors.green : Colors.grey,
                 size: ScreenUtils.relativeSizeClamped(
                   context,
-                  0.12,
-                  min: smallerDim * 0.08,
-                  max: smallerDim * 0.15,
+                  AppConfig.tabButtonIconSizeFactor,
+                  min: smallerDim * AppConfig.tabButtonIconSizeMinFactor,
+                  max: smallerDim * AppConfig.tabButtonIconSizeMaxFactor,
                 ),
               );
             },
@@ -388,17 +396,17 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
         // Calculate button height: comfortable touch height
         final buttonHeight = ScreenUtils.relativeSizeClamped(
           context,
-          0.08, // Responsive height
+          AppConfig.saveExitButtonHeightFactor, // Responsive height
           min: AppConfig.buttonHeight, // Minimum for comfortable touch target
-          max: smallerDim * 0.12,
+          max: smallerDim * AppConfig.saveExitButtonHeightMaxFactor,
         );
         
         // Adjust button width for side-by-side layout - make them smaller to fit together
         final sideBySideButtonWidth = ScreenUtils.relativeSizeClamped(
           context,
-          0.12, // Smaller width for side-by-side layout
-          min: screenWidth * 0.08, // At least 8% of screen width
-          max: screenWidth * 0.15, // At most 15% of screen width
+          AppConfig.saveExitButtonWidthFactor, // Smaller width for side-by-side layout
+          min: screenWidth * AppConfig.saveExitButtonWidthMinFactor, // At least 8% of screen width
+          max: screenWidth * AppConfig.saveExitButtonWidthMaxFactor, // At most 15% of screen width
         );
         
         return Row(

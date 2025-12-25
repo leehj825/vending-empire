@@ -35,6 +35,13 @@ class AppConfig {
   static const double paddingMedium = 16.0;
   static const double paddingLarge = 24.0;
   
+  /// Spacing factors for SizedBox (relative to smaller screen dimension)
+  static const double spacingFactorTiny = 0.001; // Very small spacing (1px on 1000px screen)
+  static const double spacingFactorSmall = 0.002; // Small spacing (2px on 1000px screen)
+  static const double spacingFactorMedium = 0.008; // Medium spacing (8px on 1000px screen)
+  static const double spacingFactorLarge = 0.012; // Large spacing (12px on 1000px screen)
+  static const double spacingFactorXLarge = 0.016; // Extra large spacing (16px on 1000px screen)
+  
   /// Border radius values
   static const double borderRadiusSmall = 8.0;
   static const double borderRadiusMedium = 12.0;
@@ -49,6 +56,81 @@ class AppConfig {
   /// Button sizes
   static const double buttonHeight = 48.0;
   static const double buttonHeightSmall = 36.0;
+  
+  /// GameButton sizes (used in fleet manager and other screens)
+  static const double gameButtonPaddingHorizontalFactor = 0.01; // Horizontal padding as factor of screen width
+  static const double gameButtonPaddingVerticalFactor = 0.01; // Vertical padding as factor of smaller screen dimension
+  static const double gameButtonBorderRadius = 8.0;
+  static const double gameButtonIconSizeFactor = 0.05; // Icon size as factor of smaller screen dimension
+  static const double gameButtonFontSizeFactor = 0.03; // Font size factor (responsive) - uses fontSizeFactorNormal by default
+  
+  /// SmallGameButton sizes (used in dialogs)
+  static const double smallGameButtonPaddingHorizontalFactor = 0.01; // Horizontal padding as factor of screen width
+  static const double smallGameButtonPaddingVerticalFactor = 0.01; // Vertical padding as factor of smaller screen dimension
+  static const double smallGameButtonBorderRadius = 8.0;
+  static const double smallGameButtonIconSizeFactor = 0.04; // Icon size as factor of smaller screen dimension
+  static const double smallGameButtonFontSizeFactor = 0.025; // Font size factor (responsive) - uses fontSizeFactorSmall by default
+  
+  /// Truck selector card sizes (fleet manager screen)
+  static const double truckCardWidthFactor = 0.15; // Card width as factor of screen width
+  static const double truckCardHeightFactor = 0.16; // Card container height as factor of smaller screen dimension
+  static const double truckCardPaddingFactor = 0.008; // Internal padding of truck card as factor of smaller screen dimension
+  static const double truckCardBorderRadius = 2.0; // Border radius of truck card
+  static const double truckCardMarginHorizontalFactor = 0.001; // Horizontal margin between cards as factor of screen width
+  
+  /// Truck icon sizes
+  static const double truckIconContainerSizeFactor = 0.05; // Icon container size as factor of smaller screen dimension
+  static const double truckIconSizeFactor = 0.05; // Icon size as factor of smaller screen dimension
+  static const double truckIconContainerBorderRadius = 1.0; // Border radius of icon container
+  
+  /// Truck name and status sizes
+  static const double truckNameFontSizeFactor = 0.02; // Truck name font size factor (uses fontSizeFactorSmall by default)
+  static const double truckStatusFontSizeFactor = 0.02; // Status badge font size factor (uses fontSizeFactorSmall by default)
+  static const double truckStatusPaddingHorizontalFactor = 0.002; // Status badge horizontal padding as factor of screen width
+  static const double truckStatusPaddingVerticalFactor = 0.001; // Status badge vertical padding as factor of smaller screen dimension
+  static const double truckStatusBorderRadius = 1.0; // Status badge border radius
+  
+  /// Bottom navigation bar sizes
+  static const double bottomNavBarHeightFactor = 0.20; // Height as factor of smaller screen dimension
+  
+  /// Tab button sizes (HQ, City, Fleet, Market buttons)
+  static const double tabButtonHeightFactor = 0.20; // Height as factor of smaller screen dimension
+  static const double tabButtonHeightMinFactor = 0.20; // Minimum height as factor of smaller screen dimension
+  static const double tabButtonHeightMaxFactor = 0.20; // Maximum height as factor of smaller screen dimension
+  
+  /// Tab button icon size (for fallback icons)
+  static const double tabButtonIconSizeFactor = 0.20; // Icon size as factor of smaller screen dimension
+  static const double tabButtonIconSizeMinFactor = 0.20; // Minimum icon size factor
+  static const double tabButtonIconSizeMaxFactor = 0.20; // Maximum icon size factor
+  
+  /// Save/Exit button sizes
+  static const double saveExitButtonHeightFactor = 0.10; // Height as factor of smaller screen dimension
+  static const double saveExitButtonHeightMaxFactor = 0.10; // Maximum height as factor of smaller screen dimension
+  static const double saveExitButtonWidthFactor = 0.10; // Width as factor of screen width
+  static const double saveExitButtonWidthMinFactor = 0.10; // Minimum width as factor of screen width
+  static const double saveExitButtonWidthMaxFactor = 0.10; // Maximum width as factor of screen width
+  
+  /// Top status bar boxes (cash, reputation, time)
+  static const double statusCardWidthFactor = 0.75; // Width as factor of smaller dimension (0.25 * 3.0)
+  static const double statusCardWidthMinFactor = 0.25; // Minimum width as factor of smaller dimension
+  static const double statusCardWidthMaxFactor = 0.33; // Maximum width as factor of smaller dimension
+  static const double statusCardHeightRatio = 1.0; // Height ratio relative to card width
+  
+  /// Status card icon settings
+  static const double statusCardIconSizeFactor = 0.2; // Icon size factor relative to card width
+  static const double statusCardIconSizeMinFactor = 0.2; // Minimum icon size as factor of smaller dimension
+  static const double statusCardIconSizeMaxFactor = 0.2; // Maximum icon size as factor of smaller dimension
+  static const double statusCardIconTopPositionFactor = 2.0; // Icon top position factor (1.0 = uses padding, adjust to change icon vertical position)
+  
+  /// Status card text settings
+  static const double statusCardTextSizeFactor = 0.04; // Text font size factor (relative to smaller screen dimension)
+  static const double statusCardTextBottomPositionFactor = 2.0; // Text bottom position factor (1.0 = uses padding, adjust to change text vertical position)
+  
+  /// Status card padding and spacing
+  static const double statusCardPaddingFactor = 0.01; // Internal padding factor relative to card width
+  static const double statusCardPaddingMinFactor = 0.01; // Minimum padding as factor of smaller dimension
+  static const double statusCardPaddingMaxFactor = 0.01; // Maximum padding as factor of smaller dimension
+  static const double statusBarContainerPaddingFactor = 0.001; // Container padding around status bar
   
   /// Card dimensions
   static const double cardBorderWidth = 2.0;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../config.dart';
+import '../utils/screen_utils.dart';
 
 class GameButton extends StatefulWidget {
   final String label;
@@ -35,10 +36,19 @@ class _GameButtonState extends State<GameButton> {
       child: AnimatedContainer(
         duration: AppConfig.animationDurationFast,
         margin: EdgeInsets.only(top: _isPressed ? 4 : 0), // Push down effect
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: EdgeInsets.symmetric(
+          horizontal: ScreenUtils.relativeSize(
+            context,
+            AppConfig.gameButtonPaddingHorizontalFactor,
+          ),
+          vertical: ScreenUtils.relativeSize(
+            context,
+            AppConfig.gameButtonPaddingVerticalFactor,
+          ),
+        ),
         decoration: BoxDecoration(
           color: isEnabled ? widget.color : Colors.grey,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppConfig.gameButtonBorderRadius),
           // "3D" bottom shadow border
           boxShadow: _isPressed || !isEnabled
               ? []
@@ -56,7 +66,14 @@ class _GameButtonState extends State<GameButton> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (widget.icon != null) ...[
-              Icon(widget.icon, color: Colors.white, size: 20),
+              Icon(
+                widget.icon,
+                color: Colors.white,
+                size: ScreenUtils.relativeSize(
+                  context,
+                  AppConfig.gameButtonIconSizeFactor,
+                ),
+              ),
               const SizedBox(width: 8),
             ],
             Text(
@@ -64,7 +81,12 @@ class _GameButtonState extends State<GameButton> {
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: AppConfig.fontSizeFixedMedium,
+                fontSize: ScreenUtils.relativeFontSize(
+                  context,
+                  AppConfig.gameButtonFontSizeFactor,
+                  min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                  max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                ),
                 letterSpacing: 1.0,
               ),
             ),
