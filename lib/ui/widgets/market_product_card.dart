@@ -4,6 +4,8 @@ import '../../simulation/models/product.dart';
 import '../../state/market_provider.dart';
 import '../../state/selectors.dart';
 import '../../state/providers.dart';
+import '../../config.dart';
+import '../utils/screen_utils.dart';
 import 'game_button.dart';
 
 /// Card widget that displays a product in the market
@@ -65,17 +67,17 @@ class MarketProductCard extends ConsumerWidget {
     final trendIcon = _getTrendIcon(trend);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: EdgeInsets.symmetric(horizontal: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge), vertical: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: priceColor.withOpacity(0.3),
+          color: priceColor.withValues(alpha: 0.3),
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: priceColor.withOpacity(0.1),
+            color: priceColor.withValues(alpha: 0.1),
             offset: const Offset(0, 4),
             blurRadius: 8,
           ),
@@ -85,18 +87,18 @@ class MarketProductCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: () => _showBuyDialog(context, ref, product, price),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
           child: Row(
             children: [
               // Product Image
               Container(
-                width: 48,
-                height: 48,
+                width: ScreenUtils.relativeSize(context, 0.048),
+                height: ScreenUtils.relativeSize(context, 0.048),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: Colors.grey.withOpacity(0.2),
+                    color: Colors.grey.withValues(alpha: 0.2),
                     width: 1,
                   ),
                 ),
@@ -104,21 +106,21 @@ class MarketProductCard extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(8),
                   child: Image.asset(
                     _getProductImagePath(product),
-                    width: 48,
-                    height: 48,
+                    width: ScreenUtils.relativeSize(context, 0.048),
+                    height: ScreenUtils.relativeSize(context, 0.048),
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
                       // Fallback to icon if image fails to load
                       return Icon(
                         Icons.image_not_supported,
                         color: Colors.grey[600],
-                        size: 24,
+                        size: ScreenUtils.relativeSize(context, 0.024),
                       );
                     },
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
               // Product Info
               Expanded(
                 child: Column(
@@ -126,23 +128,33 @@ class MarketProductCard extends ConsumerWidget {
                   children: [
                     Text(
                       product.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                      style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: ScreenUtils.relativeFontSize(
+                        context,
+                        AppConfig.fontSizeFactorNormal,
+                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    ),
+                    SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall)),
                     Wrap(
                       crossAxisAlignment: WrapCrossAlignment.center,
                       spacing: 4,
                       children: [
-                        Icon(trendIcon, size: 16, color: priceColor),
+                        Icon(trendIcon, size: ScreenUtils.relativeSize(context, 0.016), color: priceColor),
                         Text(
                           'Current: \$${price.toStringAsFixed(2)}',
                           style: TextStyle(
                             color: priceColor,
                             fontWeight: FontWeight.w500,
-                            fontSize: 14,
+                            fontSize: ScreenUtils.relativeFontSize(
+                              context,
+                              AppConfig.fontSizeFactorSmall,
+                              min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                              max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                            ),
                           ),
                         ),
                       ],
@@ -150,7 +162,7 @@ class MarketProductCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
               // Buy Button
               GameButton(
                 onPressed: () => _showBuyDialog(context, ref, product, price),
@@ -242,7 +254,7 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge * 1.5)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,13 +263,13 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
             Row(
               children: [
                 Container(
-                  width: 56,
-                  height: 56,
+                  width: ScreenUtils.relativeSize(context, 0.056),
+                  height: ScreenUtils.relativeSize(context, 0.056),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.grey.withOpacity(0.2),
+                      color: Colors.grey.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -265,47 +277,61 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
                     borderRadius: BorderRadius.circular(12),
                     child: Image.asset(
                       _getProductImagePath(widget.product),
-                      width: 56,
-                      height: 56,
+                      width: ScreenUtils.relativeSize(context, 0.056),
+                      height: ScreenUtils.relativeSize(context, 0.056),
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) {
                         return Icon(
                           Icons.image_not_supported,
                           color: Colors.grey[600],
-                          size: 28,
+                          size: ScreenUtils.relativeSize(context, 0.028),
                         );
                       },
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Buy ${widget.product.name}',
-                        style: Theme.of(context).textTheme.headlineSmall,
+                        style: TextStyle(
+                      fontSize: ScreenUtils.relativeFontSize(
+                        context,
+                        AppConfig.fontSizeFactorMedium,
+                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                       ),
-                      const SizedBox(height: 4),
+                    ),
+                      ),
+                      SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall)),
                       Text(
                         'Unit Price: \$${widget.unitPrice.toStringAsFixed(2)}',
-                        style: Theme.of(context).textTheme.bodyLarge,
+                        style: TextStyle(
+                      fontSize: ScreenUtils.relativeFontSize(
+                        context,
+                        AppConfig.fontSizeFactorNormal,
+                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                      ),
+                    ),
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge * 1.5)),
             // Quantity Display
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                   width: 2,
                 ),
               ),
@@ -314,11 +340,24 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
                 children: [
                   Text(
                     'Quantity: ',
-                    style: Theme.of(context).textTheme.bodyLarge,
+                    style: TextStyle(
+                      fontSize: ScreenUtils.relativeFontSize(
+                        context,
+                        AppConfig.fontSizeFactorNormal,
+                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                      ),
+                    ),
                   ),
                   Text(
                     '$quantityInt',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    style: TextStyle(
+                      fontSize: ScreenUtils.relativeFontSize(
+                        context,
+                        AppConfig.fontSizeFactorLarge,
+                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                      ),
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.primary,
                     ),
@@ -326,7 +365,7 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
             // Slider for quantity selection
             Slider(
               value: _quantity.clamp(1.0, maxQuantity.toDouble()),
@@ -340,7 +379,7 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
                 });
               },
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
             // Quick increment buttons with GameButtons
             Wrap(
               spacing: 8,
@@ -364,9 +403,9 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
@@ -374,14 +413,26 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Total Cost:',
-                    style: TextStyle(fontSize: 16),
+                    style: TextStyle(
+                      fontSize: ScreenUtils.relativeFontSize(
+                        context,
+                        AppConfig.fontSizeFactorNormal,
+                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                      ),
+                    ),
                   ),
                   Text(
                     '\$${totalCost.toStringAsFixed(2)}',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: ScreenUtils.relativeFontSize(
+                      context,
+                      AppConfig.fontSizeFactorLarge,
+                      min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                      max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                    ),
                       fontWeight: FontWeight.bold,
                       color: totalCost > cash
                           ? Colors.red
@@ -393,27 +444,37 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
             ),
             if (maxQuantity < maxAffordable)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: EdgeInsets.only(top: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
                 child: Text(
                   'Limited by warehouse capacity ($availableCapacity available)',
                   style: TextStyle(
                     color: Colors.orange[700],
-                    fontSize: 12,
+                    fontSize: ScreenUtils.relativeFontSize(
+                    context,
+                    AppConfig.fontSizeFactorSmall,
+                    min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                    max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                  ),
                   ),
                 ),
               ),
             if (totalCost > cash)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: EdgeInsets.only(top: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
                 child: Text(
                   'Insufficient funds',
                   style: TextStyle(
                     color: Colors.red,
-                    fontSize: 12,
+                    fontSize: ScreenUtils.relativeFontSize(
+                    context,
+                    AppConfig.fontSizeFactorSmall,
+                    min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                    max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                  ),
                   ),
                 ),
               ),
-            const SizedBox(height: 24),
+            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge * 1.5)),
             Row(
               children: [
                 Expanded(
@@ -424,7 +485,7 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
                     icon: Icons.close,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorLarge)),
                 Expanded(
                   flex: 2,
                   child: _SmallGameButton(
@@ -512,7 +573,7 @@ class _SmallGameButtonState extends State<_SmallGameButton> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
         margin: EdgeInsets.only(top: _isPressed ? 3 : 0),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: ScreenUtils.relativeSize(context, AppConfig.spacingFactorLarge), vertical: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
         decoration: BoxDecoration(
           color: isEnabled ? widget.color : Colors.grey,
           borderRadius: BorderRadius.circular(10),
@@ -520,28 +581,33 @@ class _SmallGameButtonState extends State<_SmallGameButton> {
               ? []
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     offset: const Offset(0, 3),
                     blurRadius: 0,
                   ),
                 ],
-          border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.5),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (widget.icon != null) ...[
-              Icon(widget.icon, color: Colors.white, size: 16),
-              const SizedBox(width: 6),
+              Icon(widget.icon, color: Colors.white, size: ScreenUtils.relativeSize(context, 0.016)),
+              SizedBox(width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
             ],
             Flexible(
               child: Text(
                 widget.label.toUpperCase(),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: ScreenUtils.relativeFontSize(
+                    context,
+                    AppConfig.fontSizeFactorSmall,
+                    min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                    max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                  ),
                   letterSpacing: 0.5,
                 ),
                 textAlign: TextAlign.center,
