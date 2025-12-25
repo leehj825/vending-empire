@@ -1007,16 +1007,18 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             final dy = targetWaypoint.y - simY;
             final distance = math.sqrt(dx * dx + dy * dy);
             
+            // If distance is very small, snap to waypoint and move to next
             if (distance < SimulationConstants.roadSnapThreshold) {
-              // Reached waypoint, snap and move to next
               simX = targetWaypoint.x;
               simY = targetWaypoint.y;
               currentPathIndex++;
               moved = true;
+              // Continue to next waypoint if we're still within movement budget
+              continue;
             } else {
               // Move towards waypoint
               final moveDistance = movementSpeed.clamp(0.0, distance);
-              if (moveDistance > 0 && distance > 0) {
+              if (moveDistance > 0.0) {
                 final ratio = moveDistance / distance;
                 simX += dx * ratio;
                 simY += dy * ratio;
@@ -1032,13 +1034,28 @@ class SimulationEngine extends StateNotifier<SimulationState> {
           final dx = warehouseRoadX - simX;
           final dy = warehouseRoadY - simY;
           final distance = math.sqrt(dx * dx + dy * dy);
-          if (distance > SimulationConstants.roadSnapThreshold) {
+          if (distance > 0.001) { // Use a small threshold instead of roadSnapThreshold
             final moveDistance = movementSpeed.clamp(0.0, distance);
-            if (moveDistance > 0 && distance > 0) {
+            if (moveDistance > 0.0) {
               final ratio = moveDistance / distance;
               simX += dx * ratio;
               simY += dy * ratio;
+              moved = true;
             }
+          }
+        }
+        
+        // Force movement if truck is traveling but hasn't moved
+        if (!moved && newStatus == TruckStatus.traveling) {
+          // Try moving towards target
+          final dx = warehouseRoadX - simX;
+          final dy = warehouseRoadY - simY;
+          final distance = math.sqrt(dx * dx + dy * dy);
+          if (distance > 0.0) {
+            final moveDistance = math.min(movementSpeed, distance);
+            final ratio = moveDistance / distance;
+            simX += dx * ratio;
+            simY += dy * ratio;
           }
         }
         
@@ -1174,6 +1191,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       var currentPathIndex = pathIndex;
       var simX = currentX;
       var simY = currentY;
+      var newStatus = TruckStatus.traveling;
       
       // Ensure we have a valid path index
       if (currentPathIndex >= path.length && path.isNotEmpty) {
@@ -1189,16 +1207,18 @@ class SimulationEngine extends StateNotifier<SimulationState> {
           final dy = targetWaypoint.y - simY;
           final distance = math.sqrt(dx * dx + dy * dy);
           
+          // If distance is very small, snap to waypoint and move to next
           if (distance < SimulationConstants.roadSnapThreshold) {
-            // Reached waypoint
             simX = targetWaypoint.x;
             simY = targetWaypoint.y;
             currentPathIndex++;
             moved = true;
+            // Continue to next waypoint if we're still within movement budget
+            continue;
           } else {
             // Move
             final moveDistance = movementSpeed.clamp(0.0, distance);
-            if (moveDistance > 0 && distance > 0) {
+            if (moveDistance > 0.0) {
               final ratio = moveDistance / distance;
               simX += dx * ratio;
               simY += dy * ratio;
@@ -1214,18 +1234,32 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         final dx = destRoadX - simX;
         final dy = destRoadY - simY;
         final distance = math.sqrt(dx * dx + dy * dy);
-        if (distance > SimulationConstants.roadSnapThreshold) {
+        if (distance > 0.001) { // Use a small threshold
           final moveDistance = movementSpeed.clamp(0.0, distance);
-          if (moveDistance > 0 && distance > 0) {
+          if (moveDistance > 0.0) {
             final ratio = moveDistance / distance;
             simX += dx * ratio;
             simY += dy * ratio;
+            moved = true;
           }
         }
       }
       
+      // Force movement if truck is traveling but hasn't moved
+      if (!moved && newStatus == TruckStatus.traveling) {
+        // Try moving towards target
+        final dx = destRoadX - simX;
+        final dy = destRoadY - simY;
+        final distance = math.sqrt(dx * dx + dy * dy);
+        if (distance > 0.0) {
+          final moveDistance = math.min(movementSpeed, distance);
+          final ratio = moveDistance / distance;
+          simX += dx * ratio;
+          simY += dy * ratio;
+        }
+      }
+      
       // Check if reached destination
-      var newStatus = TruckStatus.traveling;
       if (currentPathIndex >= path.length) {
          // Arrived at machine road location
          newStatus = TruckStatus.restocking;
