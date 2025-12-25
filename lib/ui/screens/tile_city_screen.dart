@@ -789,25 +789,13 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         Widget buildingWidget = _buildBuildingTile(tileType, buildingOrientation);
         
         // Wrap decorative buildings in IgnorePointer so clicks pass through
-        // Wrap interactive buildings in Listener for manual tap detection
+        // Wrap interactive buildings in GestureDetector for tap detection
         if (isInteractive) {
-          buildingWidget = Listener(
-            onPointerDown: (event) {
-              final key = 'building_${data['x']}_${data['y']}';
-              _buttonPointerDownPositions[key] = event.position;
+          buildingWidget = GestureDetector(
+            onTap: () {
+              _handleBuildingTap(data['x'] as int, data['y'] as int, tileType);
             },
-            onPointerUp: (event) {
-              final key = 'building_${data['x']}_${data['y']}';
-              final downPosition = _buttonPointerDownPositions[key];
-              if (downPosition != null) {
-                final distance = (event.position - downPosition).distance;
-                _buttonPointerDownPositions.remove(key);
-                if (distance < 10.0) {
-                  _handleBuildingTap(data['x'] as int, data['y'] as int, tileType);
-                }
-              }
-            },
-            behavior: HitTestBehavior.translucent,
+            behavior: HitTestBehavior.opaque,
             child: buildingWidget,
           );
         } else {

@@ -9,8 +9,8 @@ class MapTruck extends PositionComponent {
   // while the map renders on a 1000x1000 world with grid lines every 100.
   // Keep the map in pixel/world space by scaling simulation coords.
   static const double _worldScale = 100.0;
-  static const double _speed = 50.0; // Pixels per second
-  static const double _arrivalThreshold = 2.0; // Distance to consider "arrived"
+  static const double _speed = 200.0; // Pixels per second (increased for smoother movement)
+  static const double _arrivalThreshold = 5.0; // Distance to consider "arrived" (increased to prevent jitter)
 
   MapTruck({
     required this.truck,
@@ -39,17 +39,23 @@ class MapTruck extends PositionComponent {
     // Update position from truck's current position (synced from simulation)
     final targetPos = Vector2(truck.currentX * _worldScale, truck.currentY * _worldScale);
     
-    // Move towards target position
+    // Move towards target position with smooth interpolation
     final direction = targetPos - position;
     final distance = direction.length;
 
     if (distance > _arrivalThreshold) {
-      // Normalize direction and move
-      final normalizedDirection = direction.normalized();
+      // Use linear interpolation with speed limit for smooth movement
+      // This helps handle cases where simulation updates positions in jumps
       final moveDistance = (_speed * dt).clamp(0.0, distance);
-      position += normalizedDirection * moveDistance;
+      if (distance > 0.001) { // Avoid division by zero
+        final normalizedDirection = direction.normalized();
+        position += normalizedDirection * moveDistance;
+      } else {
+        // Very close, just snap
+        position = targetPos;
+      }
     } else {
-      // Snap to target if close enough
+      // Snap to target if close enough (within threshold)
       position = targetPos;
     }
   }
