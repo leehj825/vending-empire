@@ -122,6 +122,58 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   static const List<double> _validRoads = [1.0, 4.0, 7.0, 10.0];
   static const List<double> _outwardRoads = [1.0, 10.0];
   Map<({double x, double y}), List<({double x, double y})>>? _cachedBaseGraph;
+  
+  // Helper function to snap to nearest valid road coordinate
+  double _snapToNearestRoad(double coord) {
+    final rounded = coord.round().toDouble();
+    double nearest = _validRoads[0];
+    double minDist = (rounded - nearest).abs();
+    for (final road in _validRoads) {
+      final dist = (rounded - road).abs();
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = road;
+      }
+    }
+    return nearest;
+  }
+  
+  // Helper function to validate and clamp coordinates to valid roads
+  // Ensures trucks never move to invalid coordinates like 0 or 9
+  ({double x, double y}) _clampToValidRoad(double x, double y) {
+    // If x or y is exactly on a valid road, keep it
+    // Otherwise, snap to the nearest valid road
+    double clampedX = x;
+    double clampedY = y;
+    
+    // Check if x is on a valid road (within threshold)
+    bool xOnRoad = false;
+    for (final roadX in _validRoads) {
+      if ((x - roadX).abs() < SimulationConstants.roadSnapThreshold) {
+        clampedX = roadX;
+        xOnRoad = true;
+        break;
+      }
+    }
+    if (!xOnRoad) {
+      clampedX = _snapToNearestRoad(x);
+    }
+    
+    // Check if y is on a valid road (within threshold)
+    bool yOnRoad = false;
+    for (final roadY in _validRoads) {
+      if ((y - roadY).abs() < SimulationConstants.roadSnapThreshold) {
+        clampedY = roadY;
+        yOnRoad = true;
+        break;
+      }
+    }
+    if (!yOnRoad) {
+      clampedY = _snapToNearestRoad(y);
+    }
+    
+    return (x: clampedX, y: clampedY);
+  }
 
   SimulationEngine({
     required List<Machine> initialMachines,
@@ -473,22 +525,6 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     // Movement speed: 0.1 units per tick = 1 tile per second (10 ticks per second)
     const double movementSpeed = 0.1;
     
-    // Helper function to snap to nearest valid road coordinate
-    double snapToNearestRoad(double coord) {
-      final rounded = coord.round().toDouble();
-      double nearest = _validRoads[0];
-      double minDist = (rounded - nearest).abs();
-      for (final road in _validRoads) {
-        final dist = (rounded - road).abs();
-        if (dist < minDist) {
-          minDist = dist;
-          nearest = road;
-        }
-      }
-      return nearest;
-    }
-    
-    
     // A* pathfinding to find shortest path through road network
     List<({double x, double y})> findPath(
       double startX, double startY,
@@ -497,7 +533,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       // Don't snap start position immediately - treat it as a potential point on a road line
       final start = (x: startX, y: startY);
       // Snap end position (destinations are always on valid roads or intersections)
-      final end = (x: snapToNearestRoad(endX), y: snapToNearestRoad(endY));
+      final end = (x: _snapToNearestRoad(endX), y: _snapToNearestRoad(endY));
       
       // If close to destination, return simple path
       if ((start.x - end.x).abs() < SimulationConstants.roadSnapThreshold && 
@@ -533,8 +569,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       graph[start] = [];
       
       // Snap start to nearest road lines to find valid neighbors
-      final snappedStartX = snapToNearestRoad(startX);
-      final snappedStartY = snapToNearestRoad(startY);
+      final snappedStartX = _snapToNearestRoad(startX);
+      final snappedStartY = _snapToNearestRoad(startY);
       
       // Check if start is close to a horizontal road (y is fixed)
       if ((startY - snappedStartY).abs() < SimulationConstants.roadSnapThreshold) {
@@ -727,6 +763,11 @@ class SimulationEngine extends StateNotifier<SimulationState> {
            simX = warehouseRoadX;
            simY = warehouseRoadY;
         }
+        
+        // Clamp to valid roads to prevent movement on invalid tiles (0, 9, etc.)
+        final clamped = _clampToValidRoad(simX, simY);
+        simX = clamped.x;
+        simY = clamped.y;
 
         return truck.copyWith(
           status: newStatus,
@@ -780,7 +821,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       
       // Also check if we can use a road line closer to machine
       for (final roadY in _validRoads) {
-        final closestRoadX = snapToNearestRoad(machineX);
+        final closestRoadX = _snapToNearestRoad(machineX);
         final dist = (machineX - closestRoadX).abs() + (machineY - roadY).abs();
         if (dist < minDist) {
           minDist = dist;
@@ -789,7 +830,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         }
       }
       for (final roadX in _validRoads) {
-        final closestRoadY = snapToNearestRoad(machineY);
+        final closestRoadY = _snapToNearestRoad(machineY);
         final dist = (machineX - roadX).abs() + (machineY - closestRoadY).abs();
         if (dist < minDist) {
           minDist = dist;
@@ -868,6 +909,11 @@ class SimulationEngine extends StateNotifier<SimulationState> {
          simX = destRoadX;
          simY = destRoadY;
       }
+      
+      // Clamp to valid roads to prevent movement on invalid tiles (0, 9, etc.)
+      final clamped = _clampToValidRoad(simX, simY);
+      simX = clamped.x;
+      simY = clamped.y;
 
       return truck.copyWith(
         status: newStatus,
@@ -979,9 +1025,10 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       // Only process trucks that are restocking
       if (truck.status != TruckStatus.restocking) continue;
       
-      // Ensure truck stays on road (snap to nearest road coordinate)
-      final roadX = truck.currentX.round().toDouble();
-      final roadY = truck.currentY.round().toDouble();
+      // Ensure truck stays on road (snap to nearest valid road coordinate)
+      // Use _snapToNearestRoad helper to prevent trucks from being at invalid coordinates (0, 9, etc.)
+      final roadX = _snapToNearestRoad(truck.currentX);
+      final roadY = _snapToNearestRoad(truck.currentY);
       
       final destinationId = truck.currentDestination;
       if (destinationId == null) continue;
@@ -1124,9 +1171,9 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         );
       } else {
         // No items transferred (machine already full or truck empty)
-        // Keep truck on road
-        final roadX = truck.currentX.round().toDouble();
-        final roadY = truck.currentY.round().toDouble();
+        // Keep truck on road (snap to nearest valid road coordinate)
+        final roadX = _snapToNearestRoad(truck.currentX);
+        final roadY = _snapToNearestRoad(truck.currentY);
         final isTruckEmpty = truck.inventory.isEmpty;
         final hasMoreDestinations = truck.currentRouteIndex + 1 < truck.route.length;
         
