@@ -140,36 +140,69 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   
   // Helper function to validate and clamp coordinates to valid roads
   // Ensures trucks never move to invalid coordinates like 0 or 9
+  // Allows movement along road lines (horizontal or vertical)
   ({double x, double y}) _clampToValidRoad(double x, double y) {
-    // If x or y is exactly on a valid road, keep it
-    // Otherwise, snap to the nearest valid road
     double clampedX = x;
     double clampedY = y;
     
-    // Check if x is on a valid road (within threshold)
+    // Check if x is on a valid vertical road (within threshold)
     bool xOnRoad = false;
+    double nearestRoadX = x;
     for (final roadX in _validRoads) {
       if ((x - roadX).abs() < SimulationConstants.roadSnapThreshold) {
-        clampedX = roadX;
+        nearestRoadX = roadX;
         xOnRoad = true;
         break;
       }
     }
-    if (!xOnRoad) {
-      clampedX = _snapToNearestRoad(x);
-    }
     
-    // Check if y is on a valid road (within threshold)
+    // Check if y is on a valid horizontal road (within threshold)
     bool yOnRoad = false;
+    double nearestRoadY = y;
     for (final roadY in _validRoads) {
       if ((y - roadY).abs() < SimulationConstants.roadSnapThreshold) {
-        clampedY = roadY;
+        nearestRoadY = roadY;
         yOnRoad = true;
         break;
       }
     }
-    if (!yOnRoad) {
-      clampedY = _snapToNearestRoad(y);
+    
+    // Only clamp coordinates that are at invalid positions (0 or 9)
+    // Allow free movement along road lines
+    final roundedX = x.round().toDouble();
+    final roundedY = y.round().toDouble();
+    
+    if (xOnRoad && yOnRoad) {
+      // At intersection - snap both to exact road coordinates
+      clampedX = nearestRoadX;
+      clampedY = nearestRoadY;
+    } else if (xOnRoad) {
+      // On vertical road - snap x to road, allow y to move freely unless it's 0 or 9
+      clampedX = nearestRoadX;
+      if (roundedY == 0.0 || roundedY == 9.0) {
+        clampedY = _snapToNearestRoad(y);
+      } else {
+        clampedY = y; // Allow free movement along the road
+      }
+    } else if (yOnRoad) {
+      // On horizontal road - snap y to road, allow x to move freely unless it's 0 or 9
+      clampedY = nearestRoadY;
+      if (roundedX == 0.0 || roundedX == 9.0) {
+        clampedX = _snapToNearestRoad(x);
+      } else {
+        clampedX = x; // Allow free movement along the road
+      }
+    } else {
+      // Not on any road - check if at invalid coordinates
+      if (roundedX == 0.0 || roundedX == 9.0 || roundedY == 0.0 || roundedY == 9.0) {
+        // At invalid position - snap to nearest intersection
+        clampedX = _snapToNearestRoad(x);
+        clampedY = _snapToNearestRoad(y);
+      } else {
+        // Allow current position (might be transitioning between roads)
+        clampedX = x;
+        clampedY = y;
+      }
     }
     
     return (x: clampedX, y: clampedY);
@@ -764,10 +797,15 @@ class SimulationEngine extends StateNotifier<SimulationState> {
            simY = warehouseRoadY;
         }
         
-        // Clamp to valid roads to prevent movement on invalid tiles (0, 9, etc.)
-        final clamped = _clampToValidRoad(simX, simY);
-        simX = clamped.x;
-        simY = clamped.y;
+        // Only clamp if truck is at invalid coordinates (0 or 9)
+        // Otherwise allow free movement along road lines
+        final roundedX = simX.round().toDouble();
+        final roundedY = simY.round().toDouble();
+        if (roundedX == 0.0 || roundedX == 9.0 || roundedY == 0.0 || roundedY == 9.0) {
+          final clamped = _clampToValidRoad(simX, simY);
+          simX = clamped.x;
+          simY = clamped.y;
+        }
 
         return truck.copyWith(
           status: newStatus,
@@ -910,10 +948,15 @@ class SimulationEngine extends StateNotifier<SimulationState> {
          simY = destRoadY;
       }
       
-      // Clamp to valid roads to prevent movement on invalid tiles (0, 9, etc.)
-      final clamped = _clampToValidRoad(simX, simY);
-      simX = clamped.x;
-      simY = clamped.y;
+      // Only clamp if truck is at invalid coordinates (0 or 9)
+      // Otherwise allow free movement along road lines
+      final roundedX = simX.round().toDouble();
+      final roundedY = simY.round().toDouble();
+      if (roundedX == 0.0 || roundedX == 9.0 || roundedY == 0.0 || roundedY == 9.0) {
+        final clamped = _clampToValidRoad(simX, simY);
+        simX = clamped.x;
+        simY = clamped.y;
+      }
 
       return truck.copyWith(
         status: newStatus,
