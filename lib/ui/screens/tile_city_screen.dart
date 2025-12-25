@@ -97,12 +97,9 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   
   late TransformationController _transformationController;
   
-  // Track last tap time to prevent duplicate calls
+  // Debounce tracking
   DateTime? _lastTapTime;
   String? _lastTappedButton;
-  
-  // Track pointer down positions for buttons to detect taps vs drags
-  final Map<String, Offset> _buttonPointerDownPositions = {};
 
   @override
   void initState() {
@@ -652,10 +649,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           }
         });
         
-        // Build tiles and buttons
-        final tilesAndButtons = _buildTiles(context, centerOffset, tileWidth, tileHeight, buildingImageHeight);
-        final tiles = tilesAndButtons['tiles'] as List<Widget>;
-        final buttons = tilesAndButtons['buttons'] as List<Widget>;
+        final components = _buildMapComponents(context, centerOffset, tileWidth, tileHeight, buildingImageHeight);
         
         return Stack(
           children: [
@@ -664,17 +658,20 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
               boundaryMargin: const EdgeInsets.all(200),
               minScale: 0.3,
               maxScale: 3.0,
-              constrained: true, // Constraints ensure child fills viewport if smaller
+              // *** CRITICAL FIX: ***
+              // constrained: false allows the child to be its natural size (containerWidth/Height)
+              // rather than forcing it to the viewport size. This ensures elements outside the
+              // initial screen bounds are still part of the hit-test area.
+              constrained: false,
               child: SizedBox(
                 width: containerWidth,
                 height: containerHeight,
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    ...tiles,
-                    // Buttons added last inside InteractiveViewer so they transform with the map
-                    // but are on top of everything
-                    ...buttons,
+                    ...components['tiles']!,
+                    // Buttons on top
+                    ...components['buttons']!,
                   ],
                 ),
               ),
@@ -685,250 +682,155 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     );
   }
 
-  Map<String, List<Widget>> _buildTiles(BuildContext context, Offset centerOffset, double tileWidth, double tileHeight, double buildingImageHeight) {
+  Map<String, List<Widget>> _buildMapComponents(BuildContext context, Offset centerOffset, double tileWidth, double tileHeight, double buildingImageHeight) {
     final tileData = <Map<String, dynamic>>[];
-
     final warehouseVerticalOffset = _getWarehouseVerticalOffset(context);
     
     for (int y = 0; y < gridSize; y++) {
       for (int x = 0; x < gridSize; x++) {
-        final tileType = _grid[y][x];
-        final roadDir = _roadDirections[y][x];
-        final buildingOrientation = _buildingOrientations[y][x];
         final screenPos = _gridToScreen(context, x, y);
-        final positionedX = screenPos.dx + centerOffset.dx;
-        final positionedY = screenPos.dy + centerOffset.dy;
-
         tileData.add({
           'x': x,
           'y': y,
-          'tileType': tileType,
-          'roadDir': roadDir,
-          'buildingOrientation': buildingOrientation,
-          'positionedX': positionedX,
-          'positionedY': positionedY,
+          'tileType': _grid[y][x],
+          'roadDir': _roadDirections[y][x],
+          'buildingOrientation': _buildingOrientations[y][x],
+          'positionedX': screenPos.dx + centerOffset.dx,
+          'positionedY': screenPos.dy + centerOffset.dy,
         });
       }
     }
 
+    // Sort for Painter's Algorithm (Back to Front)
     tileData.sort((a, b) {
       final depthA = (a['x'] as int) + (a['y'] as int);
       final depthB = (b['x'] as int) + (b['y'] as int);
       if (depthA != depthB) return depthA.compareTo(depthB);
-      final yA = a['y'] as int;
-      final yB = b['y'] as int;
-      if (yA != yB) return yA.compareTo(yB);
-      return (a['x'] as int).compareTo(b['x'] as int);
+      return (a['y'] as int).compareTo(b['y'] as int);
     });
 
     final tiles = <Widget>[];
-    final buttons = <Widget>[]; // Collect buttons separately to add them last (on top)
+    final buttons = <Widget>[];
     
     for (final data in tileData) {
-      final tileType = data['tileType'] as TileType;
-      final roadDir = data['roadDir'] as RoadDirection?;
-      final buildingOrientation = data['buildingOrientation'] as BuildingOrientation?;
-      final positionedX = data['positionedX'] as double;
-      final positionedY = data['positionedY'] as double;
+      final int x = data['x'];
+      final int y = data['y'];
+      final TileType tileType = data['tileType'];
+      final double posX = data['positionedX'];
+      final double posY = data['positionedY'];
+      
+      // 1. Build Ground/Building Tile
+      tiles.add(_buildSingleTileWidget(
+        context, x, y, tileType, data['roadDir'], data['buildingOrientation'],
+        posX, posY, tileWidth, tileHeight, buildingImageHeight, warehouseVerticalOffset
+      ));
 
-        if (tileType == TileType.warehouse) {
-          final warehouseScaleFactor = warehouseScale;
-          final scaledHeight = buildingImageHeight * warehouseScaleFactor;
-          final scaledWidth = tileWidth * warehouseScaleFactor;
-          final centerOffsetX = (tileWidth - scaledWidth) / 2;
-          final top = positionedY - (scaledHeight - tileHeight) - warehouseVerticalOffset;
-          
-          tiles.add(
-            Positioned(
-              left: positionedX + centerOffsetX,
-              top: top,
-              width: scaledWidth,
-              height: scaledHeight,
-              child: _buildGroundTile(tileType, roadDir),
-            ),
-          );
-        
-        } else if (!_isBuilding(tileType)) {
-          tiles.add(
-            Positioned(
-              left: positionedX,
-              top: positionedY,
-              width: tileWidth,
-              height: tileHeight,
-              child: _buildGroundTile(tileType, roadDir),
-            ),
-          );
-        } else {
-          tiles.add(
-            Positioned(
-              left: positionedX,
-              top: positionedY,
-              width: tileWidth,
-              height: tileHeight,
-              child: _buildGroundTile(TileType.grass, null),
-            ),
-          );
-        }
-
-      if (_isBuilding(tileType) && tileType != TileType.warehouse) {
+      // 2. Build Purchase Button (if applicable)
+      if (_isBuilding(tileType) && tileType != TileType.warehouse && _shouldShowPurchaseButton(x, y, tileType)) {
         final buildingScaleFactor = _getBuildingScale(tileType);
-        final scaledBuildingHeight = buildingImageHeight * buildingScaleFactor;
-        final buildingTop = positionedY - (scaledBuildingHeight - tileHeight);
-        final scaledWidth = tileWidth * buildingScaleFactor;
-        final centerOffsetX = (tileWidth - scaledWidth) / 2;
+        final scaledHeight = buildingImageHeight * buildingScaleFactor;
+        final buildingTop = posY - (scaledHeight - tileHeight);
         
-        final verticalOffset = tileType == TileType.warehouse ? warehouseVerticalOffset : 0.0;
+        final buttonSize = ScreenUtils.relativeSizeClamped(
+          context, 0.05,
+          min: ScreenUtils.getSmallerDimension(context) * 0.04,
+          max: ScreenUtils.getSmallerDimension(context) * 0.08,
+        );
         
-        tiles.add(
+        final buttonTop = buildingTop - buttonSize + ScreenUtils.relativeSize(context, 0.015);
+        final buttonLeft = posX + (tileWidth / 2) - (buttonSize / 2);
+        
+        buttons.add(
           Positioned(
-            left: positionedX + centerOffsetX,
-            top: buildingTop - verticalOffset,
-            width: scaledWidth,
-            height: scaledBuildingHeight,
-            child: GestureDetector(
-              onTap: () => _handleBuildingTap(data['x'] as int, data['y'] as int, tileType),
-              behavior: HitTestBehavior.opaque, // Ensure tap is captured
-              child: _buildBuildingTile(tileType, buildingOrientation),
+            left: buttonLeft,
+            top: buttonTop,
+            width: buttonSize,
+            height: buttonSize,
+            child: _PurchaseButton(
+              size: buttonSize,
+              onTap: () => _handleDebouncedBuildingTap(x, y, tileType),
             ),
           ),
         );
-
-        if (_shouldShowPurchaseButton(data['x'] as int, data['y'] as int, tileType)) {
-          final buttonSize = ScreenUtils.relativeSizeClamped(
-            context,
-            0.05, // Relative to screen width
-            min: ScreenUtils.getSmallerDimension(context) * 0.04,
-            max: ScreenUtils.getSmallerDimension(context) * 0.08,
-          );
-          final buttonTop = buildingTop - verticalOffset - buttonSize + ScreenUtils.relativeSize(context, 0.015);
-          final buttonLeft = positionedX + (tileWidth / 2) - (buttonSize / 2);
-          
-          // Add button to buttons list (will be added last to ensure they're on top)
-          buttons.add(
-            Positioned(
-              left: buttonLeft,
-              top: buttonTop,
-              width: buttonSize,
-              height: buttonSize,
-              child: Listener(
-                onPointerDown: (event) {
-                  // Track pointer down position for this button
-                  final buttonKey = '${data['x']}_${data['y']}';
-                  _buttonPointerDownPositions[buttonKey] = event.position;
-                },
-                onPointerUp: (event) {
-                  // Handle tap on pointer up - check if it was a quick tap (not a drag)
-                  final buttonKey = '${data['x']}_${data['y']}';
-                  final now = DateTime.now();
-                  
-                  // Check if pointer moved significantly (indicating a drag/pan)
-                  final downPosition = _buttonPointerDownPositions[buttonKey];
-                  if (downPosition != null) {
-                    final distance = (event.position - downPosition).distance;
-                    _buttonPointerDownPositions.remove(buttonKey);
-                    
-                    if (distance > 10.0) {
-                      // User was dragging, ignore this
-                      return;
-                    }
-                  }
-                  
-                  // Prevent duplicate calls within 300ms for the same button
-                  if (_lastTappedButton != buttonKey || 
-                      _lastTapTime == null || 
-                      now.difference(_lastTapTime!) > const Duration(milliseconds: 300)) {
-                    _lastTapTime = now;
-                    _lastTappedButton = buttonKey;
-                    _handleBuildingTap(data['x'] as int, data['y'] as int, tileType);
-                  }
-                },
-                onPointerCancel: (event) {
-                  // Clean up if pointer is cancelled
-                  final buttonKey = '${data['x']}_${data['y']}';
-                  _buttonPointerDownPositions.remove(buttonKey);
-                },
-                behavior: HitTestBehavior.opaque,
-                child: GestureDetector(
-                  onTap: () {
-                    // Fallback handler
-                    final buttonKey = '${data['x']}_${data['y']}';
-                    final now = DateTime.now();
-                    
-                    if (_lastTappedButton != buttonKey || 
-                        _lastTapTime == null || 
-                        now.difference(_lastTapTime!) > const Duration(milliseconds: 300)) {
-                      _lastTapTime = now;
-                      _lastTappedButton = buttonKey;
-                      _handleBuildingTap(data['x'] as int, data['y'] as int, tileType);
-                    }
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        final buttonKey = '${data['x']}_${data['y']}';
-                        final now = DateTime.now();
-                        
-                        if (_lastTappedButton != buttonKey || 
-                            _lastTapTime == null || 
-                            now.difference(_lastTapTime!) > const Duration(milliseconds: 300)) {
-                          _lastTapTime = now;
-                          _lastTappedButton = buttonKey;
-                          _handleBuildingTap(data['x'] as int, data['y'] as int, tileType);
-                        }
-                      },
-                      customBorder: const CircleBorder(),
-                      splashColor: Colors.green.shade300,
-                      highlightColor: Colors.green.shade200,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: ScreenUtils.relativeSize(context, 0.004),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: ScreenUtils.relativeSize(context, 0.008),
-                              offset: Offset(0, ScreenUtils.relativeSize(context, 0.004)),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.add,
-                          color: Colors.white,
-                          size: buttonSize * 0.75, // 75% of button size
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }
       }
     }
 
-    // Add machines and trucks
+
+    // Add Machines and Trucks
     final gameMachines = ref.watch(machinesProvider);
     for (final machine in gameMachines) {
       tiles.add(_buildGameMachine(context, machine, centerOffset, tileWidth, tileHeight));
     }
-
     final gameTrucks = ref.watch(trucksProvider);
     for (final truck in gameTrucks) {
       tiles.add(_buildGameTruck(context, truck, centerOffset, tileWidth, tileHeight));
     }
 
-    // Return tiles and buttons separately
-    return {
-      'tiles': tiles,
-      'buttons': buttons,
-    };
+    return {'tiles': tiles, 'buttons': buttons};
+  }
+
+  Widget _buildSingleTileWidget(
+    BuildContext context, int x, int y, TileType tileType, 
+    RoadDirection? roadDir, BuildingOrientation? orientation,
+    double posX, double posY, double tileWidth, double tileHeight, 
+    double buildingImageHeight, double warehouseOffset
+  ) {
+    if (tileType == TileType.warehouse) {
+      final scale = warehouseScale;
+      final w = tileWidth * scale;
+      final h = buildingImageHeight * scale;
+      return Positioned(
+        left: posX + (tileWidth - w) / 2,
+        top: posY - (h - tileHeight) - warehouseOffset,
+        width: w, height: h,
+        child: _buildGroundTile(tileType, roadDir),
+      );
+    } 
+    
+    if (!_isBuilding(tileType)) {
+      return Positioned(
+        left: posX, top: posY, width: tileWidth, height: tileHeight,
+        child: _buildGroundTile(tileType, roadDir),
+      );
+    }
+    
+    // It's a building
+    final scale = _getBuildingScale(tileType);
+    final w = tileWidth * scale;
+    final h = buildingImageHeight * scale;
+    
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // Ground patch under building
+        Positioned(
+          left: posX, top: posY, width: tileWidth, height: tileHeight,
+          child: _buildGroundTile(TileType.grass, null),
+        ),
+        // The building itself
+        Positioned(
+          left: posX + (tileWidth - w) / 2,
+          top: posY - (h - tileHeight),
+          width: w, height: h,
+          child: GestureDetector(
+            onTap: () => _handleDebouncedBuildingTap(x, y, tileType),
+            behavior: HitTestBehavior.opaque,
+            child: _buildBuildingTile(tileType, orientation),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _handleDebouncedBuildingTap(int x, int y, TileType tileType) {
+    final now = DateTime.now();
+    final key = '$x,$y';
+    if (_lastTappedButton == key && _lastTapTime != null && now.difference(_lastTapTime!) < const Duration(milliseconds: 300)) {
+      return;
+    }
+    _lastTapTime = now;
+    _lastTappedButton = key;
+    _handleBuildingTap(x, y, tileType);
   }
 
   Widget _buildGameMachine(BuildContext context, sim.Machine machine, Offset centerOffset, double tileWidth, double tileHeight) {
@@ -1775,6 +1677,79 @@ class _MachineStatusSection extends ConsumerWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Refactored Button Widget that handles the tap/drag distinction logic
+class _PurchaseButton extends StatefulWidget {
+  final VoidCallback onTap;
+  final double size;
+
+  const _PurchaseButton({
+    required this.onTap,
+    required this.size,
+  });
+
+  @override
+  State<_PurchaseButton> createState() => _PurchaseButtonState();
+}
+
+class _PurchaseButtonState extends State<_PurchaseButton> {
+  Offset? _pointerDownPosition;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: (event) {
+        _pointerDownPosition = event.position;
+      },
+      onPointerUp: (event) {
+        if (_pointerDownPosition != null) {
+          // If the pointer moved less than 10 pixels, treat it as a tap
+          final distance = (event.position - _pointerDownPosition!).distance;
+          if (distance < 10.0) {
+            widget.onTap();
+          }
+        }
+        _pointerDownPosition = null;
+      },
+      onPointerCancel: (_) => _pointerDownPosition = null,
+      behavior: HitTestBehavior.opaque,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            customBorder: const CircleBorder(),
+            splashColor: Colors.green.shade300,
+            highlightColor: Colors.green.shade200,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.green,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white,
+                  width: ScreenUtils.relativeSize(context, 0.004),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: ScreenUtils.relativeSize(context, 0.008),
+                    offset: Offset(0, ScreenUtils.relativeSize(context, 0.004)),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.add,
+                color: Colors.white,
+                size: widget.size * 0.75,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
