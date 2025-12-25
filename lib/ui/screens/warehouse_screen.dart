@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../simulation/models/product.dart';
 import '../../state/providers.dart';
+import '../../config.dart';
 import '../widgets/market_product_card.dart';
 import '../utils/screen_utils.dart';
 
@@ -14,7 +15,7 @@ class WarehouseScreen extends ConsumerWidget {
     final warehouse = ref.watch(warehouseProvider);
 
     // Calculate warehouse capacity
-    const maxCapacity = 1000;
+    const maxCapacity = AppConfig.warehouseMaxCapacity;
     final currentTotal = warehouse.inventory.values.fold<int>(
       0,
       (sum, qty) => sum + qty,
@@ -28,7 +29,7 @@ class WarehouseScreen extends ConsumerWidget {
           // Top Section: Warehouse Status
           SliverToBoxAdapter(
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
               color: Theme.of(context).colorScheme.surface,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,9 +39,9 @@ class WarehouseScreen extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: ScreenUtils.relativeFontSize(
                         context,
-                        0.045, // Match dashboard screen
-                        min: ScreenUtils.getSmallerDimension(context) * 0.035,
-                        max: ScreenUtils.getSmallerDimension(context) * 0.065,
+                        AppConfig.fontSizeFactorLarge,
+                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                       ),
                       fontWeight: FontWeight.bold,
                     ),
@@ -58,13 +59,13 @@ class WarehouseScreen extends ConsumerWidget {
                               style: TextStyle(
                                 fontSize: ScreenUtils.relativeFontSize(
                                   context,
-                                  0.032, // Match dashboard subtitle
-                                  min: ScreenUtils.getSmallerDimension(context) * 0.025,
-                                  max: ScreenUtils.getSmallerDimension(context) * 0.045,
+                                  AppConfig.fontSizeFactorNormal,
+                                  min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                  max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
                             LinearProgressIndicator(
                               value: capacityPercent,
                               backgroundColor: Colors.grey[300],
@@ -82,7 +83,7 @@ class WarehouseScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
                   // Current stock grid
                   if (warehouse.inventory.isNotEmpty) ...[
                     Text(
@@ -90,14 +91,14 @@ class WarehouseScreen extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: ScreenUtils.relativeFontSize(
                           context,
-                          0.045, // Match dashboard screen
-                          min: ScreenUtils.getSmallerDimension(context) * 0.035,
-                          max: ScreenUtils.getSmallerDimension(context) * 0.065,
+                          AppConfig.fontSizeFactorLarge,
+                          min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                          max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                         ),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -105,6 +106,14 @@ class WarehouseScreen extends ConsumerWidget {
                         return Chip(
                           label: Text(
                             '${entry.key.name}: ${entry.value}',
+                            style: TextStyle(
+                              fontSize: ScreenUtils.relativeFontSize(
+                                context,
+                                AppConfig.fontSizeFactorSmall,
+                                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                              ),
+                            ),
                           ),
                           backgroundColor:
                               Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -113,7 +122,7 @@ class WarehouseScreen extends ConsumerWidget {
                     ),
                   ] else
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
                       decoration: BoxDecoration(
                         color: Colors.grey[200],
                         borderRadius: BorderRadius.circular(8),
@@ -135,9 +144,9 @@ class WarehouseScreen extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: ScreenUtils.relativeFontSize(
                                 context,
-                                0.032, // Match dashboard subtitle
-                                min: ScreenUtils.getSmallerDimension(context) * 0.025,
-                                max: ScreenUtils.getSmallerDimension(context) * 0.045,
+                                AppConfig.fontSizeFactorNormal,
+                                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                               ),
                             ),
                           ),
@@ -154,7 +163,7 @@ class WarehouseScreen extends ConsumerWidget {
           // Market Header
           SliverToBoxAdapter(
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -168,9 +177,9 @@ class WarehouseScreen extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: ScreenUtils.relativeFontSize(
                               context,
-                              0.045, // Match dashboard screen
-                              min: ScreenUtils.getSmallerDimension(context) * 0.035,
-                              max: ScreenUtils.getSmallerDimension(context) * 0.065,
+                              AppConfig.fontSizeFactorLarge,
+                              min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                              max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                             ),
                             fontWeight: FontWeight.bold,
                           ),
@@ -180,9 +189,9 @@ class WarehouseScreen extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: ScreenUtils.relativeFontSize(
                               context,
-                              0.032, // Match dashboard subtitle
-                              min: ScreenUtils.getSmallerDimension(context) * 0.025,
-                              max: ScreenUtils.getSmallerDimension(context) * 0.045,
+                              AppConfig.fontSizeFactorNormal,
+                              min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                              max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                             ),
                             color: Colors.grey[600],
                           ),
@@ -195,9 +204,17 @@ class WarehouseScreen extends ConsumerWidget {
                     tooltip: 'Prices update automatically',
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           content: Text(
                             'Prices update automatically',
+                            style: TextStyle(
+                              fontSize: ScreenUtils.relativeFontSize(
+                                context,
+                                AppConfig.fontSizeFactorNormal,
+                                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                              ),
+                            ),
                           ),
                         ),
                       );

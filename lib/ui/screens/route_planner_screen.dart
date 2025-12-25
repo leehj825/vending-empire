@@ -5,6 +5,7 @@ import '../../state/providers.dart';
 import '../../simulation/models/machine.dart';
 import '../../simulation/models/truck.dart';
 import '../../simulation/models/product.dart';
+import '../../config.dart';
 import '../widgets/machine_route_card.dart';
 import '../widgets/game_button.dart';
 import '../theme/zone_ui.dart';
@@ -111,9 +112,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   String _getEfficiencyRating(double distance, int machineCount) {
     if (machineCount == 0) return 'N/A';
     final ratio = distance / machineCount;
-    if (ratio < 50) return 'Great';
-    if (ratio < 100) return 'Good';
-    if (ratio < 200) return 'Fair';
+    if (ratio < AppConfig.routeEfficiencyGreat) return 'Great';
+    if (ratio < AppConfig.routeEfficiencyGood) return 'Good';
+    if (ratio < AppConfig.routeEfficiencyFair) return 'Fair';
     return 'Poor';
   }
 
@@ -239,7 +240,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
           // Perform the load operation
           controller.loadTruck(truck.id, product, quantity);
           // Show snackbar using parent context after dialog closes
-          Future.delayed(const Duration(milliseconds: 150), () {
+          Future.delayed(AppConfig.debounceDelay, () {
             if (parentContext.mounted) {
               ScaffoldMessenger.of(parentContext).showSnackBar(
                 SnackBar(
@@ -262,7 +263,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     if (routeMachines.isEmpty) return false;
     
     // Check if any machine in the route has room for any product the truck is carrying
-    const maxItemsPerProduct = 20;
+    const maxItemsPerProduct = AppConfig.machineMaxItemsPerProduct;
     for (final machine in routeMachines) {
       for (final entry in truck.inventory.entries) {
         final product = entry.key;
@@ -325,7 +326,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
     final totalDistance = selectedTruck != null
         ? _calculateRouteDistance(selectedTruck.route, machines)
         : 0.0;
-    final fuelCost = totalDistance * 0.50;
+    final fuelCost = totalDistance * AppConfig.fuelCostPerUnit;
     final efficiencyRating = selectedTruck != null
         ? _getEfficiencyRating(totalDistance, selectedTruck.route.length)
         : 'N/A';
@@ -342,19 +343,30 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppConfig.paddingMedium,
+                      vertical: AppConfig.paddingSmall,
+                    ),
                     child: Text(
                       'Select Truck',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: ScreenUtils.relativeFontSize(
+                          context,
+                          AppConfig.fontSizeFactorMedium,
+                          min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                          max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                        ),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   // Truck List or Empty State (with Buy button)
                   SizedBox(
-                    height: 130,
+                    height: ScreenUtils.relativeSize(
+                      context,
+                      AppConfig.truckCardHeightFactor,
+                    ),
                     child: trucks.isEmpty
                         ? Center(
                             child: Column(
@@ -365,9 +377,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                   style: TextStyle(
                                     fontSize: ScreenUtils.relativeFontSize(
                                       context,
-                                      0.045, // Increased from 0.035
-                                      min: ScreenUtils.getSmallerDimension(context) * 0.035,
-                                      max: ScreenUtils.getSmallerDimension(context) * 0.065,
+                                      AppConfig.fontSizeFactorMedium,
+                                      min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                      max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                                     ),
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -380,7 +392,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                         .buyTruck();
                                   },
                                   icon: Icons.add_shopping_cart,
-                                  label: 'Buy Truck (\$500)',
+                                  label: 'Buy Truck (\$${AppConfig.truckPrice.toInt()})',
                                   color: Colors.green,
                                 ),
                               ],
@@ -400,57 +412,84 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                     .selectTruck(truck.id);
                               },
                               child: Container(
-                                width: 150,
-                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                width: ScreenUtils.relativeSize(
+                                  context,
+                                  AppConfig.truckCardWidthFactor,
+                                ),
+                                margin: EdgeInsets.symmetric(
+                                  horizontal: ScreenUtils.relativeSize(
+                                    context,
+                                    AppConfig.truckCardMarginHorizontalFactor,
+                                  ),
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(AppConfig.truckCardBorderRadius),
                                   border: Border.all(
                                     color: isSelected
                                         ? Colors.green
-                                        : Colors.grey.withOpacity(0.3),
+                                        : Colors.grey.withValues(alpha: 0.3),
                                     width: isSelected ? 3 : 2,
                                   ),
                                   boxShadow: isSelected
                                       ? [
                                           BoxShadow(
-                                            color: Colors.green.withOpacity(0.2),
+                                            color: Colors.green.withValues(alpha: 0.2),
                                             offset: const Offset(0, 4),
                                             blurRadius: 8,
                                           ),
                                         ]
                                       : [
                                           BoxShadow(
-                                            color: Colors.grey.withOpacity(0.1),
+                                            color: Colors.grey.withValues(alpha: 0.1),
                                             offset: const Offset(0, 2),
                                             blurRadius: 4,
                                           ),
                                         ],
                                 ),
                                 child: Padding(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: EdgeInsets.all(
+                                    ScreenUtils.relativeSize(
+                                      context,
+                                      AppConfig.truckCardPaddingFactor,
+                                    ),
+                                  ),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Container(
-                                        width: 48,
-                                        height: 48,
+                                        width: ScreenUtils.relativeSize(
+                                          context,
+                                          AppConfig.truckIconContainerSizeFactor,
+                                        ),
+                                        height: ScreenUtils.relativeSize(
+                                          context,
+                                          AppConfig.truckIconContainerSizeFactor,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: isSelected
-                                              ? Colors.green.withOpacity(0.2)
-                                              : Colors.grey.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(12),
+                                              ? Colors.green.withValues(alpha: 0.2)
+                                              : Colors.grey.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(AppConfig.truckIconContainerBorderRadius),
                                         ),
                                         child: Icon(
                                           Icons.local_shipping,
-                                          size: 32,
+                                          size: ScreenUtils.relativeSize(
+                                            context,
+                                            AppConfig.truckIconSizeFactor,
+                                          ),
                                           color: isSelected
                                               ? Colors.green
                                               : Colors.grey[600],
                                         ),
                                       ),
-                                      const SizedBox(height: 6),
+                                      SizedBox(
+                                        height: ScreenUtils.relativeSize(
+                                          context,
+                                          AppConfig.spacingFactorMedium,
+                                        ),
+                                      ),
                                       SizedBox(
                                         width: double.infinity,
                                         child: Text(
@@ -460,54 +499,54 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                             color: isSelected
                                                 ? Colors.green
                                                 : Colors.black87,
-                                            fontSize: 14,
+                                            fontSize: ScreenUtils.relativeFontSize(
+                                              context,
+                                              AppConfig.truckNameFontSizeFactor,
+                                              min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                              max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                                            ),
                                           ),
                                           textAlign: TextAlign.center,
                                           maxLines: 1,
                                           overflow: TextOverflow.fade,
                                         ),
                                       ),
-                                      const SizedBox(height: 3),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.local_gas_station,
-                                            size: 14,
-                                            color: Colors.orange,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Flexible(
-                                            child: Text(
-                                              '${truck.fuel.toStringAsFixed(0)}%',
-                                              style: const TextStyle(fontSize: 12),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ],
+                                      SizedBox(
+                                        height: ScreenUtils.relativeSize(
+                                          context,
+                                          AppConfig.spacingFactorSmall,
+                                        ),
                                       ),
-                                      const SizedBox(height: 3),
                                       Flexible(
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 3,
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: ScreenUtils.relativeSize(
+                                              context,
+                                              AppConfig.truckStatusPaddingHorizontalFactor,
+                                            ),
+                                            vertical: ScreenUtils.relativeSize(
+                                              context,
+                                              AppConfig.truckStatusPaddingVerticalFactor,
+                                            ),
                                           ),
                                           decoration: BoxDecoration(
                                             color: _getStatusColor(truck.status)
-                                                .withOpacity(0.15),
-                                            borderRadius: BorderRadius.circular(8),
+                                                .withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(AppConfig.truckStatusBorderRadius),
                                             border: Border.all(
-                                              color: _getStatusColor(truck.status).withOpacity(0.5),
+                                              color: _getStatusColor(truck.status).withValues(alpha: 0.5),
                                               width: 1,
                                             ),
                                           ),
                                           child: Text(
                                             _getStatusText(truck.status).toUpperCase(),
                                             style: TextStyle(
-                                              fontSize: 10,
+                                              fontSize: ScreenUtils.relativeFontSize(
+                                                context,
+                                                AppConfig.truckStatusFontSizeFactor,
+                                                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                                              ),
                                               color: _getStatusColor(truck.status),
                                               fontWeight: FontWeight.bold,
                                               letterSpacing: 0.5,
@@ -551,12 +590,12 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.blue.withOpacity(0.5),
+                      color: Colors.blue.withValues(alpha: 0.5),
                       width: 2,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blue.withOpacity(0.1),
+                        color: Colors.blue.withValues(alpha: 0.1),
                         offset: const Offset(0, 4),
                         blurRadius: 8,
                       ),
@@ -568,18 +607,33 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                       Row(
                         children: [
                           const Icon(Icons.inventory_2, size: 16, color: Colors.blue),
-                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: ScreenUtils.relativeSize(
+                              context,
+                              AppConfig.spacingFactorMedium,
+                            ),
+                          ),
                           Text(
                             'Cargo: ${selectedTruck.currentLoad}/${selectedTruck.capacity}',
-                            style: const TextStyle(
-                              fontSize: 14,
+                            style: TextStyle(
+                              fontSize: ScreenUtils.relativeFontSize(
+                                context,
+                                AppConfig.fontSizeFactorSmall,
+                                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                              ),
                               fontWeight: FontWeight.bold,
                               color: Colors.blue,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: ScreenUtils.relativeSize(
+                          context,
+                          AppConfig.spacingFactorMedium,
+                        ),
+                      ),
                       Wrap(
                         spacing: 8,
                         runSpacing: 4,
@@ -587,17 +641,22 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.1),
+                              color: Colors.blue.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: Colors.blue.withOpacity(0.3),
+                                color: Colors.blue.withValues(alpha: 0.3),
                                 width: 1,
                               ),
                             ),
                             child: Text(
                               '${entry.key.name}: ${entry.value}',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: ScreenUtils.relativeFontSize(
+                                  context,
+                                  AppConfig.fontSizeFactorSmall,
+                                  min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                  max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                                ),
                                 fontWeight: FontWeight.w600,
                                 color: Colors.blue[900],
                               ),
@@ -616,17 +675,27 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Current Route (Drag to Reorder)',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: ScreenUtils.relativeFontSize(
+                          context,
+                          AppConfig.fontSizeFactorMedium,
+                          min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                          max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                        ),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: ScreenUtils.relativeSize(
+                        context,
+                        AppConfig.spacingFactorLarge,
+                      ),
+                    ),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: 2,
+                      runSpacing: 2,
                       children: [
                         GameButton(
                           onPressed: () => _showLoadCargoDialog(selectedTruck),
@@ -668,15 +737,30 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                         size: 64,
                         color: Colors.grey[400],
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: ScreenUtils.relativeSize(
+                          context,
+                          AppConfig.spacingFactorXLarge,
+                        ),
+                      ),
                       Text(
                         'No stops in route',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: ScreenUtils.relativeFontSize(
+                            context,
+                            AppConfig.fontSizeFactorSmall,
+                            min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                            max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                          ),
                           color: Colors.grey[600],
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: ScreenUtils.relativeSize(
+                          context,
+                          AppConfig.spacingFactorMedium,
+                        ),
+                      ),
                       GameButton(
                         onPressed: () => _showAddStopDialog(selectedTruck, machines),
                         icon: Icons.add,
@@ -743,10 +827,15 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'Route Efficiency',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: ScreenUtils.relativeFontSize(
+                              context,
+                              AppConfig.fontSizeFactorSmall,
+                              min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                              max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                            ),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -842,7 +931,17 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
     final quantityInt = maxQuantity > 0 ? _quantity.round().clamp(1, maxQuantity) : 0;
 
     return AlertDialog(
-      title: Text('Load Cargo - ${widget.truck.name}'),
+      title: Text(
+        'Load Cargo - ${widget.truck.name}',
+        style: TextStyle(
+          fontSize: ScreenUtils.relativeFontSize(
+            context,
+            AppConfig.fontSizeFactorMedium,
+            min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+            max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+          ),
+        ),
+      ),
       content: SizedBox(
         width: double.maxFinite,
         child: Column(
@@ -851,22 +950,75 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
           children: [
             Text(
               'Available Capacity: $availableCapacity / ${widget.truck.capacity}',
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: TextStyle(
+                fontSize: ScreenUtils.relativeFontSize(
+                  context,
+                  AppConfig.fontSizeFactorNormal,
+                  min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                  max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                ),
+              ),
             ),
-            const SizedBox(height: 16),
-            const Text('Select Product:'),
-            const SizedBox(height: 8),
+            SizedBox(
+              height: ScreenUtils.relativeSize(
+                context,
+                AppConfig.spacingFactorXLarge,
+              ),
+            ),
+            Text(
+              'Select Product:',
+              style: TextStyle(
+                fontSize: ScreenUtils.relativeFontSize(
+                  context,
+                  AppConfig.fontSizeFactorNormal,
+                  min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                  max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: ScreenUtils.relativeSize(
+                context,
+                AppConfig.spacingFactorMedium,
+              ),
+            ),
             DropdownButtonFormField<Product>(
               value: _selectedProduct,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
+              style: TextStyle(
+                fontSize: ScreenUtils.relativeFontSize(
+                  context,
+                  AppConfig.fontSizeFactorNormal,
+                  min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                  max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                ),
+              ),
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
                 hintText: 'Choose a product',
+                hintStyle: TextStyle(
+                  fontSize: ScreenUtils.relativeFontSize(
+                    context,
+                    AppConfig.fontSizeFactorNormal,
+                    min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                    max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                  ),
+                ),
               ),
               items: availableProducts.map((product) {
                 final stock = widget.warehouse.inventory[product] ?? 0;
                 return DropdownMenuItem(
                   value: product,
-                  child: Text('${product.name} (Stock: $stock)'),
+                  child: Text(
+                    '${product.name} (Stock: $stock)',
+                    style: TextStyle(
+                      fontSize: ScreenUtils.relativeFontSize(
+                        context,
+                        AppConfig.fontSizeFactorNormal,
+                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                      ),
+                    ),
+                  ),
                 );
               }).toList(),
               onChanged: (value) {
@@ -877,7 +1029,12 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
               },
             ),
             if (_selectedProduct != null) ...[
-              const SizedBox(height: 16),
+              SizedBox(
+                height: ScreenUtils.relativeSize(
+                  context,
+                  AppConfig.spacingFactorXLarge,
+                ),
+              ),
               if (maxQuantity > 0) ...[
                 // Quantity Display
                 Container(
@@ -886,7 +1043,7 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
                     color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                       width: 2,
                     ),
                   ),
@@ -895,11 +1052,24 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
                     children: [
                       Text(
                         'Quantity: ',
-                        style: Theme.of(context).textTheme.bodyLarge,
+                        style: TextStyle(
+                          fontSize: ScreenUtils.relativeFontSize(
+                            context,
+                            AppConfig.fontSizeFactorNormal,
+                            min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                            max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                          ),
+                        ),
                       ),
                       Text(
                         '$quantityInt',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        style: TextStyle(
+                          fontSize: ScreenUtils.relativeFontSize(
+                            context,
+                            AppConfig.fontSizeFactorLarge,
+                            min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                            max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                          ),
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,
                         ),
@@ -907,7 +1077,12 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(
+                  height: ScreenUtils.relativeSize(
+                    context,
+                    AppConfig.spacingFactorXLarge,
+                  ),
+                ),
                 // Slider for quantity selection
                 Slider(
                   value: _quantity.clamp(1.0, maxQuantity.toDouble()),
@@ -921,7 +1096,12 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
                     });
                   },
                 ),
-                const SizedBox(height: 16),
+                SizedBox(
+                  height: ScreenUtils.relativeSize(
+                    context,
+                    AppConfig.spacingFactorXLarge,
+                  ),
+                ),
                 // Quick increment buttons
                 Wrap(
                   spacing: 8,
@@ -935,9 +1115,17 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
                   ],
                 ),
               ] else
-                const Text(
+                Text(
                   'Cannot load: Truck is full',
-                  style: TextStyle(color: Colors.red),
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: ScreenUtils.relativeFontSize(
+                      context,
+                      AppConfig.fontSizeFactorNormal,
+                      min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                      max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                    ),
+                  ),
                 ),
             ],
           ],
@@ -953,7 +1141,12 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
               color: Colors.grey,
               icon: Icons.close,
             ),
-            const SizedBox(width: 8),
+            SizedBox(
+              width: ScreenUtils.relativeSize(
+                context,
+                AppConfig.spacingFactorMedium,
+              ),
+            ),
             _SmallGameButton(
               onPressed: _selectedProduct != null && quantityInt > 0
                   ? () {
@@ -1025,20 +1218,40 @@ class _StatItem extends StatelessWidget {
       child: Column(
         children: [
           Icon(icon, size: 24, color: valueColor ?? Colors.grey[700]),
-          const SizedBox(height: 8),
+          SizedBox(
+            height: ScreenUtils.relativeSize(
+              context,
+              AppConfig.spacingFactorMedium,
+            ),
+          ),
           Text(
             value,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: ScreenUtils.relativeFontSize(
+                context,
+                AppConfig.fontSizeFactorSmall,
+                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+              ),
               fontWeight: FontWeight.bold,
               color: valueColor ?? Colors.black87,
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(
+            height: ScreenUtils.relativeSize(
+              context,
+              AppConfig.spacingFactorSmall,
+            ),
+          ),
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: ScreenUtils.relativeFontSize(
+                context,
+                AppConfig.fontSizeFactorSmall,
+                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+              ),
               color: Colors.grey[600],
             ),
             textAlign: TextAlign.center,
@@ -1059,7 +1272,7 @@ class _SmallGameButton extends StatefulWidget {
   const _SmallGameButton({
     required this.label,
     this.onPressed,
-    this.color = const Color(0xFF4CAF50),
+    this.color = AppConfig.gameGreen,
     this.icon,
   });
 
@@ -1080,38 +1293,64 @@ class _SmallGameButtonState extends State<_SmallGameButton> {
       onTapCancel: isEnabled ? () => setState(() => _isPressed = false) : null,
       onTap: widget.onPressed,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
+        duration: AppConfig.animationDurationFast,
         margin: EdgeInsets.only(top: _isPressed ? 3 : 0),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: ScreenUtils.relativeSize(
+            context,
+            AppConfig.smallGameButtonPaddingHorizontalFactor,
+          ),
+          vertical: ScreenUtils.relativeSize(
+            context,
+            AppConfig.smallGameButtonPaddingVerticalFactor,
+          ),
+        ),
         decoration: BoxDecoration(
           color: isEnabled ? widget.color : Colors.grey,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppConfig.smallGameButtonBorderRadius),
           boxShadow: _isPressed || !isEnabled
               ? []
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     offset: const Offset(0, 3),
                     blurRadius: 0,
                   ),
                 ],
-          border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.5),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (widget.icon != null) ...[
-              Icon(widget.icon, color: Colors.white, size: 16),
-              const SizedBox(width: 6),
+              Icon(
+                widget.icon,
+                color: Colors.white,
+                size: ScreenUtils.relativeSize(
+                  context,
+                  AppConfig.smallGameButtonIconSizeFactor,
+                ),
+              ),
+              SizedBox(
+                width: ScreenUtils.relativeSize(
+                  context,
+                  AppConfig.spacingFactorMedium,
+                ),
+              ),
             ],
             Flexible(
               child: Text(
                 widget.label.toUpperCase(),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: ScreenUtils.relativeFontSize(
+                    context,
+                    AppConfig.smallGameButtonFontSizeFactor,
+                    min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                    max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                  ),
                   letterSpacing: 0.5,
                 ),
                 textAlign: TextAlign.center,

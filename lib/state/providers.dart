@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart' show StateNotifierProvider, StateProvider;
 import 'package:state_notifier/state_notifier.dart';
 import 'package:uuid/uuid.dart';
+import '../config.dart';
 import '../simulation/engine.dart';
 import '../simulation/models/product.dart';
 import '../simulation/models/zone.dart';
@@ -18,7 +19,7 @@ const _uuid = Uuid();
 
 /// Machine prices by zone type
 class MachinePrices {
-  static const double basePrice = 400.0; // Reduced from 500.0
+  static const double basePrice = AppConfig.machineBasePrice;
   static const Map<ZoneType, double> zoneMultipliers = {
     ZoneType.office: 1.75, // $700 (was $750)
     ZoneType.school: 1.5,  // $600 (was $600)
@@ -457,7 +458,7 @@ class GameController extends StateNotifier<GlobalGameState> {
   /// Buy a new truck
   void buyTruck() {
     print('🟢 CONTROLLER ACTION: Buying truck');
-    const truckPrice = 500.0;
+    const truckPrice = AppConfig.truckPrice;
     
     if (state.cash < truckPrice) {
       state = state.addLogMessage('Insufficient funds to buy truck ($truckPrice)');

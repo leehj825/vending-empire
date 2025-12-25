@@ -6,6 +6,7 @@ import '../../state/city_map_state.dart';
 import '../../simulation/models/zone.dart';
 import '../../simulation/models/truck.dart' as sim;
 import '../../simulation/models/machine.dart' as sim;
+import '../../config.dart';
 import '../theme/zone_ui.dart';
 import '../utils/screen_utils.dart';
 
@@ -41,7 +42,7 @@ class TileCityScreen extends ConsumerStatefulWidget {
 }
 
 class _TileCityScreenState extends ConsumerState<TileCityScreen> {
-  static const int gridSize = 10;
+  static const int gridSize = 10; // Using AppConfig.cityGridSize value
   
   // Tile dimensions will be calculated relative to screen size
   double _getTileWidth(BuildContext context) {
@@ -71,22 +72,23 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     );
   }
   
-  static const double tileSpacingFactor = 0.80;
-  static const double horizontalSpacingFactor = 0.70;
+  static const double tileSpacingFactor = AppConfig.tileSpacingFactor;
+  static const double horizontalSpacingFactor = AppConfig.horizontalSpacingFactor;
   
-  static const double buildingScale = 0.81;
+  static const double buildingScale = AppConfig.buildingScale;
+  static const double schoolScale = AppConfig.schoolScale;
   
-  static const double gasStationScale = 0.72;
-  static const double parkScale = 0.72;
-  static const double houseScale = 0.72;
-  static const double warehouseScale = 0.72;
+  static const double gasStationScale = AppConfig.gasStationScale;
+  static const double parkScale = AppConfig.parkScale;
+  static const double houseScale = AppConfig.houseScale;
+  static const double warehouseScale = AppConfig.warehouseScale;
   
   double _getWarehouseVerticalOffset(BuildContext context) {
     return ScreenUtils.relativeSize(context, 0.007);
   }
   
-  static const int minBlockSize = 2;
-  static const int maxBlockSize = 3;
+  static const int minBlockSize = AppConfig.minBlockSize;
+  static const int maxBlockSize = AppConfig.maxBlockSize;
   
   late List<List<TileType>> _grid;
   late List<List<RoadDirection?>> _roadDirections;
@@ -551,6 +553,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
 
   double _getBuildingScale(TileType tileType) {
     switch (tileType) {
+      case TileType.school: return schoolScale;
       case TileType.gasStation: return gasStationScale;
       case TileType.park: return parkScale;
       case TileType.house: return houseScale;
@@ -591,9 +594,9 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     }
     
     // Add generous padding for the map canvas to ensure no clipping during pans/scales
-    const double sidePadding = 100.0;
-    const double topPadding = 150.0;
-    const double bottomPadding = 30.0; // Minimal internal padding
+    const double sidePadding = AppConfig.mapSidePadding;
+    const double topPadding = AppConfig.mapTopPadding;
+    const double bottomPadding = AppConfig.mapBottomPadding;
     
     minX -= sidePadding;
     maxX += sidePadding;
@@ -620,7 +623,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         
         // Vertical: Bottom Align in the container
         // We want the bottom visual edge (maxY) to be 'targetBottomGap' from container bottom.
-        const double targetBottomGap = 20.0; 
+        const double targetBottomGap = AppConfig.mapTargetBottomGap; 
         // Logic: containerHeight - targetBottomGap = New Visual Bottom Position
         // Visual Bottom Position = (maxY + dy)
         // dy = containerHeight - targetBottomGap - maxY
@@ -628,8 +631,8 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         
         final centerOffset = Offset(offsetX, offsetY);
 
-        // Calculate initial scale to zoom in (1.5x zoom for better visibility)
-        final initialScale = 1.5;
+        // Calculate initial scale to zoom in for better visibility
+        final initialScale = AppConfig.initialMapZoom;
         
         // Calculate center of the map in container coordinates
         final mapCenterX = offsetX + (minX + maxX) / 2;
@@ -655,7 +658,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           children: [
             InteractiveViewer(
               transformationController: _transformationController,
-              boundaryMargin: const EdgeInsets.all(200),
+              boundaryMargin: EdgeInsets.all(ScreenUtils.relativeSize(context, 0.2)),
               minScale: 0.3,
               maxScale: 3.0,
               // *** CRITICAL FIX: ***
@@ -825,7 +828,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
   void _handleDebouncedBuildingTap(int x, int y, TileType tileType) {
     final now = DateTime.now();
     final key = '$x,$y';
-    if (_lastTappedButton == key && _lastTapTime != null && now.difference(_lastTapTime!) < const Duration(milliseconds: 300)) {
+    if (_lastTappedButton == key && _lastTapTime != null && now.difference(_lastTapTime!) < AppConfig.debounceTap) {
       return;
     }
     _lastTapTime = now;
@@ -871,7 +874,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           decoration: BoxDecoration(
             color: machineColor,
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
+            border: Border.all(color: Colors.white, width: ScreenUtils.relativeSize(context, 0.002)),
           ),
           child: Center(
             child: Icon(
@@ -900,7 +903,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.7),
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       builder: (context) => _MachineViewDialog(
         machineId: machineId,
         imagePath: imagePath,
@@ -972,9 +975,9 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
             style: TextStyle(
               fontSize: ScreenUtils.relativeFontSize(
                 context,
-                0.032, // Relative to screen width
-                min: ScreenUtils.getSmallerDimension(context) * 0.025,
-                max: ScreenUtils.getSmallerDimension(context) * 0.045,
+                AppConfig.fontSizeFactorNormal,
+                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
               ),
               color: Colors.white,
             ),
@@ -1027,7 +1030,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(_getProgressionMessage(zoneType)),
-              duration: const Duration(seconds: 2),
+              duration: AppConfig.snackbarDurationShort,
             ),
           );
         }
@@ -1043,9 +1046,9 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       if (hasExistingMachine) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text('A machine already exists at this location'),
-              duration: Duration(seconds: 2),
+              duration: AppConfig.snackbarDurationShort,
             ),
           );
         }
@@ -1060,7 +1063,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString()}'),
-            duration: const Duration(seconds: 2),
+            duration: AppConfig.snackbarDurationShort,
           ),
         );
       }
@@ -1102,10 +1105,10 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     final officeMachines = machines.where((m) => m.zone.type == ZoneType.office).length;
 
     switch (zoneType) {
-      case ZoneType.shop: return shopMachines < 2;
-      case ZoneType.school: return shopMachines >= 2 && schoolMachines < 2;
-      case ZoneType.gym: return schoolMachines >= 2 && gymMachines < 2;
-      case ZoneType.office: return gymMachines >= 2 && officeMachines < 2;
+      case ZoneType.shop: return shopMachines < AppConfig.machineLimitPerType;
+      case ZoneType.school: return shopMachines >= AppConfig.machineLimitPerType && schoolMachines < AppConfig.machineLimitPerType;
+      case ZoneType.gym: return schoolMachines >= AppConfig.machineLimitPerType && gymMachines < AppConfig.machineLimitPerType;
+      case ZoneType.office: return gymMachines >= AppConfig.machineLimitPerType && officeMachines < AppConfig.machineLimitPerType;
     }
   }
 
@@ -1116,22 +1119,23 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     final gymMachines = machines.where((m) => m.zone.type == ZoneType.gym).length;
     final officeMachines = machines.where((m) => m.zone.type == ZoneType.office).length;
     
+    final limit = AppConfig.machineLimitPerType;
     switch (zoneType) {
       case ZoneType.shop:
-        if (shopMachines >= 2) return 'Shop limit reached (have $shopMachines/2). Buy 2 school machines next.';
-        return 'Can purchase shop machines ($shopMachines/2)';
+        if (shopMachines >= limit) return 'Shop limit reached (have $shopMachines/$limit). Buy $limit school machines next.';
+        return 'Can purchase shop machines ($shopMachines/$limit)';
       case ZoneType.school:
-        if (shopMachines < 2) return 'Need 2 shop machines first (have $shopMachines/2)';
-        if (schoolMachines >= 2) return 'School limit reached (have $schoolMachines/2). Buy 2 gym machines next.';
-        return 'Can purchase school machines ($schoolMachines/2)';
+        if (shopMachines < limit) return 'Need $limit shop machines first (have $shopMachines/$limit)';
+        if (schoolMachines >= limit) return 'School limit reached (have $schoolMachines/$limit). Buy $limit gym machines next.';
+        return 'Can purchase school machines ($schoolMachines/$limit)';
       case ZoneType.gym:
-        if (schoolMachines < 2) return 'Need 2 school machines first (have $schoolMachines/2)';
-        if (gymMachines >= 2) return 'Gym limit reached (have $gymMachines/2). Buy office machines next.';
-        return 'Can purchase gym machines ($gymMachines/2)';
+        if (schoolMachines < limit) return 'Need $limit school machines first (have $schoolMachines/$limit)';
+        if (gymMachines >= limit) return 'Gym limit reached (have $gymMachines/$limit). Buy office machines next.';
+        return 'Can purchase gym machines ($gymMachines/$limit)';
       case ZoneType.office:
-        if (gymMachines < 2) return 'Need 2 gym machines first (have $gymMachines/2)';
-        if (officeMachines >= 2) return 'Office limit reached (have $officeMachines/2). Maximum machines reached.';
-        return 'Can purchase office machines ($officeMachines/2)';
+        if (gymMachines < limit) return 'Need $limit gym machines first (have $gymMachines/$limit)';
+        if (officeMachines >= limit) return 'Office limit reached (have $officeMachines/$limit). Maximum machines reached.';
+        return 'Can purchase office machines ($officeMachines/$limit)';
     }
   }
 
@@ -1149,7 +1153,14 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           alignment: Alignment.bottomCenter,
           child: Text(
             _getTileLabel(tileType),
-            style: const TextStyle(fontSize: 8),
+            style: TextStyle(
+            fontSize: ScreenUtils.relativeFontSize(
+              context,
+              AppConfig.fontSizeFactorTiny,
+              min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+              max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+            ),
+          ),
           ),
         );
       },
@@ -1176,10 +1187,17 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
           color: _getFallbackColor(tileType),
           alignment: Alignment.bottomCenter,
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 4.0),
+            padding: EdgeInsets.only(bottom: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall)),
             child: Text(
               _getTileLabel(tileType),
-              style: const TextStyle(fontSize: 10),
+              style: TextStyle(
+              fontSize: ScreenUtils.relativeFontSize(
+                context,
+                AppConfig.fontSizeFactorTiny,
+                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+              ),
+            ),
             ),
           ),
         );
@@ -1266,9 +1284,9 @@ class _MachineViewDialog extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: ScreenUtils.relativeFontSize(
                     context,
-                    0.045,
-                    min: ScreenUtils.getSmallerDimension(context) * 0.035,
-                    max: ScreenUtils.getSmallerDimension(context) * 0.065,
+                    AppConfig.fontSizeFactorLarge,
+                    min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                    max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                   ),
                   fontWeight: FontWeight.bold,
                 ),
@@ -1279,9 +1297,9 @@ class _MachineViewDialog extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: ScreenUtils.relativeFontSize(
                     context,
-                    0.032,
-                    min: ScreenUtils.getSmallerDimension(context) * 0.025,
-                    max: ScreenUtils.getSmallerDimension(context) * 0.045,
+                    AppConfig.fontSizeFactorNormal,
+                    min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                    max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                   ),
                 ),
               ),
@@ -1291,9 +1309,9 @@ class _MachineViewDialog extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: ScreenUtils.relativeFontSize(
                     context,
-                    0.032,
-                    min: ScreenUtils.getSmallerDimension(context) * 0.025,
-                    max: ScreenUtils.getSmallerDimension(context) * 0.045,
+                    AppConfig.fontSizeFactorNormal,
+                    min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                    max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                   ),
                 ),
               ),
@@ -1304,9 +1322,9 @@ class _MachineViewDialog extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: ScreenUtils.relativeFontSize(
                       context,
-                      0.025,
-                      min: ScreenUtils.getSmallerDimension(context) * 0.02,
-                      max: ScreenUtils.getSmallerDimension(context) * 0.035,
+                      AppConfig.fontSizeFactorSmall,
+                      min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                      max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                     ),
                   ),
                 ),
@@ -1319,9 +1337,9 @@ class _MachineViewDialog extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: ScreenUtils.relativeFontSize(
                       context,
-                      0.032,
-                      min: ScreenUtils.getSmallerDimension(context) * 0.025,
-                      max: ScreenUtils.getSmallerDimension(context) * 0.045,
+                      AppConfig.fontSizeFactorNormal,
+                      min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                      max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
                     ),
                   ),
                 ),
@@ -1409,7 +1427,7 @@ class _MachineViewDialog extends ConsumerWidget {
                         ),
                         onPressed: () => Navigator.of(context).pop(),
                         style: IconButton.styleFrom(
-                          backgroundColor: Colors.black.withOpacity(0.5),
+                          backgroundColor: Colors.black.withValues(alpha: 0.5),
                           padding: EdgeInsets.all(padding * 0.3),
                         ),
                       ),
@@ -1446,7 +1464,7 @@ class _MachineStatusSection extends ConsumerWidget {
   });
 
   double _getStockLevel(sim.Machine machine) {
-    const maxCapacity = 50.0;
+    const maxCapacity = AppConfig.machineMaxCapacity;
     final currentStock = machine.totalInventory.toDouble();
     return (currentStock / maxCapacity).clamp(0.0, 1.0);
   }
@@ -1474,7 +1492,7 @@ class _MachineStatusSection extends ConsumerWidget {
               width: (dialogWidth * 0.15).clamp(36.0, 90.0),
               height: (dialogWidth * 0.15).clamp(36.0, 90.0),
               decoration: BoxDecoration(
-                color: zoneColor.withOpacity(0.2),
+                color: zoneColor.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -1519,7 +1537,7 @@ class _MachineStatusSection extends ConsumerWidget {
         Container(
           padding: EdgeInsets.all((dialogWidth * 0.04).clamp(12.0, 24.0)),
           decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(
               (dialogWidth * 0.02).clamp(6.0, 12.0),
             ),
@@ -1626,7 +1644,7 @@ class _MachineStatusSection extends ConsumerWidget {
                       'Retrieved \$${machine.currentCash.toStringAsFixed(2)} from ${machine.name}',
                     ),
                     backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 2),
+                    duration: AppConfig.snackbarDurationShort,
                   ),
                 );
               },
@@ -1735,7 +1753,7 @@ class _PurchaseButtonState extends State<_PurchaseButton> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     blurRadius: ScreenUtils.relativeSize(context, 0.008),
                     offset: Offset(0, ScreenUtils.relativeSize(context, 0.004)),
                   ),
