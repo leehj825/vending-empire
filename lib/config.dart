@@ -111,16 +111,16 @@ class AppConfig {
   static const double saveExitButtonWidthMaxFactor = 0.10; // Maximum width as factor of screen width
   
   /// Top status bar boxes (cash, reputation, time)
-  static const double statusCardWidthFactor = 0.75; // Width as factor of smaller dimension (0.25 * 3.0)
-  static const double statusCardWidthMinFactor = 0.25; // Minimum width as factor of smaller dimension
-  static const double statusCardWidthMaxFactor = 0.30; // Maximum width as factor of smaller dimension
+  static const double statusCardWidthFactor = 0.66; // Width as factor of smaller dimension (0.25 * 3.0)
+  static const double statusCardWidthMinFactor = 0.22; // Minimum width as factor of smaller dimension
+  static const double statusCardWidthMaxFactor = 0.25; // Maximum width as factor of smaller dimension
   static const double statusCardHeightRatio = 1.0; // Height ratio relative to card width
   
   /// Status card icon settings
-  static const double statusCardIconSizeFactor = 0.2; // Icon size factor relative to card width
-  static const double statusCardIconSizeMinFactor = 0.2; // Minimum icon size as factor of smaller dimension
-  static const double statusCardIconSizeMaxFactor = 0.2; // Maximum icon size as factor of smaller dimension
-  static const double statusCardIconTopPositionFactor = 2.0; // Icon top position factor (1.0 = uses padding, adjust to change icon vertical position)
+  static const double statusCardIconSizeFactor = 0.15; // Icon size factor relative to card width
+  static const double statusCardIconSizeMinFactor = 0.15; // Minimum icon size as factor of smaller dimension
+  static const double statusCardIconSizeMaxFactor = 0.15; // Maximum icon size as factor of smaller dimension
+  static const double statusCardIconTopPositionFactor = 1.0; // Icon top position factor (1.0 = uses padding, adjust to change icon vertical position)
   
   /// Status card text settings
   static const double statusCardTextSizeFactor = 0.04; // Text font size factor (relative to smaller screen dimension)
@@ -157,6 +157,106 @@ class AppConfig {
   
   /// Warehouse capacity
   static const int warehouseMaxCapacity = 1000;
+  
+  // ============================================================================
+  // MARKET PRODUCT CARD CONSTANTS
+  // ============================================================================
+  
+  /// Product card image sizes (relative to screen)
+  static const double productCardImageSizeFactor = 0.048;
+  static const double productCardImageFallbackSizeFactor = 0.024;
+  static const double productCardTrendIconSizeFactor = 0.016;
+  
+  /// Buy dialog dimensions (relative to screen)
+  static const double buyDialogWidthFactor = 0.9; // 90% of screen width
+  static const double buyDialogWidthMinFactor = 0.6; // 60% of screen width (min)
+  static const double buyDialogWidthMaxFactor = 0.8; // 80% of screen width (max)
+  static const double buyDialogHeightFactor = 0.75; // 75% of screen height
+  static const double buyDialogHeightMinFactor = 0.5; // 50% of screen height (min)
+  static const double buyDialogHeightMaxFactor = 0.85; // 85% of screen height (max)
+  static const double buyDialogInsetPaddingFactor = 0.04; // Inset padding relative to screen
+  
+  /// Buy dialog sizing (relative to dialog width)
+  static const double buyDialogBorderRadiusFactor = 0.03; // Border radius as factor of dialog width
+  static const double buyDialogBorderRadiusMinFactor = 0.02; // Min border radius factor
+  static const double buyDialogBorderRadiusMaxFactor = 0.04; // Max border radius factor
+  static const double buyDialogPaddingFactor = 0.03; // Padding as factor of dialog width
+  static const double buyDialogPaddingMinFactor = 0.02; // Min padding factor
+  static const double buyDialogPaddingMaxFactor = 0.04; // Max padding factor
+  
+  /// Buy dialog header
+  static const double buyDialogHeaderPaddingVerticalFactor = 0.5; // Vertical padding as factor of padding
+  static const double buyDialogHeaderIconSizeFactor = 0.08; // Icon size as factor of dialog width
+  static const double buyDialogHeaderIconSizeMinFactor = 0.06; // Min icon size factor
+  static const double buyDialogHeaderIconSizeMaxFactor = 0.1; // Max icon size factor
+  static const double buyDialogHeaderTitleSpacingFactor = 0.5; // Spacing between icon and title as factor of padding
+  static const double buyDialogHeaderTitleFontSizeFactor = 0.05; // Title font size as factor of dialog width
+  static const double buyDialogHeaderTitleFontSizeMinFactor = 0.04; // Min title font size factor
+  static const double buyDialogHeaderTitleFontSizeMaxFactor = 0.06; // Max title font size factor
+  static const double buyDialogCloseButtonSizeFactor = 0.06; // Close button icon size as factor of dialog width
+  static const double buyDialogCloseButtonSizeMinFactor = 0.05; // Min close button size factor
+  static const double buyDialogCloseButtonSizeMaxFactor = 0.08; // Max close button size factor
+  static const double buyDialogCloseButtonPaddingFactor = 0.3; // Close button padding as factor of padding
+  
+  /// Buy dialog content
+  static const double buyDialogUnitPriceFontSizeFactor = 0.035; // Unit price font size as factor of dialog width
+  static const double buyDialogUnitPriceFontSizeMinFactor = 0.03; // Min unit price font size factor
+  static const double buyDialogUnitPriceFontSizeMaxFactor = 0.045; // Max unit price font size factor
+  static const double buyDialogContentSpacingFactor = 0.3; // Spacing between title and unit price as factor of padding
+  
+  /// Buy dialog quantity display
+  static const double buyDialogQuantityContainerPaddingFactor = 0.8; // Container padding as factor of padding
+  static const double buyDialogQuantityBorderRadiusFactor = 0.5; // Border radius as factor of borderRadius
+  static const double buyDialogQuantityBorderWidthFactor = 0.08; // Border width as factor of padding
+  static const double buyDialogQuantityLabelFontSizeFactor = 0.035; // Label font size as factor of dialog width
+  static const double buyDialogQuantityLabelFontSizeMinFactor = 0.03; // Min label font size factor
+  static const double buyDialogQuantityLabelFontSizeMaxFactor = 0.045; // Max label font size factor
+  static const double buyDialogQuantityValueFontSizeFactor = 0.045; // Value font size as factor of dialog width
+  static const double buyDialogQuantityValueFontSizeMinFactor = 0.04; // Min value font size factor
+  static const double buyDialogQuantityValueFontSizeMaxFactor = 0.055; // Max value font size factor
+  
+  /// Buy dialog slider
+  static const double buyDialogSliderMinValue = 1.0;
+  static const double buyDialogSliderSpacingFactor = 0.8; // Spacing after slider as factor of padding
+  
+  /// Buy dialog increment buttons
+  static const List<int> buyDialogIncrementValues = [10, 50, 100]; // Quick increment button values
+  static const double buyDialogIncrementButtonSpacingFactor = 0.4; // Spacing between buttons as factor of padding
+  
+  /// Buy dialog total cost display
+  static const double buyDialogTotalCostContainerPaddingFactor = 0.8; // Container padding as factor of padding
+  static const double buyDialogTotalCostBorderRadiusFactor = 0.33; // Border radius as factor of borderRadius
+  static const double buyDialogTotalCostLabelFontSizeFactor = 0.035; // Label font size as factor of dialog width
+  static const double buyDialogTotalCostLabelFontSizeMinFactor = 0.03; // Min label font size factor
+  static const double buyDialogTotalCostLabelFontSizeMaxFactor = 0.045; // Max label font size factor
+  static const double buyDialogTotalCostValueFontSizeFactor = 0.045; // Value font size as factor of dialog width
+  static const double buyDialogTotalCostValueFontSizeMinFactor = 0.04; // Min value font size factor
+  static const double buyDialogTotalCostValueFontSizeMaxFactor = 0.055; // Max value font size factor
+  
+  /// Buy dialog warning messages
+  static const double buyDialogWarningSpacingFactor = 0.3; // Spacing above warning as factor of padding
+  static const double buyDialogWarningFontSizeFactor = 0.03; // Warning font size as factor of dialog width
+  static const double buyDialogWarningFontSizeMinFactor = 0.025; // Min warning font size factor
+  static const double buyDialogWarningFontSizeMaxFactor = 0.04; // Max warning font size factor
+  
+  /// Buy dialog action buttons
+  static const double buyDialogActionButtonSpacingFactor = 0.5; // Spacing between buttons as factor of padding
+  
+  /// Small game button (used in buy dialog - dialog-specific sizing)
+  static const double buyDialogButtonPressedMarginFactor = 0.125; // Pressed margin as factor of padding
+  static const double buyDialogButtonPaddingHorizontalFactor = 0.8; // Horizontal padding as factor of padding
+  static const double buyDialogButtonPaddingVerticalFactor = 0.6; // Vertical padding as factor of padding
+  static const double buyDialogButtonBorderRadiusFactor = 0.42; // Border radius as factor of padding
+  static const double buyDialogButtonShadowOffsetFactor = 0.125; // Shadow offset as factor of padding
+  static const double buyDialogButtonBorderWidthFactor = 0.06; // Border width as factor of padding
+  static const double buyDialogButtonIconSizeFactor = 0.04; // Icon size as factor of dialog width
+  static const double buyDialogButtonIconSizeMinFactor = 0.03; // Min icon size factor
+  static const double buyDialogButtonIconSizeMaxFactor = 0.05; // Max icon size factor
+  static const double buyDialogButtonIconSpacingFactor = 0.3; // Spacing between icon and text as factor of padding
+  static const double buyDialogButtonFontSizeFactor = 0.035; // Font size as factor of dialog width
+  static const double buyDialogButtonFontSizeMinFactor = 0.03; // Min font size factor
+  static const double buyDialogButtonFontSizeMaxFactor = 0.045; // Max font size factor
+  static const double buyDialogButtonLetterSpacing = 0.5; // Letter spacing for button text
   
   /// Machine capacity
   static const double machineMaxCapacity = 50.0;

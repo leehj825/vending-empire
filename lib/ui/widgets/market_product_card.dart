@@ -66,25 +66,27 @@ class MarketProductCard extends ConsumerWidget {
     final priceColor = _getPriceColor(trend);
     final trendIcon = _getTrendIcon(trend);
 
+    final cardBorderRadius = ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall) * 2;
+    
     return Container(
       margin: EdgeInsets.symmetric(horizontal: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge), vertical: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(cardBorderRadius),
         border: Border.all(
           color: priceColor.withValues(alpha: 0.3),
-          width: 2,
+          width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny),
         ),
         boxShadow: [
           BoxShadow(
             color: priceColor.withValues(alpha: 0.1),
-            offset: const Offset(0, 4),
-            blurRadius: 8,
+            offset: Offset(0, ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 2),
+            blurRadius: ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 4,
           ),
         ],
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(cardBorderRadius),
         onTap: () => _showBuyDialog(context, ref, product, price),
         child: Padding(
           padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
@@ -92,29 +94,29 @@ class MarketProductCard extends ConsumerWidget {
             children: [
               // Product Image
               Container(
-                width: ScreenUtils.relativeSize(context, 0.048),
-                height: ScreenUtils.relativeSize(context, 0.048),
+                width: ScreenUtils.relativeSize(context, AppConfig.productCardImageSizeFactor),
+                height: ScreenUtils.relativeSize(context, AppConfig.productCardImageSizeFactor),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 4),
                   border: Border.all(
                     color: Colors.grey.withValues(alpha: 0.2),
-                    width: 1,
+                    width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 0.5,
                   ),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 4),
                   child: Image.asset(
                     _getProductImagePath(product),
-                    width: ScreenUtils.relativeSize(context, 0.048),
-                    height: ScreenUtils.relativeSize(context, 0.048),
+                    width: ScreenUtils.relativeSize(context, AppConfig.productCardImageSizeFactor),
+                    height: ScreenUtils.relativeSize(context, AppConfig.productCardImageSizeFactor),
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
                       // Fallback to icon if image fails to load
                       return Icon(
                         Icons.image_not_supported,
                         color: Colors.grey[600],
-                        size: ScreenUtils.relativeSize(context, 0.024),
+                        size: ScreenUtils.relativeSize(context, AppConfig.productCardImageFallbackSizeFactor),
                       );
                     },
                   ),
@@ -141,9 +143,9 @@ class MarketProductCard extends ConsumerWidget {
                     SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall)),
                     Wrap(
                       crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 4,
+                      spacing: ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 2,
                       children: [
-                        Icon(trendIcon, size: ScreenUtils.relativeSize(context, 0.016), color: priceColor),
+                        Icon(trendIcon, size: ScreenUtils.relativeSize(context, AppConfig.productCardTrendIconSizeFactor), color: priceColor),
                         Text(
                           'Current: \$${price.toStringAsFixed(2)}',
                           style: TextStyle(
@@ -182,10 +184,10 @@ class MarketProductCard extends ConsumerWidget {
     Product product,
     double unitPrice,
   ) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      builder: (context) => _BuyStockBottomSheet(
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      builder: (context) => _BuyStockDialog(
         product: product,
         unitPrice: unitPrice,
       ),
@@ -193,24 +195,23 @@ class MarketProductCard extends ConsumerWidget {
   }
 }
 
-/// Bottom sheet for buying stock
-class _BuyStockBottomSheet extends ConsumerStatefulWidget {
+/// Dialog for buying stock (similar to machine status popup)
+class _BuyStockDialog extends ConsumerStatefulWidget {
   final Product product;
   final double unitPrice;
 
-  const _BuyStockBottomSheet({
+  const _BuyStockDialog({
     required this.product,
     required this.unitPrice,
   });
 
   @override
-  ConsumerState<_BuyStockBottomSheet> createState() =>
-      _BuyStockBottomSheetState();
+  ConsumerState<_BuyStockDialog> createState() =>
+      _BuyStockDialogState();
 }
 
-class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
+class _BuyStockDialogState extends ConsumerState<_BuyStockDialog> {
   double _quantity = 1.0;
-  static const int _maxCapacity = 1000;
 
   /// Get image asset path for product
   String _getProductImagePath(Product product) {
@@ -238,7 +239,7 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
       0,
       (sum, qty) => sum + qty,
     );
-    final availableCapacity = _maxCapacity - currentTotal;
+    final availableCapacity = AppConfig.warehouseMaxCapacity - currentTotal;
 
     // Calculate max affordable quantity
     final maxAffordable = (cash / widget.unitPrice).floor();
@@ -248,280 +249,321 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
 
     final totalCost = widget.unitPrice * _quantity;
     final quantityInt = _quantity.round();
+    
+    // Calculate dialog dimensions (compact, similar to bottom sheet)
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final dialogMaxWidth = ScreenUtils.relativeSizeClamped(
+      context,
+      AppConfig.buyDialogWidthFactor,
+      min: screenWidth * AppConfig.buyDialogWidthMinFactor,
+      max: screenWidth * AppConfig.buyDialogWidthMaxFactor,
+    );
+    
+    final imagePath = _getProductImagePath(widget.product);
 
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge * 1.5)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Product header with image
-            Row(
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.buyDialogInsetPaddingFactor)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Use the actual constrained width for sizing
+          final dialogWidth = constraints.maxWidth;
+          final borderRadius = (dialogWidth * AppConfig.buyDialogBorderRadiusFactor).clamp(
+            dialogWidth * AppConfig.buyDialogBorderRadiusMinFactor,
+            dialogWidth * AppConfig.buyDialogBorderRadiusMaxFactor,
+          );
+          final padding = (dialogWidth * AppConfig.buyDialogPaddingFactor).clamp(
+            dialogWidth * AppConfig.buyDialogPaddingMinFactor,
+            dialogWidth * AppConfig.buyDialogPaddingMaxFactor,
+          );
+          
+          return Container(
+            constraints: BoxConstraints(
+              maxWidth: dialogMaxWidth,
+              maxHeight: ScreenUtils.relativeSizeClamped(
+                context,
+                AppConfig.buyDialogHeightFactor,
+                min: screenHeight * AppConfig.buyDialogHeightMinFactor,
+                max: screenHeight * AppConfig.buyDialogHeightMaxFactor,
+              ),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(borderRadius),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
+                // Header with icon, title, and close button
                 Container(
-                  width: ScreenUtils.relativeSize(context, 0.056),
-                  height: ScreenUtils.relativeSize(context, 0.056),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.grey.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: padding,
+                    vertical: padding * AppConfig.buyDialogHeaderPaddingVerticalFactor,
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.asset(
-                      _getProductImagePath(widget.product),
-                      width: ScreenUtils.relativeSize(context, 0.056),
-                      height: ScreenUtils.relativeSize(context, 0.056),
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(
-                          Icons.image_not_supported,
-                          color: Colors.grey[600],
-                          size: ScreenUtils.relativeSize(context, 0.028),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                SizedBox(width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        'Buy ${widget.product.name}',
-                        style: TextStyle(
-                      fontSize: ScreenUtils.relativeFontSize(
-                        context,
-                        AppConfig.fontSizeFactorMedium,
-                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
-                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                      // Icon and title
+                      Row(
+                        children: [
+                          Image.asset(
+                            imagePath,
+                            width: (dialogWidth * AppConfig.buyDialogHeaderIconSizeFactor).clamp(
+                              dialogWidth * AppConfig.buyDialogHeaderIconSizeMinFactor,
+                              dialogWidth * AppConfig.buyDialogHeaderIconSizeMaxFactor,
+                            ),
+                            height: (dialogWidth * AppConfig.buyDialogHeaderIconSizeFactor).clamp(
+                              dialogWidth * AppConfig.buyDialogHeaderIconSizeMinFactor,
+                              dialogWidth * AppConfig.buyDialogHeaderIconSizeMaxFactor,
+                            ),
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.image_not_supported,
+                                size: (dialogWidth * AppConfig.buyDialogHeaderIconSizeFactor).clamp(
+                                  dialogWidth * AppConfig.buyDialogHeaderIconSizeMinFactor,
+                                  dialogWidth * AppConfig.buyDialogHeaderIconSizeMaxFactor,
+                                ),
+                                color: Colors.grey[600],
+                              );
+                            },
+                          ),
+                          SizedBox(width: padding * AppConfig.buyDialogHeaderTitleSpacingFactor),
+                          Text(
+                            'Buy ${widget.product.name}',
+                            style: TextStyle(
+                              fontSize: (dialogWidth * AppConfig.buyDialogHeaderTitleFontSizeFactor).clamp(
+                                dialogWidth * AppConfig.buyDialogHeaderTitleFontSizeMinFactor,
+                                dialogWidth * AppConfig.buyDialogHeaderTitleFontSizeMaxFactor,
+                              ),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                      ),
-                      SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall)),
-                      Text(
-                        'Unit Price: \$${widget.unitPrice.toStringAsFixed(2)}',
-                        style: TextStyle(
-                      fontSize: ScreenUtils.relativeFontSize(
-                        context,
-                        AppConfig.fontSizeFactorNormal,
-                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
-                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
-                      ),
-                    ),
+                      // Close button
+                      IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          color: Colors.black,
+                          size: (dialogWidth * AppConfig.buyDialogCloseButtonSizeFactor).clamp(
+                            dialogWidth * AppConfig.buyDialogCloseButtonSizeMinFactor,
+                            dialogWidth * AppConfig.buyDialogCloseButtonSizeMaxFactor,
+                          ),
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: IconButton.styleFrom(
+                          padding: EdgeInsets.all(padding * AppConfig.buyDialogCloseButtonPaddingFactor),
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge * 1.5)),
-            // Quantity Display
-            Container(
-              padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                  width: 2,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Quantity: ',
-                    style: TextStyle(
-                      fontSize: ScreenUtils.relativeFontSize(
-                        context,
-                        AppConfig.fontSizeFactorNormal,
-                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
-                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '$quantityInt',
-                    style: TextStyle(
-                      fontSize: ScreenUtils.relativeFontSize(
-                        context,
-                        AppConfig.fontSizeFactorLarge,
-                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
-                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
-                      ),
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
-            // Slider for quantity selection
-            Slider(
-              value: _quantity.clamp(1.0, maxQuantity.toDouble()),
-              min: 1.0,
-              max: maxQuantity.toDouble(),
-              divisions: maxQuantity > 1 ? maxQuantity - 1 : 1,
-              label: quantityInt.toString(),
-              onChanged: (value) {
-                setState(() {
-                  _quantity = value;
-                });
-              },
-            ),
-            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
-            // Quick increment buttons with GameButtons
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                _buildIncrementGameButton(context, 10, maxQuantity),
-                _buildIncrementGameButton(context, 50, maxQuantity),
-                _buildIncrementGameButton(context, 100, maxQuantity),
-                _SmallGameButton(
-                  onPressed: maxQuantity > 0
-                      ? () {
-                          setState(() {
-                            _quantity = maxQuantity.toDouble();
-                          });
-                        }
-                      : null,
-                  label: 'Full ($maxQuantity)',
-                  color: Colors.orange,
-                  icon: Icons.maximize,
-                ),
-              ],
-            ),
-            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
-            Container(
-              padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Total Cost:',
-                    style: TextStyle(
-                      fontSize: ScreenUtils.relativeFontSize(
-                        context,
-                        AppConfig.fontSizeFactorNormal,
-                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
-                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '\$${totalCost.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: ScreenUtils.relativeFontSize(
-                      context,
-                      AppConfig.fontSizeFactorLarge,
-                      min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
-                      max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
-                    ),
-                      fontWeight: FontWeight.bold,
-                      color: totalCost > cash
-                          ? Colors.red
-                          : Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (maxQuantity < maxAffordable)
-              Padding(
-                padding: EdgeInsets.only(top: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
-                child: Text(
-                  'Limited by warehouse capacity ($availableCapacity available)',
-                  style: TextStyle(
-                    color: Colors.orange[700],
-                    fontSize: ScreenUtils.relativeFontSize(
-                    context,
-                    AppConfig.fontSizeFactorSmall,
-                    min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
-                    max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
-                  ),
-                  ),
-                ),
-              ),
-            if (totalCost > cash)
-              Padding(
-                padding: EdgeInsets.only(top: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
-                child: Text(
-                  'Insufficient funds',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontSize: ScreenUtils.relativeFontSize(
-                    context,
-                    AppConfig.fontSizeFactorSmall,
-                    min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
-                    max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
-                  ),
-                  ),
-                ),
-              ),
-            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge * 1.5)),
-            Row(
-              children: [
-                Expanded(
-                  child: _SmallGameButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    label: 'Cancel',
-                    color: Colors.grey,
-                    icon: Icons.close,
-                  ),
-                ),
-                SizedBox(width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorLarge)),
-                Expanded(
-                  flex: 2,
-                  child: _SmallGameButton(
-                    onPressed: totalCost <= cash && quantityInt > 0
-                        ? () {
-                            ref
-                                .read(gameControllerProvider.notifier)
-                                .buyStock(
-                                  widget.product, 
-                                  quantityInt,
-                                  unitPrice: widget.unitPrice,
-                                );
-                            Navigator.of(context).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Purchased $quantityInt ${widget.product.name}',
+                // Content section
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: EdgeInsets.all(padding),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Unit Price: \$${widget.unitPrice.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: (dialogWidth * AppConfig.buyDialogUnitPriceFontSizeFactor).clamp(
+                                dialogWidth * AppConfig.buyDialogUnitPriceFontSizeMinFactor,
+                                dialogWidth * AppConfig.buyDialogUnitPriceFontSizeMaxFactor,
+                              ),
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          SizedBox(height: padding),
+                          // Quantity Display
+                          Container(
+                            padding: EdgeInsets.all(padding * AppConfig.buyDialogQuantityContainerPaddingFactor),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(borderRadius * AppConfig.buyDialogQuantityBorderRadiusFactor),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                                width: padding * AppConfig.buyDialogQuantityBorderWidthFactor,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Quantity: ',
+                                  style: TextStyle(
+                                    fontSize: (dialogWidth * AppConfig.buyDialogQuantityLabelFontSizeFactor).clamp(
+                                      dialogWidth * AppConfig.buyDialogQuantityLabelFontSizeMinFactor,
+                                      dialogWidth * AppConfig.buyDialogQuantityLabelFontSizeMaxFactor,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '$quantityInt',
+                                  style: TextStyle(
+                                    fontSize: (dialogWidth * AppConfig.buyDialogQuantityValueFontSizeFactor).clamp(
+                                      dialogWidth * AppConfig.buyDialogQuantityValueFontSizeMinFactor,
+                                      dialogWidth * AppConfig.buyDialogQuantityValueFontSizeMaxFactor,
+                                    ),
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: padding),
+                          // Slider for quantity selection
+                          Slider(
+                            value: _quantity.clamp(AppConfig.buyDialogSliderMinValue, maxQuantity.toDouble()),
+                            min: AppConfig.buyDialogSliderMinValue,
+                            max: maxQuantity.toDouble(),
+                            divisions: maxQuantity > 1 ? maxQuantity - 1 : 1,
+                            label: quantityInt.toString(),
+                            onChanged: (value) {
+                              setState(() {
+                                _quantity = value;
+                              });
+                            },
+                          ),
+                          SizedBox(height: padding * AppConfig.buyDialogSliderSpacingFactor),
+                          // Quick increment buttons
+                          Wrap(
+                            spacing: padding * AppConfig.buyDialogIncrementButtonSpacingFactor,
+                            runSpacing: padding * AppConfig.buyDialogIncrementButtonSpacingFactor,
+                            alignment: WrapAlignment.center,
+                            children: AppConfig.buyDialogIncrementValues.map((increment) =>
+                              _buildIncrementGameButton(context, increment, maxQuantity, dialogWidth, padding),
+                            ).toList(),
+                          ),
+                          SizedBox(height: padding),
+                          Container(
+                            padding: EdgeInsets.all(padding * AppConfig.buyDialogTotalCostContainerPaddingFactor),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(borderRadius * AppConfig.buyDialogTotalCostBorderRadiusFactor),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Total Cost:',
+                                  style: TextStyle(
+                                    fontSize: (dialogWidth * AppConfig.buyDialogTotalCostLabelFontSizeFactor).clamp(
+                                      dialogWidth * AppConfig.buyDialogTotalCostLabelFontSizeMinFactor,
+                                      dialogWidth * AppConfig.buyDialogTotalCostLabelFontSizeMaxFactor,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '\$${totalCost.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: (dialogWidth * AppConfig.buyDialogTotalCostValueFontSizeFactor).clamp(
+                                      dialogWidth * AppConfig.buyDialogTotalCostValueFontSizeMinFactor,
+                                      dialogWidth * AppConfig.buyDialogTotalCostValueFontSizeMaxFactor,
+                                    ),
+                                    fontWeight: FontWeight.bold,
+                                    color: totalCost > cash
+                                        ? Colors.red
+                                        : Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (maxQuantity < maxAffordable)
+                            Padding(
+                              padding: EdgeInsets.only(top: padding * AppConfig.buyDialogWarningSpacingFactor),
+                              child: Text(
+                                'Limited by warehouse capacity ($availableCapacity available)',
+                                style: TextStyle(
+                                  color: Colors.orange[700],
+                                  fontSize: (dialogWidth * AppConfig.buyDialogWarningFontSizeFactor).clamp(
+                                    dialogWidth * AppConfig.buyDialogWarningFontSizeMinFactor,
+                                    dialogWidth * AppConfig.buyDialogWarningFontSizeMaxFactor,
+                                  ),
                                 ),
                               ),
-                            );
-                          }
-                        : null,
-                    label: 'Confirm Purchase',
-                    color: Colors.green,
-                    icon: Icons.check_circle,
+                            ),
+                          if (totalCost > cash)
+                            Padding(
+                              padding: EdgeInsets.only(top: padding * AppConfig.buyDialogWarningSpacingFactor),
+                              child: Text(
+                                'Insufficient funds',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: (dialogWidth * AppConfig.buyDialogWarningFontSizeFactor).clamp(
+                                    dialogWidth * AppConfig.buyDialogWarningFontSizeMinFactor,
+                                    dialogWidth * AppConfig.buyDialogWarningFontSizeMaxFactor,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          SizedBox(height: padding),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _SmallGameButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  label: 'Cancel',
+                                  color: Colors.grey,
+                                  icon: Icons.close,
+                                  dialogWidth: dialogWidth,
+                                  padding: padding,
+                                ),
+                              ),
+                              SizedBox(width: padding * AppConfig.buyDialogActionButtonSpacingFactor),
+                              Expanded(
+                                flex: 2,
+                                child: _SmallGameButton(
+                                  onPressed: totalCost <= cash && quantityInt > 0
+                                      ? () {
+                                          ref
+                                              .read(gameControllerProvider.notifier)
+                                              .buyStock(
+                                                widget.product, 
+                                                quantityInt,
+                                                unitPrice: widget.unitPrice,
+                                              );
+                                          Navigator.of(context).pop();
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Purchased $quantityInt ${widget.product.name}',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      : null,
+                                  label: 'Confirm Purchase',
+                                  color: Colors.green,
+                                  icon: Icons.check_circle,
+                                  dialogWidth: dialogWidth,
+                                  padding: padding,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildIncrementGameButton(BuildContext context, int increment, int maxQuantity) {
+  Widget _buildIncrementGameButton(BuildContext context, int increment, int maxQuantity, double dialogWidth, double padding) {
     final newQuantity = (_quantity + increment).clamp(1.0, maxQuantity.toDouble());
     final isEnabled = _quantity < maxQuantity;
     
@@ -536,6 +578,8 @@ class _BuyStockBottomSheetState extends ConsumerState<_BuyStockBottomSheet> {
       label: '+$increment',
       color: Colors.blue,
       icon: Icons.add,
+      dialogWidth: dialogWidth,
+      padding: padding,
     );
   }
 }
@@ -546,12 +590,16 @@ class _SmallGameButton extends StatefulWidget {
   final VoidCallback? onPressed;
   final Color color;
   final IconData? icon;
+  final double? dialogWidth;
+  final double? padding;
 
   const _SmallGameButton({
     required this.label,
     this.onPressed,
     this.color = const Color(0xFF4CAF50),
     this.icon,
+    this.dialogWidth,
+    this.padding,
   });
 
   @override
@@ -572,29 +620,39 @@ class _SmallGameButtonState extends State<_SmallGameButton> {
       onTap: widget.onPressed,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
-        margin: EdgeInsets.only(top: _isPressed ? 3 : 0),
-        padding: EdgeInsets.symmetric(horizontal: ScreenUtils.relativeSize(context, AppConfig.spacingFactorLarge), vertical: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
+        margin: EdgeInsets.only(top: _isPressed ? (widget.padding != null ? widget.padding! * AppConfig.buyDialogButtonPressedMarginFactor : ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny)) : 0),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.padding != null ? widget.padding! * AppConfig.buyDialogButtonPaddingHorizontalFactor : ScreenUtils.relativeSize(context, AppConfig.spacingFactorLarge),
+          vertical: widget.padding != null ? widget.padding! * AppConfig.buyDialogButtonPaddingVerticalFactor : ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
+        ),
         decoration: BoxDecoration(
           color: isEnabled ? widget.color : Colors.grey,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(widget.padding != null ? widget.padding! * AppConfig.buyDialogButtonBorderRadiusFactor : ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall)),
           boxShadow: _isPressed || !isEnabled
               ? []
               : [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.3),
-                    offset: const Offset(0, 3),
+                    offset: Offset(0, widget.padding != null ? widget.padding! * AppConfig.buyDialogButtonShadowOffsetFactor : ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny)),
                     blurRadius: 0,
                   ),
                 ],
-          border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: widget.padding != null ? widget.padding! * AppConfig.buyDialogButtonBorderWidthFactor : ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 0.75),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (widget.icon != null) ...[
-              Icon(widget.icon, color: Colors.white, size: ScreenUtils.relativeSize(context, 0.016)),
-              SizedBox(width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
+              Icon(
+                widget.icon,
+                color: Colors.white,
+                size: widget.dialogWidth != null ? (widget.dialogWidth! * AppConfig.buyDialogButtonIconSizeFactor).clamp(
+                  widget.dialogWidth! * AppConfig.buyDialogButtonIconSizeMinFactor,
+                  widget.dialogWidth! * AppConfig.buyDialogButtonIconSizeMaxFactor,
+                ) : ScreenUtils.relativeSize(context, AppConfig.productCardTrendIconSizeFactor),
+              ),
+              SizedBox(width: widget.padding != null ? widget.padding! * AppConfig.buyDialogButtonIconSpacingFactor : ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium)),
             ],
             Flexible(
               child: Text(
@@ -602,13 +660,18 @@ class _SmallGameButtonState extends State<_SmallGameButton> {
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: ScreenUtils.relativeFontSize(
-                    context,
-                    AppConfig.fontSizeFactorSmall,
-                    min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
-                    max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
-                  ),
-                  letterSpacing: 0.5,
+                  fontSize: widget.dialogWidth != null
+                      ? (widget.dialogWidth! * AppConfig.buyDialogButtonFontSizeFactor).clamp(
+                          widget.dialogWidth! * AppConfig.buyDialogButtonFontSizeMinFactor,
+                          widget.dialogWidth! * AppConfig.buyDialogButtonFontSizeMaxFactor,
+                        )
+                      : ScreenUtils.relativeFontSize(
+                          context,
+                          AppConfig.fontSizeFactorSmall,
+                          min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                          max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                        ),
+                  letterSpacing: AppConfig.buyDialogButtonLetterSpacing,
                 ),
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
