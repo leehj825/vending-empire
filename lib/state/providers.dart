@@ -455,13 +455,21 @@ class GameController extends StateNotifier<GlobalGameState> {
     simulationEngine.updateTrucks(updatedTrucks);
   }
 
+  /// Get the current truck price based on number of trucks owned
+  /// Price increases by 500 for each truck already owned
+  double getTruckPrice() {
+    const basePrice = AppConfig.truckPrice;
+    const priceIncrement = 500.0;
+    return basePrice + (state.trucks.length * priceIncrement);
+  }
+
   /// Buy a new truck
   void buyTruck() {
     print('🟢 CONTROLLER ACTION: Buying truck');
-    const truckPrice = AppConfig.truckPrice;
+    final truckPrice = getTruckPrice();
     
     if (state.cash < truckPrice) {
-      state = state.addLogMessage('Insufficient funds to buy truck ($truckPrice)');
+      state = state.addLogMessage('Insufficient funds to buy truck (${truckPrice.toInt()})');
       return;
     }
 
@@ -487,7 +495,7 @@ class GameController extends StateNotifier<GlobalGameState> {
       trucks: updatedTrucks,
       cash: newCash,
     );
-    state = state.addLogMessage('Bought ${truck.name} for \$$truckPrice');
+    state = state.addLogMessage('Bought ${truck.name} for \$${truckPrice.toInt()}');
     
     // Sync to simulation engine
     simulationEngine.updateTrucks(updatedTrucks);

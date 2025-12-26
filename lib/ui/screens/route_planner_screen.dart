@@ -295,6 +295,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    print('🔵 BUILD DEBUG: Screen size: ${screenSize.width} x ${screenSize.height}');
+    
     final trucks = ref.watch(trucksProvider);
     final machines = ref.watch(machinesProvider);
     final selectedTruckNotifier = ref.watch(selectedTruckIdProvider);
@@ -306,6 +309,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
             orElse: () => trucks.first, // Fallback to first truck if ID not found
           )
         : null;
+    
+    print('🔵 BUILD DEBUG: Selected truck: ${selectedTruck?.name ?? "null"}');
+    print('🔵 BUILD DEBUG: Selected truck inventory: ${selectedTruck?.inventory.length ?? 0} items');
 
     // Get machines for the selected truck's route
     final routeMachines = selectedTruck != null && machines.isNotEmpty
@@ -331,6 +337,10 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
         ? _getEfficiencyRating(totalDistance, selectedTruck.route.length)
         : 'N/A';
 
+    // Calculate dynamic truck price (base price + 500 per existing truck)
+    final controller = ref.read(gameControllerProvider.notifier);
+    final truckPrice = controller.getTruckPrice();
+
     return Scaffold(
       // AppBar removed - managed by MainScreen
       body: CustomScrollView(
@@ -338,7 +348,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
           // Top Section: Truck Selector
           SliverToBoxAdapter(
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: EdgeInsets.symmetric(
+                vertical: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -367,42 +379,33 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                       context,
                       AppConfig.truckCardHeightFactor,
                     ),
-                    child: trucks.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'No trucks available',
-                                  style: TextStyle(
-                                    fontSize: ScreenUtils.relativeFontSize(
-                                      context,
-                                      AppConfig.fontSizeFactorMedium,
-                                      min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
-                                      max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
-                                    ),
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                SizedBox(height: ScreenUtils.relativeSize(context, 0.03)),
-                                GameButton(
-                                  onPressed: () {
-                                    ref
-                                        .read(gameControllerProvider.notifier)
-                                        .buyTruck();
-                                  },
-                                  icon: Icons.add_shopping_cart,
-                                  label: 'Buy Truck (\$${AppConfig.truckPrice.toInt()})',
-                                  color: Colors.green,
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
+                    child: ListView.builder(
                             scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            itemCount: trucks.length,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
+                            ),
+                            itemCount: trucks.length + 1, // +1 for Buy Truck button
                             itemBuilder: (context, index) {
+                              // Last item is always the Buy Truck button
+                              if (index == trucks.length) {
+                                return _BuyTruckButton(
+                                  width: ScreenUtils.relativeSize(
+                                    context,
+                                    AppConfig.truckCardWidthFactor,
+                                  ),
+                                  margin: EdgeInsets.symmetric(
+                                    horizontal: ScreenUtils.relativeSize(
+                                      context,
+                                      AppConfig.truckCardMarginHorizontalFactor,
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    controller.buyTruck();
+                                  },
+                                  price: truckPrice,
+                                );
+                              }
+                              
                               final truck = trucks[index];
                               final isSelected = truck.id == selectedTruckId;
 
@@ -435,15 +438,21 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                       ? [
                                           BoxShadow(
                                             color: Colors.green.withValues(alpha: 0.2),
-                                            offset: const Offset(0, 4),
-                                            blurRadius: 8,
+                                            offset: Offset(
+                                              0,
+                                              ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall),
+                                            ),
+                                            blurRadius: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
                                           ),
                                         ]
                                       : [
                                           BoxShadow(
                                             color: Colors.grey.withValues(alpha: 0.1),
-                                            offset: const Offset(0, 2),
-                                            blurRadius: 4,
+                                            offset: Offset(
+                                              0,
+                                              ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 2,
+                                            ),
+                                            blurRadius: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall),
                                           ),
                                         ],
                                 ),
@@ -535,7 +544,7 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                                             borderRadius: BorderRadius.circular(AppConfig.truckStatusBorderRadius),
                                             border: Border.all(
                                               color: _getStatusColor(truck.status).withValues(alpha: 0.5),
-                                              width: 1,
+                                              width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny),
                                             ),
                                           ),
                                           child: Text(
@@ -568,8 +577,10 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
               ),
             ),
           ),
-          const SliverToBoxAdapter(
-            child: Divider(height: 1),
+          SliverToBoxAdapter(
+            child: Divider(
+              height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny),
+            ),
           ),
           // Middle Section: Route Editor
           if (selectedTruck == null)
@@ -582,96 +593,162 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
           else ...[
             // Truck Cargo Info
             if (selectedTruck.inventory.isNotEmpty)
-              SliverToBoxAdapter(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.blue.withValues(alpha: 0.5),
-                      width: 2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withValues(alpha: 0.1),
-                        offset: const Offset(0, 4),
-                        blurRadius: 8,
+              Builder(
+                builder: (context) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final padding = ScreenUtils.relativeSize(context, AppConfig.spacingFactorLarge);
+                  final maxItemWidth = screenWidth * 0.4;
+                  
+                  print('🔵 CARGO DEBUG: Screen width: $screenWidth');
+                  print('🔵 CARGO DEBUG: Padding: $padding');
+                  print('🔵 CARGO DEBUG: Max item width: $maxItemWidth');
+                  print('🔵 CARGO DEBUG: Selected truck: ${selectedTruck.name}');
+                  print('🔵 CARGO DEBUG: Inventory items: ${selectedTruck.inventory.length}');
+                  selectedTruck.inventory.entries.forEach((entry) {
+                    print('🔵 CARGO DEBUG:   - ${entry.key.name}: ${entry.value}');
+                  });
+                  
+                  final containerWidth = screenWidth - (padding * 2);
+                  print('🔵 CARGO DEBUG: Container width: $containerWidth');
+                  
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: padding,
+                        vertical: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.inventory_2, size: 16, color: Colors.blue),
-                          SizedBox(
-                            width: ScreenUtils.relativeSize(
-                              context,
-                              AppConfig.spacingFactorMedium,
-                            ),
+                      child: SizedBox(
+                        width: containerWidth,
+                        child: Container(
+                          padding: EdgeInsets.all(padding),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(
+                            ScreenUtils.relativeSize(context, AppConfig.spacingFactorLarge),
                           ),
-                          Text(
-                            'Cargo: ${selectedTruck.currentLoad}/${selectedTruck.capacity}',
-                            style: TextStyle(
-                              fontSize: ScreenUtils.relativeFontSize(
-                                context,
-                                AppConfig.fontSizeFactorSmall,
-                                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
-                                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                          border: Border.all(
+                            color: Colors.blue.withValues(alpha: 0.5),
+                            width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.blue.withValues(alpha: 0.1),
+                              offset: Offset(
+                                0,
+                                ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall),
                               ),
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
+                              blurRadius: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
                             ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(
-                        height: ScreenUtils.relativeSize(
-                          context,
-                          AppConfig.spacingFactorMedium,
+                          ],
+                        ),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            print('🔵 CARGO COLUMN DEBUG: Available width: ${constraints.maxWidth}');
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                LayoutBuilder(
+                                  builder: (context, rowConstraints) {
+                                    print('🔵 CARGO ROW DEBUG: Row available width: ${rowConstraints.maxWidth}');
+                                    // Use AppConfig.iconSizeSmall directly (it's already in pixels, not a factor)
+                                    final iconSize = AppConfig.iconSizeSmall;
+                                    final spacing = AppConfig.spacingFactorMedium * ScreenUtils.getSmallerDimension(context);
+                                    print('🔵 CARGO ROW DEBUG: Icon size: $iconSize, Spacing: $spacing');
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.inventory_2,
+                                          size: iconSize,
+                                          color: Colors.blue,
+                                        ),
+                                        SizedBox(width: spacing),
+                                        Flexible(
+                                          child: Text(
+                                            'Cargo: ${selectedTruck.currentLoad}/${selectedTruck.capacity}',
+                                            style: TextStyle(
+                                              fontSize: ScreenUtils.relativeFontSize(
+                                                context,
+                                                AppConfig.fontSizeFactorSmall,
+                                                min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                                max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                                              ),
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.blue,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                            SizedBox(
+                              height: ScreenUtils.relativeSize(
+                                context,
+                                AppConfig.spacingFactorMedium,
+                              ),
+                            ),
+                            Wrap(
+                              spacing: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall),
+                              runSpacing: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall),
+                              children: selectedTruck.inventory.entries.map((entry) {
+                                final itemText = '${entry.key.name}: ${entry.value}';
+                                print('🔵 CARGO DEBUG: Creating item for: $itemText');
+                                return Container(
+                                  constraints: BoxConstraints(
+                                    maxWidth: maxItemWidth,
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall),
+                                    vertical: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(
+                                      ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
+                                    ),
+                                    border: Border.all(
+                                      color: Colors.blue.withValues(alpha: 0.3),
+                                      width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    itemText,
+                                    style: TextStyle(
+                                      fontSize: ScreenUtils.relativeFontSize(
+                                        context,
+                                        AppConfig.fontSizeFactorSmall,
+                                        min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                                        max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                                      ),
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blue[900],
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                            );
+                          },
                         ),
                       ),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: selectedTruck.inventory.entries.map((entry) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.blue.withValues(alpha: 0.3),
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              '${entry.key.name}: ${entry.value}',
-                              style: TextStyle(
-                                fontSize: ScreenUtils.relativeFontSize(
-                                  context,
-                                  AppConfig.fontSizeFactorSmall,
-                                  min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
-                                  max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
-                                ),
-                                fontWeight: FontWeight.w600,
-                                color: Colors.blue[900],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
+            ),
             // Route Header with Buttons
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(
+                  ScreenUtils.relativeSize(context, AppConfig.spacingFactorLarge),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -694,8 +771,8 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                       ),
                     ),
                     Wrap(
-                      spacing: 2,
-                      runSpacing: 2,
+                      spacing: ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 2,
+                      runSpacing: ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 2,
                       children: [
                         GameButton(
                           onPressed: () => _showLoadCargoDialog(selectedTruck),
@@ -780,9 +857,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                   child: ReorderableListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
+                      vertical: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
                     ),
                     itemCount: routeMachines.length,
                     onReorder: (oldIndex, newIndex) {
@@ -809,20 +886,27 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
             // Bottom Section: Efficiency Stats
             SliverToBoxAdapter(
               child: Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(
+                  ScreenUtils.relativeSize(context, AppConfig.spacingFactorLarge),
+                ),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
+                      blurRadius: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall),
+                      offset: Offset(
+                        0,
+                        -ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 2,
+                      ),
                     ),
                   ],
                 ),
                 child: Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(
+                      ScreenUtils.relativeSize(context, AppConfig.spacingFactorLarge),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -839,27 +923,36 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _StatItem(
-                              icon: Icons.straighten,
-                              label: 'Total Distance',
-                              value: '${totalDistance.toStringAsFixed(1)} units',
-                            ),
-                            _StatItem(
-                              icon: Icons.local_gas_station,
-                              label: 'Est. Fuel Cost',
-                              value: '\$${fuelCost.toStringAsFixed(2)}',
-                            ),
-                            _StatItem(
-                              icon: Icons.star,
-                              label: 'Efficiency',
-                              value: efficiencyRating,
-                              valueColor: _getEfficiencyColor(efficiencyRating),
-                            ),
-                          ],
+                        SizedBox(
+                          height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
+                        ),
+                        Builder(
+                          builder: (context) {
+                            final screenWidth = MediaQuery.of(context).size.width;
+                            print('🔵 STATS ROW DEBUG: Screen width: $screenWidth');
+                            print('🔵 STATS ROW DEBUG: Creating stats row with 3 items');
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _StatItem(
+                                  icon: Icons.straighten,
+                                  label: 'Total Distance',
+                                  value: '${totalDistance.toStringAsFixed(1)} units',
+                                ),
+                                _StatItem(
+                                  icon: Icons.local_gas_station,
+                                  label: 'Est. Fuel Cost',
+                                  value: '\$${fuelCost.toStringAsFixed(2)}',
+                                ),
+                                _StatItem(
+                                  icon: Icons.star,
+                                  label: 'Efficiency',
+                                  value: efficiencyRating,
+                                  valueColor: _getEfficiencyColor(efficiencyRating),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -1041,7 +1134,9 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(
+                      ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
+                    ),
                     border: Border.all(
                       color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                       width: 2,
@@ -1104,8 +1199,8 @@ class _LoadCargoDialogState extends ConsumerState<_LoadCargoDialog> {
                 ),
                 // Quick increment buttons
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
+                  runSpacing: ScreenUtils.relativeSize(context, AppConfig.spacingFactorMedium),
                   alignment: WrapAlignment.center,
                   children: [
                     _buildIncrementButton(10, maxQuantity),
@@ -1359,6 +1454,117 @@ class _SmallGameButtonState extends State<_SmallGameButton> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Custom Buy Truck button styled like GameButton with vertical layout
+class _BuyTruckButton extends StatefulWidget {
+  final double width;
+  final EdgeInsets margin;
+  final VoidCallback? onPressed;
+  final double price;
+
+  const _BuyTruckButton({
+    required this.width,
+    required this.margin,
+    this.onPressed,
+    required this.price,
+  });
+
+  @override
+  State<_BuyTruckButton> createState() => _BuyTruckButtonState();
+}
+
+class _BuyTruckButtonState extends State<_BuyTruckButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isEnabled = widget.onPressed != null;
+
+    return Container(
+      width: widget.width,
+      margin: widget.margin,
+      child: GestureDetector(
+        onTapDown: isEnabled ? (_) => setState(() => _isPressed = true) : null,
+        onTapUp: isEnabled ? (_) => setState(() => _isPressed = false) : null,
+        onTapCancel: isEnabled ? () => setState(() => _isPressed = false) : null,
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: AppConfig.animationDurationFast,
+          margin: EdgeInsets.only(
+            top: _isPressed
+                ? ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny)
+                : 0,
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: ScreenUtils.relativeSize(
+              context,
+              AppConfig.gameButtonPaddingHorizontalFactor,
+            ),
+            vertical: ScreenUtils.relativeSize(
+              context,
+              AppConfig.gameButtonPaddingVerticalFactor,
+            ),
+          ),
+          decoration: BoxDecoration(
+            color: isEnabled ? Colors.green : Colors.grey,
+            borderRadius: BorderRadius.circular(AppConfig.gameButtonBorderRadius),
+            boxShadow: _isPressed || !isEnabled
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      offset: Offset(
+                        0,
+                        ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall),
+                      ),
+                      blurRadius: 0,
+                    ),
+                  ],
+            border: Border.all(
+              color: Colors.white.withOpacity(0.5),
+              width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny) * 2,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.add,
+                color: Colors.white,
+                size: ScreenUtils.relativeSize(
+                  context,
+                  AppConfig.gameButtonIconSizeFactor * 1.5,
+                ),
+              ),
+              SizedBox(
+                height: ScreenUtils.relativeSize(
+                  context,
+                  AppConfig.spacingFactorSmall,
+                ),
+              ),
+              Text(
+                '\$${widget.price.toInt()}',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: ScreenUtils.relativeFontSize(
+                    context,
+                    AppConfig.gameButtonFontSizeFactor,
+                    min: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMinMultiplier,
+                    max: ScreenUtils.getSmallerDimension(context) * AppConfig.fontSizeMaxMultiplier,
+                  ),
+                  letterSpacing: 1.0,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
