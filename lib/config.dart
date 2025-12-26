@@ -210,8 +210,8 @@ class AppConfig {
   static const double saveExitButtonWidthFactor = 0.10; // Width as factor of screen width
   
   /// Top status bar boxes (cash, reputation, time)
-  static const double statusCardWidthFactor = 0.66; // Width as factor of smaller dimension (0.25 * 3.0)
-  static const double statusCardWidthMinFactor = 0.22; // Minimum width as factor of smaller dimension
+  static const double statusCardWidthFactor = 0.75; // Width as factor of smaller dimension (0.25 * 3.0)
+  static const double statusCardWidthMinFactor = 0.25; // Minimum width as factor of smaller dimension
   static const double statusCardWidthMaxFactor = 0.25; // Maximum width as factor of smaller dimension
   static const double statusCardHeightRatio = 1.0; // Height ratio relative to card width
   
@@ -220,7 +220,7 @@ class AppConfig {
   static const double statusCardIconTopPositionFactor = 0.05; // Icon top position as factor of card height (relative to card height)
   
   /// Status card text settings
-  static const double statusCardTextSizeFactor = 0.035; // Text font size factor (relative to smaller screen dimension)
+  static const double statusCardTextSizeFactor = 0.030; // Text font size factor (relative to smaller screen dimension)
   static const double statusCardTextBottomPositionFactor = 0.05; // Text bottom position as factor of card height (relative to card height)
   
   /// Status card padding and spacing - Removed min/max duplicates
