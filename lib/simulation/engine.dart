@@ -655,6 +655,11 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     }
     
     return trucks.map((truck) {
+      // If truck is idle, don't process movement - truck only moves when explicitly started via "Go Stock"
+      if (truck.status == TruckStatus.idle) {
+        return truck; // Return truck unchanged
+      }
+      
       // ---------------------------------------------------------
       // CASE 1: ROUTE COMPLETE - RETURN TO WAREHOUSE
       // ---------------------------------------------------------
