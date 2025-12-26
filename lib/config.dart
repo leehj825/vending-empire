@@ -408,6 +408,13 @@ class AppConfig {
   static const int emptyMachinePenaltyHours = 4;
   static const int reputationPenaltyPerEmptyHour = 5;
   
+  /// Reputation gain from sales
+  static const int reputationGainPerSale = 1; // Gain 1 reputation per sale
+  
+  /// Reputation-based sales bonus
+  static const double reputationBonusPer100 = 0.05; // +5% sales rate per 100 reputation (0.05 = 5%)
+  static const double maxReputationBonus = 0.50; // Maximum 50% bonus (at 1000 reputation)
+  
   /// Item disposal
   static const double disposalCostPerExpiredItem = 0.50;
   

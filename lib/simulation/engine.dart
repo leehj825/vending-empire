@@ -16,6 +16,7 @@ class SimulationConstants {
   static const int ticksPerDay = AppConfig.ticksPerDay;
   static const int emptyMachinePenaltyHours = AppConfig.emptyMachinePenaltyHours;
   static const int reputationPenaltyPerEmptyHour = AppConfig.reputationPenaltyPerEmptyHour;
+  static const int reputationGainPerSale = AppConfig.reputationGainPerSale;
   static const double disposalCostPerExpiredItem = AppConfig.disposalCostPerExpiredItem;
   
   // Pathfinding constants
@@ -347,8 +348,10 @@ class SimulationEngine extends StateNotifier<SimulationState> {
 
     final nextTime = currentState.time.nextTick();
 
-    // 1. Process Sales
-    var updatedMachines = _processMachineSales(currentState.machines, nextTime);
+    // 1. Process Sales (with reputation bonus)
+    final salesResult = _processMachineSales(currentState.machines, nextTime, currentState.reputation);
+    var updatedMachines = salesResult.machines;
+    final totalSalesThisTick = salesResult.totalSales;
     
     // 2. Process Spoilage
     updatedMachines = _processSpoilage(updatedMachines, nextTime);
@@ -363,7 +366,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
 
     // 5. Reputation & Cash
     final reputationPenalty = _calculateReputationPenalty(updatedMachines);
-    var updatedReputation = (currentState.reputation - reputationPenalty).clamp(0, 1000);
+    final reputationGain = totalSalesThisTick * SimulationConstants.reputationGainPerSale;
+    var updatedReputation = ((currentState.reputation - reputationPenalty + reputationGain).clamp(0, 1000)).round();
     var updatedCash = currentState.cash;
     updatedCash = _processFuelCosts(updatedTrucks, currentState.trucks, updatedCash);
 
@@ -381,9 +385,24 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     _streamController.add(newState);
   }
 
+  /// Calculate reputation multiplier for sales bonus
+  /// Every 100 reputation = +5% sales rate (max 50% at 1000 reputation)
+  double _calculateReputationMultiplier(int reputation) {
+    final bonus = (reputation / 100).floor() * AppConfig.reputationBonusPer100;
+    return (1.0 + bonus.clamp(0.0, AppConfig.maxReputationBonus));
+  }
+
   /// Process machine sales based on demand math
-  List<Machine> _processMachineSales(List<Machine> machines, GameTime time) {
-    return machines.map((machine) {
+  /// Returns machines and total sales count for reputation calculation
+  ({List<Machine> machines, int totalSales}) _processMachineSales(
+    List<Machine> machines, 
+    GameTime time,
+    int currentReputation,
+  ) {
+    var totalSales = 0;
+    final reputationMultiplier = _calculateReputationMultiplier(currentReputation);
+    
+    final updatedMachines = machines.map((machine) {
       if (machine.isBroken || machine.isEmpty) {
         return machine.copyWith(
           hoursSinceRestock: machine.hoursSinceRestock + (1.0 / SimulationConstants.ticksPerHour), // 1 tick = 1/ticksPerHour hours
@@ -408,7 +427,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         final zoneMultiplier = machine.zone.getDemandMultiplier(time.hour);
         final trafficMultiplier = machine.zone.trafficMultiplier;
         
-        final saleChancePerHour = baseDemand * zoneMultiplier * trafficMultiplier;
+        // Apply reputation bonus (calculated once per tick, reused for all products)
+        final saleChancePerHour = baseDemand * zoneMultiplier * trafficMultiplier * reputationMultiplier;
         final saleChance = saleChancePerHour / SimulationConstants.ticksPerHour; // Divide by ticksPerHour to get chance per tick
         
         // Clamp to reasonable range (0.0 to 1.0)
@@ -435,6 +455,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
 
           updatedCash += product.basePrice;
           salesCount++;
+          totalSales++; // Track total sales for reputation gain
         } else {
           // No sale yet, just update the progress
           updatedInventory[product] = item.copyWith(salesProgress: newSalesProgress);
@@ -451,6 +472,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         hoursSinceRestock: hoursSinceRestock,
       );
     }).toList();
+    
+    return (machines: updatedMachines, totalSales: totalSales);
   }
 
   /// Process spoilage - remove expired items and charge disposal cost
@@ -924,9 +947,11 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   ) {
     final currentTime = state.time;
     final nextTime = currentTime.nextTick();
+    final currentReputation = state.reputation;
 
     // Process all simulation systems
-    var updatedMachines = _processMachineSales(machines, nextTime);
+    final salesResult = _processMachineSales(machines, nextTime, currentReputation);
+    var updatedMachines = salesResult.machines;
     updatedMachines = _processSpoilage(updatedMachines, nextTime);
     
     // Process truck movement and restocking
