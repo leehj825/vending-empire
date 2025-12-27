@@ -8,39 +8,31 @@ class AppConfig {
   // AUDIO CONFIGURATION - Sound and music settings
   // ============================================================================
   
-  /// Maximum volume for sound effects (0.0 to 1.0)
-  /// Players can adjust sound effects volume from 0.0 to this maximum value
-  static const double soundEffectsMaxVolume = 1.0;
-  
   /// Overall sound effects volume multiplier (0.0 to 1.0)
-  /// This multiplier applies to ALL sound effects
-  /// Final sound volume = player slider * soundVolumeMultiplier * individual sound multiplier
-  /// Set to 1.0 for full volume, 0.5 for half volume, etc.
+  /// Controlled from Options screen. Applies to ALL sound effects.
+  /// Final sound volume = soundVolumeMultiplier * individual sound volume
   static const double soundVolumeMultiplier = 1.0;
   
-  /// Volume multiplier for truck sound (0.0 to 1.0)
-  /// This is multiplied by the overall sound volume multiplier and player's sound effects volume setting
-  /// Set to 1.0 for full volume, 0.5 for half volume, etc.
-  static const double truckSoundVolumeMultiplier = 1.0;
-  
-  /// Volume multiplier for coin collect sound (0.0 to 1.0)
-  /// This is multiplied by the overall sound volume multiplier and player's sound effects volume setting
-  /// Set to 1.0 for full volume, 0.5 for half volume, etc.
-  static const double coinCollectSoundVolumeMultiplier = 1.2;
-  
   /// Overall music volume multiplier (0.0 to 1.0)
-  /// This multiplier applies to ALL background music (menu and game)
-  /// Final music volume = individual music volume * musicVolumeMultiplier
-  /// Set to 1.0 for full volume, 0.5 for half volume, etc.
+  /// Controlled from Options screen. Applies to ALL background music.
+  /// Final music volume = musicVolumeMultiplier * individual music volume
   static const double musicVolumeMultiplier = 1.0;
   
-  /// Default volume for menu music (0.0 to 1.0)
-  /// This is multiplied by musicVolumeMultiplier for final volume
-  static const double menuMusicDefaultVolume = 0.6;
+  /// Individual volume for money/coin collect sound (0.0 to 1.0)
+  /// Final volume = soundVolumeMultiplier * moneySoundVolume
+  static const double moneySoundVolume = 1.2;
   
-  /// Default volume for game background music (0.0 to 1.0)
-  /// This is multiplied by musicVolumeMultiplier for final volume
-  static const double gameBackgroundMusicDefaultVolume = 0.3;
+  /// Individual volume for truck sound (0.0 to 1.0)
+  /// Final volume = soundVolumeMultiplier * truckSoundVolume
+  static const double truckSoundVolume = 1.0;
+  
+  /// Individual volume for menu music (0.0 to 1.0)
+  /// Final volume = musicVolumeMultiplier * menuMusicVolume
+  static const double menuMusicVolume = 0.6;
+  
+  /// Individual volume for game background music (0.0 to 1.0)
+  /// Final volume = musicVolumeMultiplier * gameBackgroundMusicVolume
+  static const double gameBackgroundMusicVolume = 0.3;
 
   // ============================================================================
   // FONT SIZES - Standardized font sizes for consistent UI

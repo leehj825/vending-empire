@@ -16,9 +16,9 @@ class SoundService {
   
   bool _isMusicEnabled = true;
   bool _isSoundEnabled = true;
-  double _musicVolume = AppConfig.menuMusicDefaultVolume; // Base music volume (used for menu music)
-  double _gameBackgroundVolume = AppConfig.gameBackgroundMusicDefaultVolume; // Lower volume for game background music
-  double _soundVolume = AppConfig.soundEffectsMaxVolume; // Start at max, player can adjust down
+  double _musicVolume = AppConfig.menuMusicVolume; // Base music volume (used for menu music)
+  double _gameBackgroundVolume = AppConfig.gameBackgroundMusicVolume; // Lower volume for game background music
+  double _soundVolume = 1.0; // Player sound volume (0.0 to 1.0)
   double _soundVolumeMultiplier = AppConfig.soundVolumeMultiplier; // Overall sound effects multiplier (player adjustable)
   double _musicVolumeMultiplier = AppConfig.musicVolumeMultiplier; // Overall music multiplier (player adjustable)
   String? _currentMusicPath; // Track what music is currently playing
@@ -57,8 +57,6 @@ class SoundService {
   /// Get current sound volume (0.0 to max configured in AppConfig)
   double get soundVolume => _soundVolume;
   
-  /// Get maximum sound effects volume from config
-  double get soundEffectsMaxVolume => AppConfig.soundEffectsMaxVolume;
   
   /// Get current sound volume multiplier (0.0 to 1.0)
   double get soundVolumeMultiplier => _soundVolumeMultiplier;
@@ -108,9 +106,9 @@ class SoundService {
   /// Get game background music volume
   double get gameBackgroundVolume => _gameBackgroundVolume;
 
-  /// Set sound effects volume (0.0 to max configured in AppConfig)
+  /// Set sound effects volume (0.0 to 1.0)
   void setSoundVolume(double volume) {
-    _soundVolume = volume.clamp(0.0, AppConfig.soundEffectsMaxVolume);
+    _soundVolume = volume.clamp(0.0, 1.0);
     _soundEffectPlayer.setVolume(_soundVolume);
   }
   
@@ -400,12 +398,12 @@ class SoundService {
     if (!_isSoundEnabled) return;
     
     try {
-      // Calculate final volume: player's sound volume * overall sound multiplier (player adjustable) * individual sound multiplier
-      final finalVolume = (_soundVolume * _soundVolumeMultiplier * volumeMultiplier).clamp(0.0, AppConfig.soundEffectsMaxVolume);
+      // Calculate final volume: overall sound multiplier (player adjustable) * individual sound volume
+      final finalVolume = (_soundVolumeMultiplier * volumeMultiplier).clamp(0.0, 1.0);
       
       await _soundEffectPlayer.setReleaseMode(ReleaseMode.release);
       await _soundEffectPlayer.setVolume(finalVolume);
-      print('🔊 Playing sound effect: $assetPath (volume: $finalVolume = ${_soundVolume} * $_soundVolumeMultiplier * $volumeMultiplier)');
+      print('🔊 Playing sound effect: $assetPath (volume: $finalVolume = $_soundVolumeMultiplier * $volumeMultiplier)');
       await _soundEffectPlayer.play(AssetSource(assetPath));
     } catch (e) {
       print('❌ Error playing sound effect ($assetPath): $e');
@@ -417,14 +415,14 @@ class SoundService {
     await playSoundEffect('sound/button.m4a');
   }
 
-  /// Play coin collect sound (uses volume multiplier from config)
+  /// Play coin collect sound (uses volume from config)
   Future<void> playCoinCollectSound() async {
-    await playSoundEffect('sound/coin_collect.m4a', volumeMultiplier: AppConfig.coinCollectSoundVolumeMultiplier);
+    await playSoundEffect('sound/coin_collect.m4a', volumeMultiplier: AppConfig.moneySoundVolume);
   }
 
-  /// Play truck sound (uses volume multiplier from config)
+  /// Play truck sound (uses volume from config)
   Future<void> playTruckSound() async {
-    await playSoundEffect('sound/truck.mp3', volumeMultiplier: AppConfig.truckSoundVolumeMultiplier);
+    await playSoundEffect('sound/truck.mp3', volumeMultiplier: AppConfig.truckSoundVolume);
   }
 
   /// Dispose resources
