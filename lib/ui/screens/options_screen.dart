@@ -85,6 +85,7 @@ class _OptionsScreenState extends State<OptionsScreen> {
                 context: context,
                 title: 'Sound Effects Volume',
                 value: _soundEffectsVolume,
+                maxValue: _soundService.soundEffectsMaxVolume,
                 onChanged: (value) {
                   setState(() {
                     _soundEffectsVolume = value;
@@ -103,9 +104,11 @@ class _OptionsScreenState extends State<OptionsScreen> {
     required BuildContext context,
     required String title,
     required double value,
+    double maxValue = 1.0,
     required ValueChanged<double> onChanged,
   }) {
-    final percentage = (value * 100).round();
+    // Calculate percentage relative to max value
+    final percentage = ((value / maxValue) * 100).round();
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,8 +159,8 @@ class _OptionsScreenState extends State<OptionsScreen> {
           child: Slider(
             value: value,
             min: 0.0,
-            max: 1.0,
-            divisions: 100,
+            max: maxValue,
+            divisions: (maxValue * 100).round(),
             label: '$percentage%',
             onChanged: onChanged,
           ),

@@ -5,6 +5,30 @@ class AppConfig {
   AppConfig._(); // Private constructor to prevent instantiation
 
   // ============================================================================
+  // AUDIO CONFIGURATION - Sound and music settings
+  // ============================================================================
+  
+  /// Maximum volume for sound effects (0.0 to 1.0)
+  /// Players can adjust sound effects volume from 0.0 to this maximum value
+  static const double soundEffectsMaxVolume = 0.7;
+  
+  /// Volume multiplier for truck sound (0.0 to 1.0)
+  /// This is multiplied by the player's sound effects volume setting
+  /// Set to 1.0 for full volume, 0.5 for half volume, etc.
+  static const double truckSoundVolumeMultiplier = 1.0;
+  
+  /// Volume multiplier for coin collect sound (0.0 to 1.0)
+  /// This is multiplied by the player's sound effects volume setting
+  /// Set to 1.0 for full volume, 0.5 for half volume, etc.
+  static const double coinCollectSoundVolumeMultiplier = 1.2;
+  
+  /// Default volume for menu music (0.0 to 1.0)
+  static const double menuMusicDefaultVolume = 0.6;
+  
+  /// Default volume for game background music (0.0 to 1.0)
+  static const double gameBackgroundMusicDefaultVolume = 0.3;
+
+  // ============================================================================
   // FONT SIZES - Standardized font sizes for consistent UI
   // ============================================================================
   

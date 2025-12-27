@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import '../config.dart';
 
 /// Service for managing game audio (sound effects and background music)
 class SoundService {
@@ -15,9 +16,9 @@ class SoundService {
   
   bool _isMusicEnabled = true;
   bool _isSoundEnabled = true;
-  double _musicVolume = 0.6; // Base music volume (used for menu music)
-  double _gameBackgroundVolume = 0.4; // Lower volume for game background music
-  double _soundVolume = 0.7;
+  double _musicVolume = AppConfig.menuMusicDefaultVolume; // Base music volume (used for menu music)
+  double _gameBackgroundVolume = AppConfig.gameBackgroundMusicDefaultVolume; // Lower volume for game background music
+  double _soundVolume = AppConfig.soundEffectsMaxVolume; // Start at max, player can adjust down
   String? _currentMusicPath; // Track what music is currently playing
   DateTime? _lastMusicStartTime; // Track when music was last started (to prevent immediate stops)
   Timer? _fadeTimer; // Timer for monitoring position and handling fade
@@ -50,8 +51,11 @@ class SoundService {
   /// Get current music volume (0.0 to 1.0)
   double get musicVolume => _musicVolume;
 
-  /// Get current sound volume (0.0 to 1.0)
+  /// Get current sound volume (0.0 to max configured in AppConfig)
   double get soundVolume => _soundVolume;
+  
+  /// Get maximum sound effects volume from config
+  double get soundEffectsMaxVolume => AppConfig.soundEffectsMaxVolume;
 
   /// Enable or disable background music
   void setMusicEnabled(bool enabled) {
@@ -87,9 +91,9 @@ class SoundService {
   /// Get game background music volume
   double get gameBackgroundVolume => _gameBackgroundVolume;
 
-  /// Set sound effects volume (0.0 to 1.0)
+  /// Set sound effects volume (0.0 to max configured in AppConfig)
   void setSoundVolume(double volume) {
-    _soundVolume = volume.clamp(0.0, 1.0);
+    _soundVolume = volume.clamp(0.0, AppConfig.soundEffectsMaxVolume);
     _soundEffectPlayer.setVolume(_soundVolume);
   }
 
@@ -315,13 +319,17 @@ class SoundService {
   }
 
   /// Play a sound effect (one-shot)
-  Future<void> playSoundEffect(String assetPath) async {
+  /// [volumeMultiplier] is an optional multiplier (0.0 to 1.0) to adjust volume for specific sounds
+  Future<void> playSoundEffect(String assetPath, {double volumeMultiplier = 1.0}) async {
     if (!_isSoundEnabled) return;
     
     try {
+      // Calculate final volume: player's sound volume * multiplier
+      final finalVolume = (_soundVolume * volumeMultiplier).clamp(0.0, AppConfig.soundEffectsMaxVolume);
+      
       await _soundEffectPlayer.setReleaseMode(ReleaseMode.release);
-      await _soundEffectPlayer.setVolume(_soundVolume);
-      print('🔊 Playing sound effect: $assetPath');
+      await _soundEffectPlayer.setVolume(finalVolume);
+      print('🔊 Playing sound effect: $assetPath (volume: $finalVolume = ${_soundVolume} * $volumeMultiplier)');
       await _soundEffectPlayer.play(AssetSource(assetPath));
     } catch (e) {
       print('❌ Error playing sound effect ($assetPath): $e');
@@ -333,14 +341,14 @@ class SoundService {
     await playSoundEffect('sound/button.m4a');
   }
 
-  /// Play coin collect sound
+  /// Play coin collect sound (uses volume multiplier from config)
   Future<void> playCoinCollectSound() async {
-    await playSoundEffect('sound/coin_collect.m4a');
+    await playSoundEffect('sound/coin_collect.m4a', volumeMultiplier: AppConfig.coinCollectSoundVolumeMultiplier);
   }
 
-  /// Play truck sound (when "Go Stock" is pressed)
+  /// Play truck sound (uses volume multiplier from config)
   Future<void> playTruckSound() async {
-    await playSoundEffect('sound/truck.mp3');
+    await playSoundEffect('sound/truck.mp3', volumeMultiplier: AppConfig.truckSoundVolumeMultiplier);
   }
 
   /// Dispose resources
