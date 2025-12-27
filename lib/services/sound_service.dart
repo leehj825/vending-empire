@@ -11,7 +11,8 @@ class SoundService {
   
   bool _isMusicEnabled = true;
   bool _isSoundEnabled = true;
-  double _musicVolume = 0.6; // Increased from 0.5 to 0.8 for better audibility
+  double _musicVolume = 0.6; // Base music volume (used for menu music)
+  double _gameBackgroundVolume = 0.4; // Lower volume for game background music
   double _soundVolume = 0.7;
   String? _currentMusicPath; // Track what music is currently playing
   DateTime? _lastMusicStartTime; // Track when music was last started (to prevent immediate stops)
@@ -89,11 +90,14 @@ class SoundService {
   
   /// Internal method to start/restart music
   Future<void> _restartMusic(String assetPath) async {
+    // Determine volume based on which track is playing
+    final volume = assetPath.contains('game_background') ? _gameBackgroundVolume : _musicVolume;
+    
     // Configure for looping
     await _backgroundMusicPlayer.setReleaseMode(ReleaseMode.loop);
-    await _backgroundMusicPlayer.setVolume(_musicVolume);
+    await _backgroundMusicPlayer.setVolume(volume);
     
-    print('🎵 Playing background music: $assetPath (volume: $_musicVolume)');
+    print('🎵 Playing background music: $assetPath (volume: $volume)');
     await _backgroundMusicPlayer.play(AssetSource(assetPath));
     _currentMusicPath = assetPath; // Track what's playing
     _lastMusicStartTime = DateTime.now(); // Track when music started
