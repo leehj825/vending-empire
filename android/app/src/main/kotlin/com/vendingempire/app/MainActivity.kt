@@ -1,4 +1,4 @@
-package com.vendingempire.app
+package com.vendingmachiinetycoon.app
 
 import io.flutter.embedding.android.FlutterActivity
 
