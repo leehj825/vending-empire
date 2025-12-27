@@ -55,7 +55,8 @@ class SoundService {
 
   /// Play background music (looping)
   /// assetPath should be relative to assets/ directory (e.g., 'sound/game_menu.mp3')
-  Future<void> playBackgroundMusic(String assetPath) async {
+  /// Set [force] to true to restart music even if the service thinks it's already playing
+  Future<void> playBackgroundMusic(String assetPath, {bool force = false}) async {
     if (!_isMusicEnabled) {
       print('🔇 Music is disabled, skipping: $assetPath');
       return;
@@ -63,14 +64,15 @@ class SoundService {
     
     // If the same music is already playing, do nothing - just return
     // This prevents unnecessary restarts when switching tabs or rebuilding widgets
-    if (_currentMusicPath == assetPath) {
+    // Unless force is true, which allows restarting even if we think it's playing
+    if (!force && _currentMusicPath == assetPath) {
       // Silently skip - music is already playing, no need to check state or restart
       return;
     }
     
     try {
-      // Stop any currently playing music first (only if different)
-      if (_currentMusicPath != null && _currentMusicPath != assetPath) {
+      // Stop any currently playing music first (only if different or forced)
+      if (_currentMusicPath != null && (_currentMusicPath != assetPath || force)) {
         print('🛑 Stopping current music: $_currentMusicPath');
         await _backgroundMusicPlayer.stop();
         // Small delay to ensure stop completes

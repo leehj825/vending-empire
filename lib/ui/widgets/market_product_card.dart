@@ -437,7 +437,8 @@ class _BuyStockDialogState extends ConsumerState<_BuyStockDialog> {
                                           // This is a safeguard in case state updates caused music to stop
                                           WidgetsBinding.instance.addPostFrameCallback((_) {
                                             Future.delayed(const Duration(milliseconds: 100), () {
-                                              SoundService().playBackgroundMusic('sound/game_background.m4a');
+                                              // Use force: true to restart even if SoundService thinks it's playing
+                                              SoundService().playBackgroundMusic('sound/game_background.m4a', force: true);
                                             });
                                           });
                                         }
