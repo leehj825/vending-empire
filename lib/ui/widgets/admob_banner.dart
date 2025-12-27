@@ -12,8 +12,8 @@ class AdMobBanner extends StatefulWidget {
   const AdMobBanner({
     super.key,
     // Test ad unit ID for banner ads
-    //this.adUnitId = 'ca-app-pub-4400173019354346/5798507534',
-    this.adUnitId = 'ca-app-pub-3940256099942544/6300978111',
+    this.adUnitId = 'ca-app-pub-4400173019354346/5798507534',
+    //this.adUnitId = 'ca-app-pub-3940256099942544/6300978111',
   });
 
   @override
