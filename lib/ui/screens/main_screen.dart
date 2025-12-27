@@ -474,7 +474,6 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
             // Exit Button
             GestureDetector(
               onTap: () {
-                SoundService().playButtonSound();
                 _exitToMenu(context, ref);
               },
               child: Container(

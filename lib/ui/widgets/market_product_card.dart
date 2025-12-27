@@ -433,6 +433,13 @@ class _BuyStockDialogState extends ConsumerState<_BuyStockDialog> {
                                               ),
                                             ),
                                           );
+                                          // Ensure background music continues playing after purchase
+                                          // This is a safeguard in case state updates caused music to stop
+                                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                                            Future.delayed(const Duration(milliseconds: 100), () {
+                                              SoundService().playBackgroundMusic('sound/game_background.m4a');
+                                            });
+                                          });
                                         }
                                       : null,
                                   label: 'Confirm Purchase',

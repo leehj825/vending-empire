@@ -1,12 +1,21 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'ui/screens/menu_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Lock orientation to portrait mode for mobile devices
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
   
   // Initialize AdMob only on Android and iOS (not macOS, Windows, Linux, or Web)
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {

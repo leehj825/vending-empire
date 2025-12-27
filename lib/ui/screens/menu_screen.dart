@@ -187,7 +187,6 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
                           width: smallerDim * 0.7,
                           child: GestureDetector(
                             onTap: () async {
-                              SoundService().playButtonSound();
                               // Stop menu music before navigating
                               await SoundService().stopBackgroundMusic();
                               // Small delay to ensure music stops
