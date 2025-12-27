@@ -6,6 +6,7 @@ import '../../simulation/models/machine.dart';
 import '../../simulation/models/truck.dart';
 import '../../simulation/models/product.dart';
 import '../../config.dart';
+import '../../services/sound_service.dart';
 import '../widgets/machine_route_card.dart';
 import '../widgets/game_button.dart';
 import '../theme/zone_ui.dart';
@@ -276,6 +277,9 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
   void _goStock(Truck truck) {
     final controller = ref.read(gameControllerProvider.notifier);
     controller.goStock(truck.id);
+    
+    // Play truck sound when "Go Stock" is pressed
+    SoundService().playTruckSound();
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

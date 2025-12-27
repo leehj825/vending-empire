@@ -5,6 +5,36 @@ class AppConfig {
   AppConfig._(); // Private constructor to prevent instantiation
 
   // ============================================================================
+  // AUDIO CONFIGURATION - Sound and music settings
+  // ============================================================================
+  
+  /// Overall sound effects volume multiplier (0.0 to 1.0)
+  /// Controlled from Options screen. Applies to ALL sound effects.
+  /// Final sound volume = soundVolumeMultiplier * individual sound volume
+  static const double soundVolumeMultiplier = 1.0;
+  
+  /// Overall music volume multiplier (0.0 to 1.0)
+  /// Controlled from Options screen. Applies to ALL background music.
+  /// Final music volume = musicVolumeMultiplier * individual music volume
+  static const double musicVolumeMultiplier = 1.0;
+  
+  /// Individual volume for money/coin collect sound (0.0 to 1.0)
+  /// Final volume = soundVolumeMultiplier * moneySoundVolume
+  static const double moneySoundVolume = 1.2;
+  
+  /// Individual volume for truck sound (0.0 to 1.0)
+  /// Final volume = soundVolumeMultiplier * truckSoundVolume
+  static const double truckSoundVolume = 0.8;
+  
+  /// Individual volume for menu music (0.0 to 1.0)
+  /// Final volume = musicVolumeMultiplier * menuMusicVolume
+  static const double menuMusicVolume = 0.6;
+  
+  /// Individual volume for game background music (0.0 to 1.0)
+  /// Final volume = musicVolumeMultiplier * gameBackgroundMusicVolume
+  static const double gameBackgroundMusicVolume = 0.3;
+
+  // ============================================================================
   // FONT SIZES - Standardized font sizes for consistent UI
   // ============================================================================
   

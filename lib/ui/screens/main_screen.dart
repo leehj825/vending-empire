@@ -8,6 +8,7 @@ import '../../state/providers.dart';
 import '../../state/save_load_service.dart';
 import '../../state/selectors.dart';
 import '../../config.dart';
+import '../../services/sound_service.dart';
 import 'menu_screen.dart';
 import '../utils/screen_utils.dart';
 import '../widgets/admob_banner.dart';
@@ -31,10 +32,34 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     WarehouseScreen(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    // Play game background music when screen is shown
+    // Use a delay to ensure menu music has stopped, screen is fully loaded, and ads have initialized
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        // Only start music if we're still on this screen (not already navigated away)
+        if (mounted) {
+          SoundService().playBackgroundMusic('sound/game_background.m4a');
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    // Stop background music when leaving the screen
+    SoundService().stopBackgroundMusic();
+    super.dispose();
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+    // No need to call playBackgroundMusic here - it's already playing
+    // The IndexedStack keeps the MainScreen alive, so music persists naturally
   }
 
   @override
@@ -445,7 +470,9 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
             SizedBox(width: ScreenUtils.relativeSize(context, AppConfig.paddingSmallFactor)), // Spacing between buttons
             // Exit Button
             GestureDetector(
-              onTap: () => _exitToMenu(context, ref),
+              onTap: () {
+                _exitToMenu(context, ref);
+              },
               child: Container(
                 width: sideBySideButtonWidth,
                 height: buttonHeight,
@@ -509,28 +536,42 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
   }
 
   void _exitToMenu(BuildContext context, WidgetRef ref) {
+    // Capture the main screen context before showing dialog
+    final mainScreenContext = context;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Exit to Menu'),
         content: const Text('Are you sure you want to exit to the main menu? Your progress will be saved.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
+            onPressed: () async {
+              // Close dialog first
+              Navigator.of(dialogContext).pop();
+              
               // Stop simulation before exiting
               ref.read(gameControllerProvider.notifier).stopSimulation();
-              // Navigate back to menu screen
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(
-                  builder: (context) => const MenuScreen(),
-                ),
-                (route) => false,
-              );
+              
+              // Stop game background music before navigating (force stop to bypass protection)
+              await SoundService().stopBackgroundMusic(forceStop: true);
+              
+              // Small delay to ensure music stops before starting menu music
+              await Future.delayed(const Duration(milliseconds: 200));
+              
+              // Navigate back to menu screen using the main screen context
+              if (mainScreenContext.mounted) {
+                Navigator.of(mainScreenContext).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const MenuScreen(),
+                  ),
+                  (route) => false,
+                );
+              }
             },
             child: const Text('Exit'),
           ),

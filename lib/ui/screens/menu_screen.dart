@@ -2,13 +2,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'main_screen.dart';
+import 'options_screen.dart';
 import '../../state/save_load_service.dart';
 import '../../state/providers.dart';
+import '../../services/sound_service.dart';
 import '../utils/screen_utils.dart';
 
 /// Main menu screen shown at app startup
-class MenuScreen extends ConsumerWidget {
+class MenuScreen extends ConsumerStatefulWidget {
   const MenuScreen({super.key});
+
+  @override
+  ConsumerState<MenuScreen> createState() => _MenuScreenState();
+}
+
+class _MenuScreenState extends ConsumerState<MenuScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Play menu background music when screen is shown
+    // Use a delay to ensure any previous music has stopped and screen is fully loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        // Only start music if we're still on this screen (not already navigated away)
+        if (mounted) {
+          SoundService().playBackgroundMusic('sound/game_menu.m4a');
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    // Stop menu music when leaving the screen
+    SoundService().stopBackgroundMusic();
+    super.dispose();
+  }
 
   Future<void> _loadGame(BuildContext context, WidgetRef ref) async {
     final slots = await SaveLoadService.getSaveSlots();
@@ -62,6 +91,11 @@ class MenuScreen extends ConsumerWidget {
               // Start simulation after loading
               ref.read(gameControllerProvider.notifier).startSimulation();
 
+              // Stop menu music before navigating
+              await SoundService().stopBackgroundMusic();
+              // Small delay to ensure music stops
+              await Future.delayed(const Duration(milliseconds: 100));
+
               // Navigate to main game screen in next frame
               // Use pushAndRemoveUntil instead of pushReplacement to handle case when no routes exist
               if (context.mounted) {
@@ -108,7 +142,7 @@ class MenuScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -153,17 +187,23 @@ class MenuScreen extends ConsumerWidget {
                         SizedBox(
                           width: smallerDim * 0.7,
                           child: GestureDetector(
-                            onTap: () {
+                            onTap: () async {
+                              // Stop menu music before navigating
+                              await SoundService().stopBackgroundMusic();
+                              // Small delay to ensure music stops
+                              await Future.delayed(const Duration(milliseconds: 100));
                               // Reset game to initial state
                               ref.read(gameControllerProvider.notifier).resetGame();
                               // Start simulation before navigating
                               ref.read(gameControllerProvider.notifier).startSimulation();
                               // Navigate to main game screen
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (context) => const MainScreen(),
-                                ),
-                              );
+                              if (context.mounted) {
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (context) => const MainScreen(),
+                                  ),
+                                );
+                              }
                             },
                             child: Image.asset(
                               'assets/images/start_button.png',
@@ -253,11 +293,9 @@ class MenuScreen extends ConsumerWidget {
                               Expanded(
                                 child: GestureDetector(
                                   onTap: () {
-                                    // TODO: Implement options screen
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: const Text('Options feature coming soon!'),
-                                        duration: const Duration(seconds: 2),
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) => const OptionsScreen(),
                                       ),
                                     );
                                   },
