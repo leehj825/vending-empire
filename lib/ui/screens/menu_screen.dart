@@ -25,7 +25,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
       Future.delayed(const Duration(milliseconds: 300), () {
         // Only start music if we're still on this screen (not already navigated away)
         if (mounted) {
-          SoundService().playBackgroundMusic('sound/game_menu.mp3');
+          SoundService().playBackgroundMusic('sound/game_menu.m4a');
         }
       });
     });

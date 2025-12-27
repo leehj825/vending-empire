@@ -54,7 +54,7 @@ class SoundService {
   }
 
   /// Play background music (looping)
-  /// assetPath should be relative to assets/ directory (e.g., 'sound/game_menu.mp3')
+  /// assetPath should be relative to assets/ directory (e.g., 'sound/game_menu.m4a')
   /// Set [force] to true to restart music even if the service thinks it's already playing
   Future<void> playBackgroundMusic(String assetPath, {bool force = false}) async {
     if (!_isMusicEnabled) {
