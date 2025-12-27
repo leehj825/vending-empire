@@ -10,6 +10,7 @@ import '../../state/selectors.dart';
 import '../../config.dart';
 import 'menu_screen.dart';
 import '../utils/screen_utils.dart';
+import '../widgets/admob_banner.dart';
 
 /// Main navigation screen with bottom navigation bar
 class MainScreen extends ConsumerStatefulWidget {
@@ -49,9 +50,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           child: _StatusBar(),
         ),
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _screens,
+      body: Column(
+        children: [
+          // AdMob banner at the top
+          const AdMobBanner(),
+          // Game content
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: _screens,
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: _CustomBottomNavigationBar(
         currentIndex: _selectedIndex,
