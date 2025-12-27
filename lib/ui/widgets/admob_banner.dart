@@ -1,5 +1,5 @@
 import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../config.dart';
@@ -7,16 +7,36 @@ import '../utils/screen_utils.dart';
 
 /// Banner ad widget for displaying AdMob banner ads
 class AdMobBanner extends StatefulWidget {
-  /// Ad unit ID - use test ID for development
-  /// Replace with your actual ad unit ID for production
-  final String adUnitId;
+  /// Ad unit ID - automatically selects test ID for APK builds, real ID for bundle releases
+  /// Override this parameter if you need to manually specify an ad unit ID
+  final String? adUnitId;
   
   const AdMobBanner({
     super.key,
-    // Test ad unit ID for banner ads
-    this.adUnitId = 'ca-app-pub-4400173019354346/5798507534',
-    //this.adUnitId = 'ca-app-pub-3940256099942544/6300978111',
+    this.adUnitId,
   });
+  
+  /// Get the appropriate ad unit ID based on build type
+  /// - Bundle builds (with BUILD_TYPE=bundle): Use real ad unit ID
+  /// - APK builds (debug or release): Use test ad unit ID
+  /// - Can be overridden via AppConfig.forceTestAds or by passing adUnitId parameter
+  String get effectiveAdUnitId {
+    if (adUnitId != null) {
+      return adUnitId!;
+    }
+    // If forceTestAds is enabled, always use test ads
+    if (AppConfig.forceTestAds) {
+      return AppConfig.admobBannerTestId;
+    }
+    // Check if BUILD_TYPE was set to 'bundle' via --dart-define
+    // This allows distinguishing bundle builds from APK builds
+    if (AppConfig.buildType == 'bundle' && kReleaseMode) {
+      return AppConfig.admobBannerRealId;
+    }
+    // Default: Use test ads for all APK builds (both debug and release)
+    // Only bundle builds with BUILD_TYPE=bundle will use real ads
+    return AppConfig.admobBannerTestId;
+  }
 
   @override
   State<AdMobBanner> createState() => _AdMobBannerState();
@@ -50,7 +70,7 @@ class _AdMobBannerState extends State<AdMobBanner> {
 
   void _loadBannerAd() {
     _bannerAd = BannerAd(
-      adUnitId: widget.adUnitId,
+      adUnitId: widget.effectiveAdUnitId,
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(

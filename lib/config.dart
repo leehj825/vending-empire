@@ -533,6 +533,30 @@ class AppConfig {
   static const String saveKey = 'vending_empire_save';
   
   // ============================================================================
+  // ADMOB CONFIGURATION
+  // ============================================================================
+  
+  /// Ad unit IDs for banner ads
+  /// Test ID: Use for APK builds (both debug and release)
+  static const String admobBannerTestId = 'ca-app-pub-3940256099942544/6300978111';
+  
+  /// Real ID: Use for bundle release builds (Play Store)
+  static const String admobBannerRealId = 'ca-app-pub-4400173019354346/5798507534';
+  
+  /// Build type detection via --dart-define
+  /// Set via: flutter build appbundle --release --dart-define=BUILD_TYPE=bundle
+  /// If not set, defaults to using test ads (safe default for APKs)
+  /// Values: 'bundle' = use real ads, anything else = use test ads
+  static const String? buildType = String.fromEnvironment('BUILD_TYPE');
+  
+  /// Force use of test ads (overrides automatic detection)
+  /// Set to true to always use test ads, false to use automatic detection
+  /// Automatic behavior: 
+  /// - APK builds (debug or release): test ads
+  /// - Bundle builds (release with BUILD_TYPE=bundle): real ads
+  static const bool forceTestAds = false;
+  
+  // ============================================================================
   // FLAME GAME CONSTANTS
   // ============================================================================
   
