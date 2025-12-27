@@ -131,7 +131,8 @@ class CityMapGame extends FlameGame with ScaleDetector, ScrollDetector, TapDetec
   }
 
   void _clampCamera() {
-    const padding = 200.0;
+    // Padding relative to map size (20% of map width/height)
+    final padding = mapWidth * 0.2;
     final x = camera.viewfinder.position.x;
     final y = camera.viewfinder.position.y;
     camera.viewfinder.position.x = x.clamp(-padding, mapWidth + padding);

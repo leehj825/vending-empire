@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../state/providers.dart';
+import '../../config.dart';
+import '../utils/screen_utils.dart';
 
 /// Marketing Blitz button - appears randomly on the city map after Rush Hour
 /// Allows rapid tapping to build hype and trigger Rush Hour
@@ -224,7 +226,7 @@ class _MarketingButtonState extends ConsumerState<MarketingButton>
                         height: buttonSize,
                         child: CircularProgressIndicator(
                           value: hypeLevel,
-                          strokeWidth: 4.0,
+                          strokeWidth: ScreenUtils.relativeSize(context, AppConfig.borderWidthFactorMedium * 2),
                           backgroundColor: Colors.grey[300],
                           valueColor: AlwaysStoppedAnimation<Color>(
                             progressColor,
@@ -240,7 +242,7 @@ class _MarketingButtonState extends ConsumerState<MarketingButton>
                         color: buttonColor.shade400.withValues(alpha: flashAlpha),
                         border: Border.all(
                           color: Colors.white,
-                          width: 3.0,
+                          width: ScreenUtils.relativeSize(context, AppConfig.borderWidthFactorMedium),
                         ),
                       ),
                       child: Icon(

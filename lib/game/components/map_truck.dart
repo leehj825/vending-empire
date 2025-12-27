@@ -66,10 +66,11 @@ class MapTruck extends PositionComponent {
     canvas.drawRect(bodyRect, bodyPaint);
 
     // Draw truck outline (black)
+    // Stroke width relative to component size (2% of component width)
     final outlinePaint = Paint()
       ..color = Colors.black
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = size.x * 0.02; // 2% of component width
     canvas.drawRect(bodyRect, outlinePaint);
 
     // Draw wheels (black circles)
@@ -77,13 +78,15 @@ class MapTruck extends PositionComponent {
       ..color = Colors.black
       ..style = PaintingStyle.fill;
 
-    // Front wheels
-    canvas.drawCircle(Offset(8, size.y), 4, wheelPaint);
-    canvas.drawCircle(Offset(8, 0), 4, wheelPaint);
+    // Front wheels (size relative to component - 8% of width)
+    final wheelRadius = size.x * 0.08;
+    final wheelOffset = size.x * 0.16;
+    canvas.drawCircle(Offset(wheelOffset, size.y), wheelRadius, wheelPaint);
+    canvas.drawCircle(Offset(wheelOffset, 0), wheelRadius, wheelPaint);
 
     // Back wheels
-    canvas.drawCircle(Offset(size.x - 8, size.y), 4, wheelPaint);
-    canvas.drawCircle(Offset(size.x - 8, 0), 4, wheelPaint);
+    canvas.drawCircle(Offset(size.x - wheelOffset, size.y), wheelRadius, wheelPaint);
+    canvas.drawCircle(Offset(size.x - wheelOffset, 0), wheelRadius, wheelPaint);
 
     // Draw cab (smaller rectangle on front)
     final cabPaint = Paint()
@@ -113,10 +116,12 @@ class MapTruck extends PositionComponent {
         break;
     }
 
-    // Draw small circle in top-right corner
+    // Draw small circle in top-right corner (size relative to component)
+    final indicatorRadius = size.x * 0.06; // 6% of component width
+    final indicatorOffset = size.x * 0.1; // 10% offset from edges
     canvas.drawCircle(
-      Offset(size.x - 5, 5),
-      3,
+      Offset(size.x - indicatorOffset, indicatorOffset),
+      indicatorRadius,
       paint,
     );
   }

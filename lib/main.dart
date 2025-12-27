@@ -2,7 +2,6 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'ui/screens/menu_screen.dart';
 
@@ -35,9 +34,15 @@ class VendingMachineTycoonApp extends StatelessWidget {
       title: 'Vending Machine Tycoon',
       theme: ThemeData(
         useMaterial3: true,
-        // Define the default font family for the entire app
-        textTheme: GoogleFonts.fredokaTextTheme(
-          ThemeData.light().textTheme,
+        // Use bundled Fredoka font for consistent rendering across all platforms
+        // This overrides platform-specific defaults (Roboto on Android, San Francisco on macOS)
+        fontFamily: 'Fredoka',
+        // Apply font to all text styles
+        textTheme: ThemeData.light().textTheme.apply(
+          fontFamily: 'Fredoka',
+        ),
+        primaryTextTheme: ThemeData.light().primaryTextTheme.apply(
+          fontFamily: 'Fredoka',
         ),
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.green,

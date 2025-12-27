@@ -53,10 +53,10 @@ class _MachineStatusCardState extends ConsumerState<MachineStatusCard> {
       ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppConfig.borderRadiusLarge),
+        borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, AppConfig.borderRadiusFactorLarge)),
         border: Border.all(
           color: zoneColor.withValues(alpha: 0.5), // Colored border based on zone
-          width: AppConfig.cardBorderWidth,
+          width: ScreenUtils.relativeSize(context, AppConfig.cardBorderWidthFactor),
         ),
         boxShadow: [
           BoxShadow(
@@ -67,7 +67,7 @@ class _MachineStatusCardState extends ConsumerState<MachineStatusCard> {
         ],
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppConfig.borderRadiusLarge), // ripple matches shape
+        borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, AppConfig.borderRadiusFactorLarge)), // ripple matches shape
         onTap: () {
           setState(() {
             _isExpanded = !_isExpanded;

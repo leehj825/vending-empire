@@ -65,7 +65,7 @@ class HQDashboard extends ConsumerWidget {
     );
 
     return Card(
-      elevation: AppConfig.cardElevation,
+      elevation: ScreenUtils.relativeSize(context, AppConfig.cardElevationFactor),
       child: Padding(
         padding: ScreenUtils.relativePadding(context, AppConfig.spacingFactorMedium),
         child: Column(
@@ -160,7 +160,7 @@ class HQDashboard extends ConsumerWidget {
     
     return Card(
       color: cardColor,
-      elevation: 3,
+      elevation: ScreenUtils.relativeSize(context, AppConfig.cardElevationFactor * 0.75),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, 0.012)),
       ),
@@ -249,7 +249,7 @@ class HQDashboard extends ConsumerWidget {
     }
 
     return Card(
-      elevation: AppConfig.cardElevation,
+      elevation: ScreenUtils.relativeSize(context, AppConfig.cardElevationFactor),
       color: Colors.amber.shade50,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, 0.012)),
@@ -474,7 +474,7 @@ class HQDashboard extends ConsumerWidget {
     }).toList();
 
     return Card(
-      elevation: AppConfig.cardElevation,
+      elevation: ScreenUtils.relativeSize(context, AppConfig.cardElevationFactor),
       color: needsAttention.isEmpty ? Colors.green.shade50 : Colors.red.shade50,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, 0.012)),
@@ -516,7 +516,7 @@ class HQDashboard extends ConsumerWidget {
             if (needsAttention.isEmpty)
               Card(
                 color: Colors.green.shade100,
-                elevation: 2,
+                elevation: ScreenUtils.relativeSize(context, AppConfig.cardElevationFactor * 0.5),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, 0.008)),
                 ),
@@ -587,7 +587,7 @@ class HQDashboard extends ConsumerWidget {
                 return Card(
                   color: bgColor,
                   margin: EdgeInsets.only(bottom: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall)),
-                  elevation: 2,
+                  elevation: ScreenUtils.relativeSize(context, AppConfig.cardElevationFactor * 0.5),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, 0.008)),
                   ),

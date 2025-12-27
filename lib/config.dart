@@ -19,21 +19,21 @@ class AppConfig {
   static const double fontSizeMinMultiplier = 0.025;
   static const double fontSizeMaxMultiplier = 0.065;
   
-  /// Fixed font sizes for non-responsive elements
-  static const double fontSizeFixedLarge = 18.0;
-  static const double fontSizeFixedMedium = 16.0;
-  static const double fontSizeFixedNormal = 14.0;
-  static const double fontSizeFixedSmall = 12.0;
-  static const double fontSizeFixedTiny = 10.0;
+  /// Fixed font size factors (relative to smaller screen dimension) - for non-responsive elements
+  static const double fontSizeFixedLargeFactor = 0.045;      // ~18px on 400px screen
+  static const double fontSizeFixedMediumFactor = 0.040;    // ~16px on 400px screen
+  static const double fontSizeFixedNormalFactor = 0.035;    // ~14px on 400px screen
+  static const double fontSizeFixedSmallFactor = 0.030;     // ~12px on 400px screen
+  static const double fontSizeFixedTinyFactor = 0.025;      // ~10px on 400px screen
   
   // ============================================================================
   // UI CONSTANTS - Spacing, sizes, colors
   // ============================================================================
   
-  /// Standard padding values
-  static const double paddingSmall = 8.0;
-  static const double paddingMedium = 16.0;
-  static const double paddingLarge = 24.0;
+  /// Standard padding factors (relative to smaller screen dimension)
+  static const double paddingSmallFactor = 0.008;   // ~8px on 1000px screen
+  static const double paddingMediumFactor = 0.016;   // ~16px on 1000px screen
+  static const double paddingLargeFactor = 0.024;    // ~24px on 1000px screen
   
   /// Spacing factors for SizedBox (relative to smaller screen dimension)
   static const double spacingFactorTiny = 0.001; // Very small spacing (1px on 1000px screen)
@@ -53,25 +53,29 @@ class AppConfig {
   static const double borderRadiusFactorMedium = spacingFactorXLarge; // 0.016 - Medium radius
   static const double borderRadiusFactorLarge = spacingFactorXLarge * 2; // 0.032 - Large radius
   
-  /// Border radius values
+  /// Border radius values (use borderRadiusFactor* instead - these are deprecated)
+  /// Kept for backward compatibility, but use factors for new code
+  @Deprecated('Use borderRadiusFactorSmall instead')
   static const double borderRadiusSmall = 8.0;
+  @Deprecated('Use borderRadiusFactorMedium instead')
   static const double borderRadiusMedium = 12.0;
+  @Deprecated('Use borderRadiusFactorLarge instead')
   static const double borderRadiusLarge = 16.0;
   
-  /// Icon sizes
-  static const double iconSizeSmall = 16.0;
-  static const double iconSizeMedium = 24.0;
-  static const double iconSizeLarge = 32.0;
-  static const double iconSizeXLarge = 48.0;
+  /// Icon size factors (relative to smaller screen dimension)
+  static const double iconSizeSmallFactor = 0.016;   // ~16px on 1000px screen
+  static const double iconSizeMediumFactor = 0.024;  // ~24px on 1000px screen
+  static const double iconSizeLargeFactor = 0.032;   // ~32px on 1000px screen
+  static const double iconSizeXLargeFactor = 0.048;  // ~48px on 1000px screen
   
-  /// Button sizes
-  static const double buttonHeight = 48.0;
-  static const double buttonHeightSmall = 36.0;
+  /// Button height factors (relative to smaller screen dimension)
+  static const double buttonHeightFactor = 0.048;      // ~48px on 1000px screen
+  static const double buttonHeightSmallFactor = 0.036; // ~36px on 1000px screen
   
   /// GameButton sizes (used in fleet manager and other screens)
   static const double gameButtonPaddingHorizontalFactor = 0.01; // Horizontal padding as factor of screen width
   static const double gameButtonPaddingVerticalFactor = 0.01; // Vertical padding as factor of smaller screen dimension
-  static const double gameButtonBorderRadius = 8.0;
+  static const double gameButtonBorderRadiusFactor = borderRadiusFactorSmall; // 0.008 - Border radius as factor
   static const double gameButtonIconSizeFactor = 0.05; // Icon size as factor of smaller screen dimension
   static const double gameButtonIconSizeMultiplier = 1.5; // Multiplier for buy truck button icon (larger than normal)
   static const double gameButtonFontSizeFactor = 0.03; // Font size factor (responsive) - uses fontSizeFactorNormal by default
@@ -79,24 +83,24 @@ class AppConfig {
   /// SmallGameButton sizes (used in dialogs)
   static const double smallGameButtonPaddingHorizontalFactor = 0.01; // Horizontal padding as factor of screen width
   static const double smallGameButtonPaddingVerticalFactor = 0.01; // Vertical padding as factor of smaller screen dimension
-  static const double smallGameButtonBorderRadius = 8.0;
+  static const double smallGameButtonBorderRadiusFactor = borderRadiusFactorSmall; // 0.008 - Border radius as factor
   static const double smallGameButtonIconSizeFactor = 0.04; // Icon size as factor of smaller screen dimension
   static const double smallGameButtonFontSizeFactor = 0.025; // Font size factor (responsive) - uses fontSizeFactorSmall by default
   
   /// Truck selector card sizes (fleet manager screen)
-  static const double truckCardWidthFactor = 0.20; // Card width as factor of screen width
-  static const double truckCardHeightFactor = 0.18; // Card container height as factor of smaller screen dimension
+  static const double truckCardWidthFactor = 0.22; // Card width as factor of screen width
+  static const double truckCardHeightFactor = 0.20; // Card container height as factor of smaller screen dimension
   static const double truckCardPaddingFactor = spacingFactorSmall * 4; // 0.008 - Internal padding of truck card
   static const double truckCardBorderRadiusFactor = borderWidthFactorSmall; // 0.002 - Border radius of truck card
   static const double truckCardMarginHorizontalFactor = spacingFactorTiny; // 0.001 - Horizontal margin between cards
   
   /// Truck icon sizes
-  static const double truckIconContainerSizeFactor = 0.05; // Icon container size as factor of smaller screen dimension
-  static const double truckIconSizeFactor = 0.05; // Icon size as factor of smaller screen dimension
+  static const double truckIconContainerSizeFactor = 0.04; // Icon container size as factor of smaller screen dimension
+  static const double truckIconSizeFactor = 0.04; // Icon size as factor of smaller screen dimension
   static const double truckIconContainerBorderRadiusFactor = borderRadiusFactorTiny; // 0.001 - Border radius of icon container
   
   /// Truck name and status sizes
-  static const double truckNameFontSizeFactor = fontSizeFactorNormal; // 0.032 - Truck name font size factor
+  static const double truckNameFontSizeFactor = fontSizeFactorTiny; // 0.032 - Truck name font size factor
   static const double truckStatusFontSizeFactor = fontSizeFactorTiny; // 0.02 - Status badge font size factor
   static const double truckStatusPaddingHorizontalFactor = borderWidthFactorSmall; // 0.002 - Status badge horizontal padding
   static const double truckStatusPaddingVerticalFactor = spacingFactorTiny; // 0.001 - Status badge vertical padding
@@ -227,9 +231,9 @@ class AppConfig {
   static const double statusCardPaddingFactor = 0.01; // Internal padding factor relative to card width
   static const double statusBarContainerPaddingFactor = spacingFactorTiny; // 0.001 - Container padding around status bar (reuse)
   
-  /// Card dimensions
-  static const double cardBorderWidth = 2.0;
-  static const double cardElevation = 4.0;
+  /// Card dimension factors (relative to smaller screen dimension)
+  static const double cardBorderWidthFactor = borderWidthFactorSmall; // 0.002 - Border width as factor
+  static const double cardElevationFactor = 0.004; // ~4px on 1000px screen
   
   /// Animation durations
   static const Duration animationDurationFast = Duration(milliseconds: 100);
@@ -341,7 +345,7 @@ class AppConfig {
   static const double machineInteriorDialogContentSpacingFactor = 0.5; // Spacing between content sections as factor of padding
   static const double machineInteriorDialogCashDisplaySpacingFactor = 0.3; // Spacing in cash display as factor of padding
   static const double machineInteriorDialogCashDisplayBorderRadiusFactor = 0.5; // Cash display border radius as factor of padding
-  static const double machineInteriorDialogCashDisplayBorderWidth = 2.0; // Cash display border width in pixels
+  static const double machineInteriorDialogCashDisplayBorderWidthFactor = borderWidthFactorSmall; // 0.002 - Border width as factor of dialog width
   
   // ============================================================================
   // MARKET PRODUCT CARD CONSTANTS
@@ -491,11 +495,11 @@ class AppConfig {
   static const int minBlockSize = 2;
   static const int maxBlockSize = 3;
   
-  /// Map padding
-  static const double mapSidePadding = 100.0;
-  static const double mapTopPadding = 150.0;
-  static const double mapBottomPadding = 30.0;
-  static const double mapTargetBottomGap = 20.0;
+  /// Map padding factors (relative to map dimensions)
+  static const double mapSidePaddingFactor = 0.1;    // 10% of map width (100px on 1000px map)
+  static const double mapTopPaddingFactor = 0.15;     // 15% of map height (150px on 1000px map)
+  static const double mapBottomPaddingFactor = 0.03; // 3% of map height (30px on 1000px map)
+  static const double mapTargetBottomGapFactor = 0.02; // 2% of map height (20px on 1000px map)
   
   /// Initial zoom
   static const double initialMapZoom = 1.5;

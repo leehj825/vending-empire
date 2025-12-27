@@ -606,9 +606,12 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     }
     
     // Add generous padding for the map canvas to ensure no clipping during pans/scales
-    const double sidePadding = AppConfig.mapSidePadding;
-    const double topPadding = AppConfig.mapTopPadding;
-    const double bottomPadding = AppConfig.mapBottomPadding;
+    // Calculate padding relative to map dimensions
+    final initialMapWidth = maxX - minX;
+    final initialMapHeight = maxY - minY;
+    final sidePadding = initialMapWidth * AppConfig.mapSidePaddingFactor;
+    final topPadding = initialMapHeight * AppConfig.mapTopPaddingFactor;
+    final bottomPadding = initialMapHeight * AppConfig.mapBottomPaddingFactor;
     
     minX -= sidePadding;
     maxX += sidePadding;
@@ -635,7 +638,7 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
         
         // Vertical: Bottom Align in the container
         // We want the bottom visual edge (maxY) to be 'targetBottomGap' from container bottom.
-        const double targetBottomGap = AppConfig.mapTargetBottomGap; 
+        final double targetBottomGap = mapHeight * AppConfig.mapTargetBottomGapFactor; 
         // Logic: containerHeight - targetBottomGap = New Visual Bottom Position
         // Visual Bottom Position = (maxY + dy)
         // dy = containerHeight - targetBottomGap - maxY
@@ -821,10 +824,10 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
             ),
             decoration: BoxDecoration(
               color: Colors.blue.shade700.withValues(alpha: 0.95),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, AppConfig.borderRadiusFactorSmall)),
               border: Border.all(
                 color: Colors.white,
-                width: 1.5,
+                width: ScreenUtils.relativeSize(context, AppConfig.borderWidthFactorSmall * 1.5),
               ),
               boxShadow: [
                 BoxShadow(

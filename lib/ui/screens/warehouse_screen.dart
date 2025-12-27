@@ -125,7 +125,7 @@ class WarehouseScreen extends ConsumerWidget {
                       padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.spacingFactorXLarge)),
                       decoration: BoxDecoration(
                         color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, AppConfig.borderRadiusFactorSmall)),
                       ),
                       child: Row(
                         children: [
@@ -157,8 +157,8 @@ class WarehouseScreen extends ConsumerWidget {
               ),
             ),
           ),
-          const SliverToBoxAdapter(
-            child: Divider(height: 1),
+          SliverToBoxAdapter(
+            child: Divider(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorTiny)),
           ),
           // Market Header
           SliverToBoxAdapter(

@@ -48,7 +48,7 @@ class _GameButtonState extends State<GameButton> {
         ),
         decoration: BoxDecoration(
           color: isEnabled ? widget.color : Colors.grey,
-          borderRadius: BorderRadius.circular(AppConfig.gameButtonBorderRadius),
+          borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, AppConfig.gameButtonBorderRadiusFactor)),
           // "3D" bottom shadow border
           boxShadow: _isPressed || !isEnabled
               ? []
@@ -59,7 +59,10 @@ class _GameButtonState extends State<GameButton> {
                     blurRadius: 0, // Sharp shadow for "game" feel
                   ),
                 ],
-          border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.5),
+            width: ScreenUtils.relativeSize(context, AppConfig.borderWidthFactorSmall),
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -74,7 +77,7 @@ class _GameButtonState extends State<GameButton> {
                   AppConfig.gameButtonIconSizeFactor,
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall * 4)),
             ],
             Text(
               widget.label.toUpperCase(),

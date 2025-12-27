@@ -4,6 +4,8 @@ import 'package:flame/game.dart';
 import '../../game/city_map_game.dart';
 import '../../simulation/models/machine.dart';
 import '../../state/providers.dart';
+import '../../config.dart';
+import '../utils/screen_utils.dart';
 
 /// Screen that displays the city map using Flame game engine
 class MapScreen extends ConsumerWidget {
@@ -69,10 +71,12 @@ class MapScreen extends ConsumerWidget {
                 right: 16,
                 bottom: 16,
                 child: Card(
-                  elevation: 8,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: ScreenUtils.relativeSize(context, AppConfig.cardElevationFactor * 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, AppConfig.borderRadiusFactorMedium)),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: EdgeInsets.all(ScreenUtils.relativeSize(context, AppConfig.paddingMediumFactor)),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -86,7 +90,7 @@ class MapScreen extends ConsumerWidget {
                                 style: Theme.of(context).textTheme.titleMedium,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.spacingFactorSmall * 2)),
                               Text(
                                 'View details on HQ page',
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
