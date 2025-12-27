@@ -82,6 +82,7 @@ class SimulationState {
   final math.Random random;
   final double? warehouseRoadX; // Road tile X coordinate next to warehouse
   final double? warehouseRoadY; // Road tile Y coordinate next to warehouse
+  final double rushMultiplier; // Sales multiplier during Rush Hour (default 1.0)
 
   const SimulationState({
     required this.time,
@@ -92,6 +93,7 @@ class SimulationState {
     required this.random,
     this.warehouseRoadX,
     this.warehouseRoadY,
+    this.rushMultiplier = 1.0,
   });
 
   SimulationState copyWith({
@@ -103,6 +105,7 @@ class SimulationState {
     math.Random? random,
     double? warehouseRoadX,
     double? warehouseRoadY,
+    double? rushMultiplier,
   }) {
     return SimulationState(
       time: time ?? this.time,
@@ -113,6 +116,7 @@ class SimulationState {
       random: random ?? this.random,
       warehouseRoadX: warehouseRoadX ?? this.warehouseRoadX,
       warehouseRoadY: warehouseRoadY ?? this.warehouseRoadY,
+      rushMultiplier: rushMultiplier ?? this.rushMultiplier,
     );
   }
 }
@@ -133,6 +137,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     required List<Truck> initialTrucks,
     double initialCash = 2000.0,
     int initialReputation = 100,
+    double initialRushMultiplier = 1.0,
   }) : super(
           SimulationState(
             time: const GameTime(day: 1, hour: 8, minute: 0, tick: 1000), // 8:00 AM = 8 hours * 125 ticks/hour = 1000 ticks
@@ -141,6 +146,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
             cash: initialCash,
             reputation: initialReputation,
             random: math.Random(),
+            rushMultiplier: initialRushMultiplier,
           ),
         );
 
@@ -185,6 +191,13 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     _streamController.add(state);
   }
 
+  /// Update rush multiplier in the simulation
+  void updateRushMultiplier(double multiplier) {
+    print('🔴 ENGINE: Updating rush multiplier to $multiplier');
+    state = state.copyWith(rushMultiplier: multiplier);
+    _streamController.add(state);
+  }
+
   /// Restore simulation state (used for loading saved games)
   void restoreState({
     required GameTime time,
@@ -194,6 +207,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
     required int reputation,
     double? warehouseRoadX,
     double? warehouseRoadY,
+    double rushMultiplier = 1.0,
   }) {
     print('🔴 ENGINE: Restoring state - Day ${time.day} ${time.hour}:00');
     state = state.copyWith(
@@ -204,6 +218,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
       reputation: reputation,
       warehouseRoadX: warehouseRoadX,
       warehouseRoadY: warehouseRoadY,
+      rushMultiplier: rushMultiplier,
     );
     _streamController.add(state);
   }
@@ -348,7 +363,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
 
     final nextTime = currentState.time.nextTick();
 
-    // 1. Process Sales (with reputation bonus)
+    // 1. Process Sales (with reputation bonus and rush multiplier)
     final salesResult = _processMachineSales(currentState.machines, nextTime, currentState.reputation);
     var updatedMachines = salesResult.machines;
     final totalSalesThisTick = salesResult.totalSales;
@@ -401,6 +416,7 @@ class SimulationEngine extends StateNotifier<SimulationState> {
   ) {
     var totalSales = 0;
     final reputationMultiplier = _calculateReputationMultiplier(currentReputation);
+    final rushMultiplier = state.rushMultiplier; // Get rush multiplier from state
     
     final updatedMachines = machines.map((machine) {
       // Skip sales processing if machine is under maintenance
@@ -435,8 +451,8 @@ class SimulationEngine extends StateNotifier<SimulationState> {
         final zoneMultiplier = machine.zone.getDemandMultiplier(time.hour);
         final trafficMultiplier = machine.zone.trafficMultiplier;
         
-        // Apply reputation bonus (calculated once per tick, reused for all products)
-        final saleChancePerHour = baseDemand * zoneMultiplier * trafficMultiplier * reputationMultiplier;
+        // Apply reputation bonus and rush multiplier (calculated once per tick, reused for all products)
+        final saleChancePerHour = baseDemand * zoneMultiplier * trafficMultiplier * reputationMultiplier * rushMultiplier;
         final saleChance = saleChancePerHour / SimulationConstants.ticksPerHour; // Divide by ticksPerHour to get chance per tick
         
         // Clamp to reasonable range (0.0 to 1.0)

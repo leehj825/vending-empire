@@ -25,6 +25,11 @@ abstract class GlobalGameState with _$GlobalGameState {
     @Default([]) List<double> dailyRevenueHistory, // Last 7 days of revenue
     @Default(0.0) double currentDayRevenue, // Revenue accumulated for current day
     @Default({}) Map<Product, int> productSalesCount, // Global sales count per product
+    @Default(0.0) double hypeLevel, // Marketing hype level (0.0 to 1.0)
+    @Default(false) bool isRushHour, // Whether Rush Hour is currently active
+    @Default(1.0) double rushMultiplier, // Sales multiplier during Rush Hour (default 1.0, 10.0 during rush)
+    @Default(null) int? marketingButtonGridX, // Marketing button grid X position (0-9)
+    @Default(null) int? marketingButtonGridY, // Marketing button grid Y position (0-9)
   }) = _GlobalGameState;
 
   const GlobalGameState._();

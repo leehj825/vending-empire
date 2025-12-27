@@ -12,6 +12,7 @@ import '../../config.dart';
 import '../theme/zone_ui.dart';
 import '../utils/screen_utils.dart';
 import '../widgets/machine_interior_dialog.dart';
+import '../widgets/marketing_button.dart';
 
 enum TileType {
   grass,
@@ -129,6 +130,14 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
       final controller = ref.read(gameControllerProvider.notifier);
       if (!controller.isSimulationRunning) {
         controller.startSimulation();
+      }
+      
+      // Ensure marketing button is spawned if it doesn't exist
+      final gameState = ref.read(gameStateProvider);
+      if ((gameState.marketingButtonGridX == null || 
+           gameState.marketingButtonGridY == null) && 
+          !gameState.isRushHour) {
+        controller.spawnMarketingButton();
       }
     });
   }
@@ -770,6 +779,98 @@ class _TileCityScreenState extends ConsumerState<TileCityScreen> {
     final gameTrucks = ref.watch(trucksProvider);
     for (final truck in gameTrucks) {
       tiles.add(_buildGameTruck(context, truck, centerOffset, tileWidth, tileHeight));
+    }
+
+    // Add Marketing Button if position is set (show during rush hour too, but with fire icon)
+    final gameState = ref.watch(gameStateProvider);
+    
+    if (gameState.marketingButtonGridX != null && 
+        gameState.marketingButtonGridY != null) {
+      final buttonGridX = gameState.marketingButtonGridX!;
+      final buttonGridY = gameState.marketingButtonGridY!;
+      final screenPos = _gridToScreen(context, buttonGridX, buttonGridY);
+      final positionedX = screenPos.dx + centerOffset.dx;
+      final positionedY = screenPos.dy + centerOffset.dy;
+      
+      buttons.add(
+        MarketingButton(
+          gridX: buttonGridX,
+          gridY: buttonGridY,
+          screenPosition: Offset(positionedX, positionedY),
+          tileWidth: tileWidth,
+          tileHeight: tileHeight,
+        ),
+      );
+      
+      // Add instruction message above the button (only when not in rush hour)
+      if (!gameState.isRushHour) {
+        final messageOffsetX = positionedX - tileWidth * 0.5;
+        final messageOffsetY = positionedY - tileHeight * 0.8; // Lower above button
+        
+        buttons.add(
+          Positioned(
+            left: messageOffsetX,
+            top: messageOffsetY,
+            child: Container(
+            constraints: BoxConstraints(
+              maxWidth: tileWidth * 2.5, // Smaller width
+            ),
+            padding: EdgeInsets.symmetric(
+              horizontal: ScreenUtils.relativeSize(context, 0.01),
+              vertical: ScreenUtils.relativeSize(context, 0.005),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade700.withValues(alpha: 0.95),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Colors.white,
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 6,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.touch_app,
+                  color: Colors.white,
+                  size: ScreenUtils.relativeSize(context, 0.025), // Smaller icon
+                ),
+                SizedBox(width: ScreenUtils.relativeSize(context, 0.005)),
+                Flexible(
+                  child: Text(
+                    'Keep pressing to rush selling!',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: ScreenUtils.relativeFontSize(
+                        context,
+                        0.018, // Smaller font
+                        min: ScreenUtils.getSmallerDimension(context) * 0.014,
+                        max: ScreenUtils.getSmallerDimension(context) * 0.025,
+                      ),
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          blurRadius: 2,
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        );
+      }
     }
 
     return {'tiles': tiles, 'buttons': buttons};
