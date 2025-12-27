@@ -43,7 +43,7 @@ class MarketProductCard extends ConsumerWidget {
     return GestureDetector(
       onTap: () => _showBuyDialog(context, ref, product, unitPrice),
       child: Card(
-        elevation: 2,
+        elevation: ScreenUtils.relativeSize(context, AppConfig.cardElevationFactor * 0.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(
             ScreenUtils.relativeSize(context, AppConfig.borderRadiusFactorMedium),

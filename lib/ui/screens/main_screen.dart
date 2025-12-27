@@ -43,7 +43,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        elevation: 0,
+        elevation: 0, // AppBar elevation is typically 0
         toolbarHeight: 0,
       ),
       body: Column(
@@ -404,7 +404,7 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
         final buttonHeight = ScreenUtils.relativeSizeClamped(
           context,
           AppConfig.saveExitButtonHeightFactor,
-          min: AppConfig.buttonHeight, // Minimum for comfortable touch target
+          min: ScreenUtils.relativeSize(context, AppConfig.buttonHeightFactor), // Minimum for comfortable touch target
         );
         
         // Adjust button width for side-by-side layout
@@ -442,7 +442,7 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
                 ),
               ),
             ),
-            SizedBox(width: AppConfig.paddingSmall), // Spacing between buttons
+            SizedBox(width: ScreenUtils.relativeSize(context, AppConfig.paddingSmallFactor)), // Spacing between buttons
             // Exit Button
             GestureDetector(
               onTap: () => _exitToMenu(context, ref),
@@ -617,7 +617,7 @@ class _SaveGameDialogState extends State<_SaveGameDialog> {
                 },
               );
             }),
-            const SizedBox(height: 16),
+            SizedBox(height: ScreenUtils.relativeSize(context, AppConfig.paddingMediumFactor)),
             // Name input
             TextField(
               controller: _nameController,

@@ -2,6 +2,8 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../../config.dart';
+import '../utils/screen_utils.dart';
 
 /// Banner ad widget for displaying AdMob banner ads
 class AdMobBanner extends StatefulWidget {
@@ -103,11 +105,13 @@ class _AdMobBannerState extends State<AdMobBanner> {
         width: double.infinity,
         height: AdSize.banner.height.toDouble(),
         color: Colors.grey[200],
-        child: const Center(
+        child: Center(
           child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            width: ScreenUtils.relativeSize(context, AppConfig.iconSizeSmallFactor),
+            height: ScreenUtils.relativeSize(context, AppConfig.iconSizeSmallFactor),
+            child: CircularProgressIndicator(
+              strokeWidth: ScreenUtils.relativeSize(context, AppConfig.borderWidthFactorSmall),
+            ),
           ),
         ),
       );

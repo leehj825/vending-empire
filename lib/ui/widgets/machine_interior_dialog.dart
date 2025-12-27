@@ -313,7 +313,7 @@ class _MachineInteriorDialogState extends ConsumerState<MachineInteriorDialog> {
                               borderRadius: BorderRadius.circular(padding * AppConfig.machineInteriorDialogCashDisplayBorderRadiusFactor),
                               border: Border.all(
                                 color: _hasCash ? Colors.green : Colors.grey,
-                                width: AppConfig.machineInteriorDialogCashDisplayBorderWidth,
+                                width: dialogWidth * AppConfig.machineInteriorDialogCashDisplayBorderWidthFactor,
                               ),
                             ),
                             child: Column(

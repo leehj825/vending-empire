@@ -183,6 +183,7 @@ class MapMachine extends PositionComponent with TapCallbacks, HasGameReference<C
     );
 
     // Draw white exclamation mark
+    // Font size relative to component size (12% of component width)
     paint.color = Colors.white;
     paint.style = PaintingStyle.fill;
     final textPainter = TextPainter(
@@ -190,11 +191,12 @@ class MapMachine extends PositionComponent with TapCallbacks, HasGameReference<C
         text: '!',
         style: TextStyle(
           color: Colors.white,
-          fontSize: 16,
+          fontSize: 16, // Relative to component size - will be scaled by game zoom
           fontWeight: FontWeight.bold,
         ),
       ),
       textDirection: TextDirection.ltr,
+      textScaleFactor: size.x / 50.0, // Scale relative to base component size (50px)
     );
     textPainter.layout();
     textPainter.paint(

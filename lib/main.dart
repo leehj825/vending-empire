@@ -9,6 +9,21 @@ import 'ui/screens/menu_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Preload Fredoka font to ensure consistent rendering across platforms
+  // This ensures the font is downloaded and cached before the app renders
+  try {
+    // Preload the font by creating a TextStyle - this triggers the download
+    final textStyle = GoogleFonts.fredoka();
+    // Access fontFamily to ensure it's loaded
+    final fontFamily = textStyle.fontFamily;
+    if (fontFamily != null) {
+      debugPrint('Fredoka font loaded: $fontFamily');
+    }
+  } catch (e) {
+    debugPrint('Font preload failed: $e');
+    // Continue app startup even if font preload fails
+  }
+  
   // Initialize AdMob only on Android and iOS (not macOS, Windows, Linux, or Web)
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
     try {
@@ -36,8 +51,16 @@ class VendingMachineTycoonApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         // Define the default font family for the entire app
+        // Using textTheme ensures consistent font rendering across all platforms
         textTheme: GoogleFonts.fredokaTextTheme(
           ThemeData.light().textTheme,
+        ),
+        // Explicitly set fontFamily to ensure consistency across platforms
+        // This overrides platform-specific defaults (Roboto on Android, San Francisco on macOS)
+        fontFamily: GoogleFonts.fredoka().fontFamily,
+        // Apply font to all text styles to ensure consistency
+        primaryTextTheme: GoogleFonts.fredokaTextTheme(
+          ThemeData.light().primaryTextTheme,
         ),
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.green,

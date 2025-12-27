@@ -350,8 +350,8 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                 children: [
                   Padding(
                     padding: EdgeInsets.symmetric(
-                      horizontal: AppConfig.paddingMedium,
-                      vertical: AppConfig.paddingSmall,
+                      horizontal: ScreenUtils.relativeSize(context, AppConfig.paddingMediumFactor),
+                      vertical: ScreenUtils.relativeSize(context, AppConfig.paddingSmallFactor),
                     ),
                     child: Text(
                       'Select Truck',
@@ -638,8 +638,8 @@ class _RoutePlannerScreenState extends ConsumerState<RoutePlannerScreen> {
                               children: [
                                 LayoutBuilder(
                                   builder: (context, rowConstraints) {
-                                    // Use AppConfig.iconSizeSmall directly (it's already in pixels, not a factor)
-                                    final iconSize = AppConfig.iconSizeSmall;
+                                    // Use relative icon size
+                                    final iconSize = ScreenUtils.relativeSize(context, AppConfig.iconSizeSmallFactor);
                                     final spacing = AppConfig.spacingFactorMedium * ScreenUtils.getSmallerDimension(context);
                                     return Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -1293,7 +1293,7 @@ class _SmallGameButtonState extends State<_SmallGameButton> {
         ),
         decoration: BoxDecoration(
           color: isEnabled ? widget.color : Colors.grey,
-          borderRadius: BorderRadius.circular(AppConfig.smallGameButtonBorderRadius),
+          borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, AppConfig.smallGameButtonBorderRadiusFactor)),
           boxShadow: _isPressed || !isEnabled
               ? []
               : [
@@ -1409,7 +1409,7 @@ class _BuyTruckButtonState extends State<_BuyTruckButton> {
           ),
           decoration: BoxDecoration(
             color: isEnabled ? Colors.green : Colors.grey,
-            borderRadius: BorderRadius.circular(AppConfig.gameButtonBorderRadius),
+            borderRadius: BorderRadius.circular(ScreenUtils.relativeSize(context, AppConfig.gameButtonBorderRadiusFactor)),
             boxShadow: _isPressed || !isEnabled
                 ? []
                 : [
