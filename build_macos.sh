@@ -1,1 +1,1 @@
-flutter run -d macos let 
+flutter run -d macos

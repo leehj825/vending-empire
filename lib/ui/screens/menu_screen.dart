@@ -4,11 +4,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'main_screen.dart';
 import '../../state/save_load_service.dart';
 import '../../state/providers.dart';
+import '../../services/sound_service.dart';
 import '../utils/screen_utils.dart';
 
 /// Main menu screen shown at app startup
-class MenuScreen extends ConsumerWidget {
+class MenuScreen extends ConsumerStatefulWidget {
   const MenuScreen({super.key});
+
+  @override
+  ConsumerState<MenuScreen> createState() => _MenuScreenState();
+}
+
+class _MenuScreenState extends ConsumerState<MenuScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Play menu background music when screen is shown
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SoundService().playBackgroundMusic('sound/game_menu.mp3');
+    });
+  }
+
+  @override
+  void dispose() {
+    // Stop menu music when leaving the screen
+    SoundService().stopBackgroundMusic();
+    super.dispose();
+  }
 
   Future<void> _loadGame(BuildContext context, WidgetRef ref) async {
     final slots = await SaveLoadService.getSaveSlots();
@@ -62,6 +84,11 @@ class MenuScreen extends ConsumerWidget {
               // Start simulation after loading
               ref.read(gameControllerProvider.notifier).startSimulation();
 
+              // Stop menu music before navigating
+              await SoundService().stopBackgroundMusic();
+              // Small delay to ensure music stops
+              await Future.delayed(const Duration(milliseconds: 100));
+
               // Navigate to main game screen in next frame
               // Use pushAndRemoveUntil instead of pushReplacement to handle case when no routes exist
               if (context.mounted) {
@@ -108,7 +135,7 @@ class MenuScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -153,17 +180,24 @@ class MenuScreen extends ConsumerWidget {
                         SizedBox(
                           width: smallerDim * 0.7,
                           child: GestureDetector(
-                            onTap: () {
+                            onTap: () async {
+                              SoundService().playButtonSound();
+                              // Stop menu music before navigating
+                              await SoundService().stopBackgroundMusic();
+                              // Small delay to ensure music stops
+                              await Future.delayed(const Duration(milliseconds: 100));
                               // Reset game to initial state
                               ref.read(gameControllerProvider.notifier).resetGame();
                               // Start simulation before navigating
                               ref.read(gameControllerProvider.notifier).startSimulation();
                               // Navigate to main game screen
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (context) => const MainScreen(),
-                                ),
-                              );
+                              if (context.mounted) {
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (context) => const MainScreen(),
+                                  ),
+                                );
+                              }
                             },
                             child: Image.asset(
                               'assets/images/start_button.png',
@@ -211,7 +245,10 @@ class MenuScreen extends ConsumerWidget {
                                   builder: (context, snapshot) {
                                     final hasSave = snapshot.data ?? false;
                                     return GestureDetector(
-                                      onTap: hasSave ? () => _loadGame(context, ref) : null,
+                                      onTap: hasSave ? () {
+                                        SoundService().playButtonSound();
+                                        _loadGame(context, ref);
+                                      } : null,
                                       child: Opacity(
                                         opacity: hasSave ? 1.0 : 0.5,
                                         child: Image.asset(
@@ -253,6 +290,7 @@ class MenuScreen extends ConsumerWidget {
                               Expanded(
                                 child: GestureDetector(
                                   onTap: () {
+                                    SoundService().playButtonSound();
                                     // TODO: Implement options screen
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
@@ -297,6 +335,7 @@ class MenuScreen extends ConsumerWidget {
                               Expanded(
                                 child: GestureDetector(
                                   onTap: () {
+                                    SoundService().playButtonSound();
                                     // TODO: Implement credits screen
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(

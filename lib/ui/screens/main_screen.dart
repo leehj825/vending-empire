@@ -8,6 +8,7 @@ import '../../state/providers.dart';
 import '../../state/save_load_service.dart';
 import '../../state/selectors.dart';
 import '../../config.dart';
+import '../../services/sound_service.dart';
 import 'menu_screen.dart';
 import '../utils/screen_utils.dart';
 import '../widgets/admob_banner.dart';
@@ -31,10 +32,31 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     WarehouseScreen(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    // Play game background music when screen is shown
+    // Use a small delay to ensure menu music has stopped and screen is fully loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        SoundService().playBackgroundMusic('sound/game_background.m4a');
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    // Stop background music when leaving the screen
+    SoundService().stopBackgroundMusic();
+    super.dispose();
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+    // No need to call playBackgroundMusic here - it's already playing
+    // The IndexedStack keeps the MainScreen alive, so music persists naturally
   }
 
   @override
@@ -416,7 +438,10 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
           children: [
             // Save Button
             GestureDetector(
-              onTap: () => _saveGame(context, ref),
+              onTap: () {
+                SoundService().playButtonSound();
+                _saveGame(context, ref);
+              },
               child: Container(
                 width: sideBySideButtonWidth,
                 height: buttonHeight,
@@ -445,7 +470,10 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
             SizedBox(width: ScreenUtils.relativeSize(context, AppConfig.paddingSmallFactor)), // Spacing between buttons
             // Exit Button
             GestureDetector(
-              onTap: () => _exitToMenu(context, ref),
+              onTap: () {
+                SoundService().playButtonSound();
+                _exitToMenu(context, ref);
+              },
               child: Container(
                 width: sideBySideButtonWidth,
                 height: buttonHeight,
@@ -524,6 +552,8 @@ class _CustomBottomNavigationBar extends ConsumerWidget {
               Navigator.of(context).pop();
               // Stop simulation before exiting
               ref.read(gameControllerProvider.notifier).stopSimulation();
+              // Stop game background music before navigating
+              SoundService().stopBackgroundMusic();
               // Navigate back to menu screen
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(

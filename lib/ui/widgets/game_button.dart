@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../config.dart';
+import '../../services/sound_service.dart';
 import '../utils/screen_utils.dart';
 
 class GameButton extends StatefulWidget {
@@ -32,7 +33,12 @@ class _GameButtonState extends State<GameButton> {
       onTapDown: isEnabled ? (_) => setState(() => _isPressed = true) : null,
       onTapUp: isEnabled ? (_) => setState(() => _isPressed = false) : null,
       onTapCancel: isEnabled ? () => setState(() => _isPressed = false) : null,
-      onTap: widget.onPressed,
+      onTap: isEnabled && widget.onPressed != null
+          ? () {
+              SoundService().playButtonSound();
+              widget.onPressed?.call();
+            }
+          : null,
       child: AnimatedContainer(
         duration: AppConfig.animationDurationFast,
         margin: EdgeInsets.only(top: _isPressed ? 4 : 0), // Push down effect

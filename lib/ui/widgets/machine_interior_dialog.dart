@@ -4,6 +4,7 @@ import '../../simulation/models/machine.dart';
 import '../../simulation/models/zone.dart';
 import '../../state/providers.dart';
 import '../../config.dart';
+import '../../services/sound_service.dart';
 import '../utils/screen_utils.dart';
 import '../theme/zone_ui.dart';
 
@@ -140,7 +141,8 @@ class _MachineInteriorDialogState extends ConsumerState<MachineInteriorDialog> {
       _currentMachine = updatedMachine;
     });
 
-    // TODO: Play paper_cash.mp3 if Zone A tapped, play coin_rattle.mp3 if Zone B tapped
+    // Play coin collect sound
+    SoundService().playCoinCollectSound();
     print('Collected \$${cashToCollect.toStringAsFixed(2)} from ${zone == 'A' ? 'Bill Validator' : 'Coin Bin'}');
   }
 
