@@ -19,6 +19,8 @@ class SoundService {
   double _musicVolume = AppConfig.menuMusicDefaultVolume; // Base music volume (used for menu music)
   double _gameBackgroundVolume = AppConfig.gameBackgroundMusicDefaultVolume; // Lower volume for game background music
   double _soundVolume = AppConfig.soundEffectsMaxVolume; // Start at max, player can adjust down
+  double _soundVolumeMultiplier = AppConfig.soundVolumeMultiplier; // Overall sound effects multiplier (player adjustable)
+  double _musicVolumeMultiplier = AppConfig.musicVolumeMultiplier; // Overall music multiplier (player adjustable)
   String? _currentMusicPath; // Track what music is currently playing
   DateTime? _lastMusicStartTime; // Track when music was last started (to prevent immediate stops)
   Timer? _fadeTimer; // Timer for monitoring position and handling fade
@@ -57,6 +59,12 @@ class SoundService {
   
   /// Get maximum sound effects volume from config
   double get soundEffectsMaxVolume => AppConfig.soundEffectsMaxVolume;
+  
+  /// Get current sound volume multiplier (0.0 to 1.0)
+  double get soundVolumeMultiplier => _soundVolumeMultiplier;
+  
+  /// Get current music volume multiplier (0.0 to 1.0)
+  double get musicVolumeMultiplier => _musicVolumeMultiplier;
 
   /// Enable or disable background music
   void setMusicEnabled(bool enabled) {
@@ -72,20 +80,28 @@ class SoundService {
   }
 
   /// Set music volume (0.0 to 1.0) - affects menu music
+  /// Note: This should only be called from config initialization
+  /// Menu music volume is controlled via config.dart only
   void setMusicVolume(double volume) {
     _musicVolume = volume.clamp(0.0, 1.0);
-    // Update current player volume if menu music is playing
+    // Update current player volume if menu music is playing (apply music multiplier)
     if (_currentMusicPath != null && !_currentMusicPath!.contains('game_background')) {
-      _backgroundMusicPlayer.setVolume(_musicVolume);
+      final finalVolume = (_musicVolume * _musicVolumeMultiplier).clamp(0.0, 1.0);
+      _backgroundMusicPlayer.setVolume(finalVolume);
+      _targetVolume = finalVolume; // Update target volume for fade
     }
   }
 
   /// Set game background music volume (0.0 to 1.0)
+  /// Note: This should only be called from config initialization
+  /// Game background music volume is controlled via config.dart only
   void setGameBackgroundVolume(double volume) {
     _gameBackgroundVolume = volume.clamp(0.0, 1.0);
-    // Update current player volume if game background music is playing
+    // Update current player volume if game background music is playing (apply music multiplier)
     if (_currentMusicPath != null && _currentMusicPath!.contains('game_background')) {
-      _backgroundMusicPlayer.setVolume(_gameBackgroundVolume);
+      final finalVolume = (_gameBackgroundVolume * _musicVolumeMultiplier).clamp(0.0, 1.0);
+      _backgroundMusicPlayer.setVolume(finalVolume);
+      _targetVolume = finalVolume; // Update target volume for fade
     }
   }
 
@@ -96,6 +112,25 @@ class SoundService {
   void setSoundVolume(double volume) {
     _soundVolume = volume.clamp(0.0, AppConfig.soundEffectsMaxVolume);
     _soundEffectPlayer.setVolume(_soundVolume);
+  }
+  
+  /// Set sound volume multiplier (0.0 to 1.0)
+  /// This multiplier applies to all sound effects
+  void setSoundVolumeMultiplier(double multiplier) {
+    _soundVolumeMultiplier = multiplier.clamp(0.0, 1.0);
+  }
+  
+  /// Set music volume multiplier (0.0 to 1.0)
+  /// This multiplier applies to all background music
+  void setMusicVolumeMultiplier(double multiplier) {
+    _musicVolumeMultiplier = multiplier.clamp(0.0, 1.0);
+    // Update current music volume if music is playing
+    if (_currentMusicPath != null) {
+      final baseVolume = _currentMusicPath!.contains('game_background') ? _gameBackgroundVolume : _musicVolume;
+      final finalVolume = (baseVolume * _musicVolumeMultiplier).clamp(0.0, 1.0);
+      _backgroundMusicPlayer.setVolume(finalVolume);
+      _targetVolume = finalVolume; // Update target volume for fade
+    }
   }
 
   /// Play background music (looping)
@@ -160,8 +195,10 @@ class SoundService {
     _fadeTimer = null;
     _isFading = false;
     
-    // Determine volume based on which track is playing
-    final volume = assetPath.contains('game_background') ? _gameBackgroundVolume : _musicVolume;
+    // Determine base volume based on which track is playing
+    final baseVolume = assetPath.contains('game_background') ? _gameBackgroundVolume : _musicVolume;
+    // Apply overall music volume multiplier (player adjustable)
+    final volume = (baseVolume * _musicVolumeMultiplier).clamp(0.0, 1.0);
     _targetVolume = volume;
     
     // Configure for looping
@@ -172,6 +209,7 @@ class SoundService {
     await _backgroundMusicPlayer.play(AssetSource(assetPath));
     _currentMusicPath = assetPath; // Track what's playing
     _lastMusicStartTime = DateTime.now(); // Track when music started
+    _wasPlayingBeforePause = true; // Mark that music is now playing
     
     // Get track duration and start fade monitoring
     _startFadeMonitoring(assetPath, volume);
@@ -243,6 +281,7 @@ class SoundService {
   }
   
   /// Fade in volume over the specified duration
+  /// targetVolume should already have musicVolumeMultiplier applied
   Future<void> _fadeIn(Duration duration, double targetVolume) async {
     const steps = 20; // Number of fade steps
     final stepDuration = duration ~/ steps;
@@ -286,6 +325,7 @@ class SoundService {
         _lastMusicStartTime = null; // Clear start time
         _trackDuration = null; // Clear duration
         _targetVolume = null; // Clear target volume
+        _wasPlayingBeforePause = false; // Clear playing state
         print('✅ Background music stopped');
       } else {
         print('ℹ️ No background music to stop');
@@ -308,9 +348,13 @@ class SoundService {
         _wasPlayingBeforePause = (playerState == PlayerState.playing);
         
         if (_wasPlayingBeforePause) {
-          print('⏸️ Pausing background music (app going to background)');
+          print('⏸️ Pausing background music (app going to background): $_currentMusicPath');
           await _backgroundMusicPlayer.pause();
+        } else {
+          print('ℹ️ Music not playing, nothing to pause');
         }
+      } else {
+        _wasPlayingBeforePause = false;
       }
     } catch (e) {
       print('Error pausing background music: $e');
@@ -320,17 +364,32 @@ class SoundService {
 
   /// Resume background music (e.g., when app returns to foreground)
   Future<void> resumeBackgroundMusic() async {
-    if (!_isMusicEnabled) return;
+    if (!_isMusicEnabled) {
+      print('🔇 Music is disabled, not resuming');
+      _wasPlayingBeforePause = false;
+      return;
+    }
     
     try {
       // Only resume if we have a track and it was playing before pause
       if (_currentMusicPath != null && _wasPlayingBeforePause) {
-        print('▶️ Resuming background music (app returning to foreground)');
+        print('▶️ Resuming background music (app returning to foreground): $_currentMusicPath');
         await _backgroundMusicPlayer.resume();
-        _wasPlayingBeforePause = false; // Reset flag
+        // Don't reset flag here - keep it until next pause/resume cycle
+      } else {
+        if (_currentMusicPath == null) {
+          print('ℹ️ No music track to resume');
+        } else if (!_wasPlayingBeforePause) {
+          print('ℹ️ Music was not playing before pause, not resuming');
+        }
       }
     } catch (e) {
       print('Error resuming background music: $e');
+      // Try to restart if resume fails
+      if (_currentMusicPath != null && _wasPlayingBeforePause) {
+        print('⚠️ Resume failed, attempting to restart: $_currentMusicPath');
+        await playBackgroundMusic(_currentMusicPath!);
+      }
       _wasPlayingBeforePause = false;
     }
   }
@@ -341,12 +400,12 @@ class SoundService {
     if (!_isSoundEnabled) return;
     
     try {
-      // Calculate final volume: player's sound volume * multiplier
-      final finalVolume = (_soundVolume * volumeMultiplier).clamp(0.0, AppConfig.soundEffectsMaxVolume);
+      // Calculate final volume: player's sound volume * overall sound multiplier (player adjustable) * individual sound multiplier
+      final finalVolume = (_soundVolume * _soundVolumeMultiplier * volumeMultiplier).clamp(0.0, AppConfig.soundEffectsMaxVolume);
       
       await _soundEffectPlayer.setReleaseMode(ReleaseMode.release);
       await _soundEffectPlayer.setVolume(finalVolume);
-      print('🔊 Playing sound effect: $assetPath (volume: $finalVolume = ${_soundVolume} * $volumeMultiplier)');
+      print('🔊 Playing sound effect: $assetPath (volume: $finalVolume = ${_soundVolume} * $_soundVolumeMultiplier * $volumeMultiplier)');
       await _soundEffectPlayer.play(AssetSource(assetPath));
     } catch (e) {
       print('❌ Error playing sound effect ($assetPath): $e');

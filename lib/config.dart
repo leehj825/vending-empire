@@ -10,22 +10,36 @@ class AppConfig {
   
   /// Maximum volume for sound effects (0.0 to 1.0)
   /// Players can adjust sound effects volume from 0.0 to this maximum value
-  static const double soundEffectsMaxVolume = 0.7;
+  static const double soundEffectsMaxVolume = 1.0;
+  
+  /// Overall sound effects volume multiplier (0.0 to 1.0)
+  /// This multiplier applies to ALL sound effects
+  /// Final sound volume = player slider * soundVolumeMultiplier * individual sound multiplier
+  /// Set to 1.0 for full volume, 0.5 for half volume, etc.
+  static const double soundVolumeMultiplier = 1.0;
   
   /// Volume multiplier for truck sound (0.0 to 1.0)
-  /// This is multiplied by the player's sound effects volume setting
+  /// This is multiplied by the overall sound volume multiplier and player's sound effects volume setting
   /// Set to 1.0 for full volume, 0.5 for half volume, etc.
   static const double truckSoundVolumeMultiplier = 1.0;
   
   /// Volume multiplier for coin collect sound (0.0 to 1.0)
-  /// This is multiplied by the player's sound effects volume setting
+  /// This is multiplied by the overall sound volume multiplier and player's sound effects volume setting
   /// Set to 1.0 for full volume, 0.5 for half volume, etc.
   static const double coinCollectSoundVolumeMultiplier = 1.2;
   
+  /// Overall music volume multiplier (0.0 to 1.0)
+  /// This multiplier applies to ALL background music (menu and game)
+  /// Final music volume = individual music volume * musicVolumeMultiplier
+  /// Set to 1.0 for full volume, 0.5 for half volume, etc.
+  static const double musicVolumeMultiplier = 1.0;
+  
   /// Default volume for menu music (0.0 to 1.0)
+  /// This is multiplied by musicVolumeMultiplier for final volume
   static const double menuMusicDefaultVolume = 0.6;
   
   /// Default volume for game background music (0.0 to 1.0)
+  /// This is multiplied by musicVolumeMultiplier for final volume
   static const double gameBackgroundMusicDefaultVolume = 0.3;
 
   // ============================================================================
