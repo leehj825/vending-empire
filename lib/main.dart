@@ -10,6 +10,17 @@ import 'services/sound_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Configure edge-to-edge display for Android 15+ (SDK 35+)
+  if (!kIsWeb && Platform.isAndroid) {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+      ),
+    );
+  }
+  
   // Lock orientation to portrait mode for mobile devices
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
     await SystemChrome.setPreferredOrientations([

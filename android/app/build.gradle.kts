@@ -73,6 +73,11 @@ android {
     }
 }
 
+dependencies {
+    // AndroidX Activity KTX for enableEdgeToEdge() support (Android 15+)
+    implementation("androidx.activity:activity-ktx:1.9.2")
+}
+
 flutter {
     source = "../.."
 }
